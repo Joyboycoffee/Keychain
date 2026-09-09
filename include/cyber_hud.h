@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <LovyanGFX.hpp>
 #include "display_setup.h"
 #include "config.h"
@@ -9,6 +9,7 @@ public:
     int minutes = 35;
     int seconds = 40;
     float batteryPct = 88.0f;
+    float batteryVolts = 3.85f;
     float weatherTemp = 28.0f;
     String weatherDesc = "CLEAR";
     uint32_t lastSecTick = 0;
@@ -21,6 +22,11 @@ public:
     void setWeather(float temp, const String& desc) {
         weatherTemp = temp;
         weatherDesc = desc;
+    }
+
+    void setBattery(float pct, float volts) {
+        batteryPct = pct;
+        batteryVolts = volts;
     }
 
     void update() {
@@ -71,7 +77,11 @@ public:
         canvas.setTextSize(1);
         canvas.drawString("BATTERY", 135, 88);
         char batStr[16];
-        snprintf(batStr, sizeof(batStr), "%d%%", (int)batteryPct);
+        if (batteryVolts < 2.5f) {
+            snprintf(batStr, sizeof(batStr), "USB-C");
+        } else {
+            snprintf(batStr, sizeof(batStr), "%d%%", (int)batteryPct);
+        }
         canvas.setTextSize(2);
         canvas.drawString(batStr, 135, 104);
 
@@ -86,8 +96,8 @@ public:
 
         // 5. Battery Gauge Bar at Bottom
         canvas.drawRoundRect(20, 206, 200, 14, 4, 0x07FF);
-        int barW = (int)((batteryPct / 100.0f) * 192.0f);
-        canvas.fillRoundRect(24, 209, barW, 8, 2, (batteryPct > 20) ? 0x07E0 : 0xF800);
+        int barW = (batteryVolts < 2.5f) ? 192 : (int)((batteryPct / 100.0f) * 192.0f);
+        canvas.fillRoundRect(24, 209, barW, 8, 2, (batteryVolts < 2.5f || batteryPct > 20) ? 0x07E0 : 0xF800);
     }
 
 private:

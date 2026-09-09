@@ -179,6 +179,40 @@
             color: #8b949e;
             margin-bottom: 6px;
         }
+
+        .battery-box {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .battery-val {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--green);
+            margin: 4px 0;
+        }
+
+        .battery-sub {
+            font-size: 12px;
+            color: #8b949e;
+        }
+
+        #logBox {
+            background: #090d16;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 8px;
+            font-size: 11px;
+            color: #8b949e;
+            max-height: 80px;
+            overflow-y: auto;
+            margin-top: 10px;
+            font-family: monospace;
+        }
     </style>
 </head>
 <body>
@@ -193,6 +227,19 @@
         <button id="btnConnect" class="btn-connect" onclick="connectBLE()">
             <span>🔗 CONNECT KEYCHAIN</span>
         </button>
+        <div id="logBox">Ready. Click Connect to pair.</div>
+    </div>
+
+    <!-- Battery Telemetry Card -->
+    <div class="card">
+        <h2>🔋 Battery Telemetry (GPIO 0)</h2>
+        <button onclick="readBattery()" style="background: #1f6feb; border-color: #388bfd;">
+            <span>⚡ READ BATTERY STATUS</span>
+        </button>
+        <div class="battery-box">
+            <div id="batPercent" class="battery-val">-- %</div>
+            <div id="batVoltage" class="battery-sub">Voltage: -- V | ADC: -- mV</div>
+        </div>
     </div>
 
     <!-- Mode Selector Card -->
@@ -251,34 +298,53 @@
         <div class="slider-wrap">
             <div class="slider-label">
                 <span>Dim</span>
-                <span id="brVal">75%</span>
+                <span id="brVal">85%</span>
                 <span>Max</span>
             </div>
-            <input type="range" min="30" max="255" value="190" id="brSlider" oninput="updateBrightness(this.value)">
+            <input type="range" min="30" max="255" value="220" id="brSlider" oninput="updateBrightness(this.value)">
         </div>
     </div>
 
     <script>
-        const SERVICE_UUID       = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
-        const CHAR_MODE_UUID     = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
-        const CHAR_PET_UUID      = "1c95d5e3-d8f7-413a-bf3d-7a2e5d7be87e";
-        const CHAR_TEXT_UUID     = "d8e4f1a2-5b3c-4e89-a1d2-9c8b7a6f5e4d";
-        const CHAR_TIME_UUID     = "e9a1b2c3-d4e5-6f7a-8b9c-0d1e2f3a4b5c";
-        const CHAR_SETTINGS_UUID = "f1a2b3c4-d5e6-7a8b-9c0d-1e2f3a4b5c6d";
+        const SERVICE_UUID       = 0xFFE0;
+        const CHAR_MODE_UUID     = 0xFFE1;
+        const CHAR_PET_UUID      = 0xFFE2;
+        const CHAR_TEXT_UUID     = 0xFFE3;
+        const CHAR_TIME_UUID     = 0xFFE4;
+        const CHAR_SETTINGS_UUID = 0xFFE5;
+        const CHAR_BATTERY_UUID  = 0xFFE6;
 
         let bleDevice = null;
         let gattServer = null;
-        let charMode, charPet, charText, charTime, charSettings;
+        let charMode, charPet, charText, charTime, charSettings, charBattery;
+
+        function log(msg) {
+            const box = document.getElementById('logBox');
+            box.innerHTML += `<div>> ${msg}</div>`;
+            box.scrollTop = box.scrollHeight;
+        }
 
         async function connectBLE() {
             try {
+                log("Scanning for CYBER_KEYCHAIN...");
                 document.getElementById('statusBadge').innerText = "CONNECTING...";
+                
                 bleDevice = await navigator.bluetooth.requestDevice({
-                    filters: [{ name: 'CYBER_KEYCHAIN' }],
+                    filters: [
+                        { name: 'CYBER_KEYCHAIN' },
+                        { services: [SERVICE_UUID] }
+                    ],
                     optionalServices: [SERVICE_UUID]
+                }).catch(async () => {
+                    return await navigator.bluetooth.requestDevice({
+                        acceptAllDevices: true,
+                        optionalServices: [SERVICE_UUID]
+                    });
                 });
 
+                log(`Connecting to: ${bleDevice.name || 'CYBER_KEYCHAIN'}`);
                 bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
+                
                 gattServer = await bleDevice.gatt.connect();
                 const service = await gattServer.getPrimaryService(SERVICE_UUID);
 
@@ -287,36 +353,64 @@
                 charText     = await service.getCharacteristic(CHAR_TEXT_UUID);
                 charTime     = await service.getCharacteristic(CHAR_TIME_UUID);
                 charSettings = await service.getCharacteristic(CHAR_SETTINGS_UUID);
+                charBattery  = await service.getCharacteristic(CHAR_BATTERY_UUID);
 
                 document.getElementById('statusBadge').innerText = "ONLINE 🟢";
                 document.getElementById('statusBadge').className = "status-badge online";
                 document.getElementById('btnConnect').innerHTML = "<span>✅ CONNECTED</span>";
+                log("All characteristics loaded. Ready!");
 
-                // Auto sync time upon connection
                 syncTimeAndWeather();
+                readBattery();
             } catch (err) {
                 console.error(err);
-                document.getElementById('statusBadge').innerText = "ERROR / CANCELLED";
+                log(`Error: ${err.message}`);
+                document.getElementById('statusBadge').innerText = "DISCONNECTED";
                 document.getElementById('statusBadge').className = "status-badge offline";
             }
         }
 
         function onDisconnected() {
+            log("Device disconnected.");
             document.getElementById('statusBadge').innerText = "DISCONNECTED";
             document.getElementById('statusBadge').className = "status-badge offline";
             document.getElementById('btnConnect').innerHTML = "<span>🔗 CONNECT KEYCHAIN</span>";
+        }
+
+        async function readBattery() {
+            if (!charBattery) {
+                log("Connect Bluetooth first to read battery.");
+                return;
+            }
+            try {
+                const val = await charBattery.readValue();
+                const str = new TextDecoder().decode(val);
+                const parts = str.split('|');
+                if (parts.length >= 3) {
+                    const volts = parts[0];
+                    const pct = parts[1];
+                    const mv = parts[2];
+                    document.getElementById('batPercent').innerText = `${pct}%`;
+                    document.getElementById('batVoltage').innerText = `Battery: ${volts}V | Raw ADC: ${mv}mV`;
+                    log(`Battery Read: ${volts}V (${pct}%)`);
+                }
+            } catch (e) {
+                log(`Battery read error: ${e.message}`);
+            }
         }
 
         async function setMode(modeNum) {
             if (!charMode) return;
             const data = new TextEncoder().encode(modeNum.toString());
             await charMode.writeValue(data);
+            log(`Mode set: ${modeNum}`);
         }
 
         async function setAvatar(avatarNum) {
             if (!charPet) return;
             const data = new TextEncoder().encode(avatarNum.toString());
             await charPet.writeValue(data);
+            log(`Avatar set: ${avatarNum}`);
         }
 
         async function sendCustomText() {
@@ -324,6 +418,7 @@
             const text = document.getElementById('txtMessage').value;
             const data = new TextEncoder().encode(text);
             await charText.writeValue(data);
+            log(`Message sent: ${text}`);
         }
 
         async function syncTimeAndWeather() {
@@ -335,7 +430,7 @@
             const payload = `${h}:${m}:${s}|28.5`;
             const data = new TextEncoder().encode(payload);
             await charTime.writeValue(data);
-            alert(`Synced time: ${h}:${m}:${s}`);
+            log(`Synced time: ${h}:${m}:${s}`);
         }
 
         async function updateBrightness(val) {

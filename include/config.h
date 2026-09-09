@@ -6,31 +6,32 @@
 // =========================================================================
 
 // 1.3" ST7789 240x240 SPI Display Pins
-#define PIN_TFT_SCL    6    // SPI Clock (SCL / SCK) - Clean Pin (Moved from GPIO 8)
-#define PIN_TFT_SDA    10   // SPI MOSI (SDA / DIN)
-#define PIN_TFT_RES    5    // Display Reset (RES / RST)
-#define PIN_TFT_DC     3    // Data / Command (DC)
-#define PIN_TFT_CS     7    // Chip Select (CS) - Set to -1 if your board doesn't have CS
-#define PIN_TFT_BL     2    // Backlight Control (BLK / LED) - PWM enabled
+#define PIN_TFT_SCL    6    // SPI Clock (SCL / SCK) - GPIO 6
+#define PIN_TFT_SDA    10   // SPI MOSI (SDA / DIN) - GPIO 10
+#define PIN_TFT_RES    5    // Display Reset (RES / RST) - GPIO 5
+#define PIN_TFT_DC     3    // Data / Command (DC) - GPIO 3
+#define PIN_TFT_CS     -1   // No CS pin on 7-pin display
+#define PIN_TFT_BL     2    // Backlight Control (BLK) - GPIO 2
 
-// TTP223 Touch Sensor (Connected to RTC GPIO for Deep Sleep Wakeup)
-#define PIN_TOUCH      1    // TTP223 I/O Signal Pin (GPIO 0-5 support RTC wakeup)
+// TTP223 Touch Sensor (RTC GPIO 1)
+#define PIN_TOUCH      1    // Touch signal pin
 
 // Onboard Blue Debug LED (GPIO 8)
-#define PIN_DEBUG_LED  8    // Onboard Blue LED for test/debugging & connection status
+#define PIN_DEBUG_LED  8    // Onboard Blue LED
 
-// Battery Voltage Sensing (Optional ADC Divider on GPIO 0)
-#define PIN_BAT_ADC    0    // 100k + 100k voltage divider to read 0-4.2V
+// Battery Voltage Sensing (GPIO 0 - ADC1_CH0)
+#define PIN_BAT_ADC    0    // Center tap of 100k+100k or 200k+200k voltage divider
 
 // =========================================================================
-// BLE SERVICE & CHARACTERISTIC UUIDs
+// BLE 16-BIT COMPACT UUIDs
 // =========================================================================
-#define SERVICE_UUID           "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
-#define CHAR_MODE_UUID         "beb5483e-36e1-4688-b7f5-ea07361b26a8" // Mode Select
-#define CHAR_PET_UUID          "1c95d5e3-d8f7-413a-bf3d-7a2e5d7be87e" // Pet Avatar & Interaction
-#define CHAR_TEXT_UUID         "d8e4f1a2-5b3c-4e89-a1d2-9c8b7a6f5e4d" // Custom Text Message
-#define CHAR_TIME_UUID         "e9a1b2c3-d4e5-6f7a-8b9c-0d1e2f3a4b5c" // Time & Weather Sync
-#define CHAR_SETTINGS_UUID     "f1a2b3c4-d5e6-7a8b-9c0d-1e2f3a4b5c6d" // Brightness & Sleep Config
+#define SERVICE_UUID           "FFE0"
+#define CHAR_MODE_UUID         "FFE1" // Mode Select
+#define CHAR_PET_UUID          "FFE2" // Pet Avatar & Interaction
+#define CHAR_TEXT_UUID         "FFE3" // Custom Text Message
+#define CHAR_TIME_UUID         "FFE4" // Time & Weather Sync
+#define CHAR_SETTINGS_UUID     "FFE5" // Brightness
+#define CHAR_BATTERY_UUID      "FFE6" // Live Battery Voltage & Telemetry
 
 // =========================================================================
 // SYSTEM MODES
@@ -45,10 +46,10 @@ enum SystemMode {
 
 enum PetMood {
     MOOD_IDLE,
-    MOOD_HAPPY,     // Triggered by holding / rubbing touch sensor
-    MOOD_ANGRY,     // Triggered by rapid spam / multi-tapping
-    MOOD_SLEEPING,  // Triggered after inactivity
-    MOOD_LOVE       // Heart eyes / purring
+    MOOD_HAPPY,
+    MOOD_ANGRY,
+    MOOD_SLEEPING,
+    MOOD_LOVE
 };
 
 enum PetAvatar {
