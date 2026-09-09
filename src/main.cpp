@@ -280,7 +280,7 @@ void setup() {
 
     // Display init
     tft.init();
-    tft.setRotation(1); // Rotated 90 degrees clockwise to the right
+    tft.setRotation(3); // Rotated 270 degrees (horizontal opposite / landscape left)
     tft.setBrightness(screenBrightness);
 
     // Sprite Double Buffer
