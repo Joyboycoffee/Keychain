@@ -41,10 +41,14 @@ class ServerCallbacks : public NimBLEServerCallbacks {
     void onConnect(NimBLEServer* pServer) {
         bleConnected = true;
         lastActivityTime = millis();
+        // Turn ON Blue LED to indicate Bluetooth Connected!
+        digitalWrite(PIN_DEBUG_LED, LOW); // Active-low on ESP32-C3 SuperMini
     }
     void onDisconnect(NimBLEServer* pServer) {
         bleConnected = false;
         lastActivityTime = millis();
+        // Turn OFF Blue LED
+        digitalWrite(PIN_DEBUG_LED, HIGH);
         NimBLEDevice::startAdvertising();
     }
 };
@@ -90,7 +94,6 @@ class TextCallback : public NimBLECharacteristicCallbacks {
 class TimeCallback : public NimBLECharacteristicCallbacks {
     void onWrite(NimBLECharacteristic* pChar) {
         std::string val = pChar->getValue();
-        // Format expected: "HH:MM:SS|TEMP" e.g. "21:45:00|27.5"
         if (val.length() >= 8) {
             int h = atoi(val.substr(0, 2).c_str());
             int m = atoi(val.substr(3, 2).c_str());
@@ -110,7 +113,6 @@ class TimeCallback : public NimBLECharacteristicCallbacks {
 class SettingsCallback : public NimBLECharacteristicCallbacks {
     void onWrite(NimBLECharacteristic* pChar) {
         std::string val = pChar->getValue();
-        // Format: "BRIGHTNESS:SLEEP_SEC" e.g. "200:30"
         if (val.length() > 0) {
             int br = atoi(val.c_str());
             if (br > 0 && br <= 255) {
@@ -130,12 +132,10 @@ void processTouch() {
     uint32_t now = millis();
 
     if (rawTouch && !isTouching) {
-        // Touch started
         isTouching = true;
         touchStartTime = now;
         lastActivityTime = now;
     } else if (!rawTouch && isTouching) {
-        // Touch released
         isTouching = false;
         touchReleaseTime = now;
         uint32_t duration = touchReleaseTime - touchStartTime;
@@ -145,21 +145,17 @@ void processTouch() {
         }
     }
 
-    // Check for Continuous Rub / Hold (> 1.2 seconds)
     if (isTouching && (now - touchStartTime > 1200)) {
         cyberPet.setMood(MOOD_HAPPY);
         robotEyes.setMood(MOOD_HAPPY);
         lastActivityTime = now;
     }
 
-    // Check for Multi-tap / Rage Tap timeout window
     if (!isTouching && tapCount > 0 && (now - touchReleaseTime > 400)) {
         if (tapCount >= 3) {
-            // Rage Tapped -> ANGRY MODE!
             cyberPet.setMood(MOOD_ANGRY);
             robotEyes.setMood(MOOD_ANGRY);
         } else if (tapCount == 1) {
-            // Single tap -> Cycle mode or wake reaction
             if (currentMode == MODE_CYBERPET) {
                 cyberPet.setAvatar((PetAvatar)((cyberPet.currentAvatar + 1) % 3));
             } else {
@@ -175,14 +171,16 @@ void processTouch() {
 // DEEP SLEEP ROUTINE
 // =========================================================================
 void enterDeepSleep() {
-    // Fade screen backlight out smoothly
+    // Turn OFF debug LED before sleeping
+    pinMode(PIN_DEBUG_LED, OUTPUT);
+    digitalWrite(PIN_DEBUG_LED, HIGH);
+
     for (int b = screenBrightness; b >= 0; b -= 15) {
         tft.setBrightness(b);
         delay(15);
     }
-    tft.writeCommand(0x10); // ST7789 Sleep In command
+    tft.writeCommand(0x10);
 
-    // Configure ESP32-C3 RTC GPIO Wakeup on Touch Pin
     gpio_wakeup_enable((gpio_num_t)PIN_TOUCH, GPIO_INTR_HIGH_LEVEL);
     esp_deep_sleep_enable_gpio_wakeup(1ULL << PIN_TOUCH, ESP_GPIO_WAKEUP_GPIO_HIGH);
 
@@ -197,8 +195,15 @@ void setup() {
 
     pinMode(PIN_TOUCH, INPUT);
     pinMode(PIN_TFT_BL, OUTPUT);
+    
+    // Configure Blue Debug LED (GPIO 8)
+    pinMode(PIN_DEBUG_LED, OUTPUT);
+    // Quick 2-blink startup test
+    digitalWrite(PIN_DEBUG_LED, LOW); delay(80);
+    digitalWrite(PIN_DEBUG_LED, HIGH); delay(80);
+    digitalWrite(PIN_DEBUG_LED, LOW); delay(80);
+    digitalWrite(PIN_DEBUG_LED, HIGH);
 
-    // Initialize Display & 240x240 Double Buffer Canvas
     tft.init();
     tft.setRotation(0);
     tft.setBrightness(screenBrightness);
@@ -206,9 +211,8 @@ void setup() {
     canvas.setColorDepth(16);
     canvas.createSprite(240, 240);
 
-    // Initialize NimBLE Bluetooth Server
     NimBLEDevice::init("CYBER_KEYCHAIN");
-    NimBLEDevice::setPower(ESP_PWR_LVL_P9); // Max TX power
+    NimBLEDevice::setPower(ESP_PWR_LVL_P9);
     NimBLEServer* pServer = NimBLEDevice::createServer();
     pServer->setCallbacks(new ServerCallbacks());
 
@@ -239,10 +243,8 @@ void setup() {
 }
 
 void loop() {
-    // 1. Process Touch Gestures
     processTouch();
 
-    // 2. Render Current Active Mode to Canvas Sprite
     switch (currentMode) {
         case MODE_CYBERPET:
             cyberPet.update();
@@ -266,10 +268,8 @@ void loop() {
             break;
     }
 
-    // 3. Push Sprite Buffer to Physical Display (60 FPS DMA transfer)
     canvas.pushSprite(0, 0);
 
-    // 4. Auto Sleep Management (if not connected to BLE and idle timeout exceeded)
     if (!bleConnected && (millis() - lastActivityTime > sleepTimeoutMs)) {
         enterDeepSleep();
     }
