@@ -5,8 +5,6 @@
 // =========================================================================
 // HARDWARE PIN DEFINITIONS (ESP32-C3 SuperMini)
 // =========================================================================
-
-// 1.3" ST7789 240x240 SPI Display Pins
 #define PIN_TFT_SCL    6    // SPI Clock (SCL / SCK) - GPIO 6
 #define PIN_TFT_SDA    10   // SPI MOSI (SDA / DIN) - GPIO 10
 #define PIN_TFT_RES    5    // Display Reset (RES / RST) - GPIO 5
@@ -24,7 +22,7 @@
 #define PIN_BAT_ADC    0    // Center tap of 100k+100k voltage divider
 
 // =========================================================================
-// BLE UNIVERSAL 128-BIT VENDOR UUIDs (100% Android / Windows / iOS compliant)
+// BLE UNIVERSAL 128-BIT VENDOR UUIDs
 // =========================================================================
 #define SERVICE_UUID           "6e400001-b5a3-f393-e0a9-e50e24dcca9e"
 #define CHAR_MODE_UUID         "6e400002-b5a3-f393-e0a9-e50e24dcca9e"
@@ -60,10 +58,4 @@ enum PetMood {
     MOOD_ANGRY,
     MOOD_SLEEPING,
     MOOD_LOVE
-};
-
-enum PetAvatar {
-    PET_CYBER_CAT = 0,
-    PET_MECH_BOT = 1,
-    PET_PIXEL_DRAGON = 2
 };

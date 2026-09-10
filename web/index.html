@@ -2,44 +2,526 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BLE Pure Connection Test // Digi Keychain</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DIGI KEYCHAIN // Deck</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace; }
-        body { background: #0a0e17; color: #e2e8f0; padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
-        .card { background: #131b2e; border: 1px solid #1e293b; border-radius: 12px; padding: 24px; max-width: 480px; width: 100%; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
-        h1 { font-size: 1.3rem; color: #00f0ff; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
-        p { color: #94a3b8; font-size: 0.85rem; margin-bottom: 20px; }
-        .btn { width: 100%; padding: 14px; border-radius: 8px; border: none; font-weight: 700; font-size: 1rem; cursor: pointer; transition: all 0.2s; margin-bottom: 12px; }
-        .btn-connect { background: #00f0ff; color: #0a0e17; }
-        .btn-connect:active { transform: scale(0.98); }
-        .btn-test { background: #1e293b; color: #38bdf8; border: 1px solid #38bdf8; }
-        .status-pill { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; margin-bottom: 16px; background: #334155; color: #94a3b8; }
-        .status-pill.online { background: rgba(0,240,255,0.2); color: #00f0ff; border: 1px solid #00f0ff; }
-        #terminal { background: #05070a; border: 1px solid #1e293b; border-radius: 6px; padding: 12px; font-family: monospace; font-size: 0.8rem; color: #a5f3fc; height: 200px; overflow-y: auto; text-align: left; margin-top: 16px; word-break: break-all; }
+        :root {
+            --bg-base: #070a0f;
+            --bg-card: #0e131b;
+            --bg-btn: #161c26;
+            --border: #232b38;
+            --cyan: #00f0ff;
+            --magenta: #ff007f;
+            --amber: #ffaa00;
+            --green: #00ff66;
+            --text-main: #f0f6fc;
+            --text-muted: #8b949e;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding-bottom: 75px;
+        }
+
+        header {
+            background-color: rgba(14, 19, 27, 0.95);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .brand-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            background: linear-gradient(90deg, var(--cyan), var(--magenta));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .pill {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 5px 9px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.03);
+            white-space: nowrap;
+        }
+
+        .pill.offline { color: #f85149; border-color: rgba(248, 81, 73, 0.3); }
+        .pill.online { color: var(--green); border-color: rgba(0, 255, 102, 0.4); box-shadow: 0 0 10px rgba(0, 255, 102, 0.2); }
+
+        .btn-connect-head {
+            background: linear-gradient(135deg, #1f6feb, #238636);
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 0.78rem;
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+        }
+
+        #touchBanner {
+            background: rgba(0, 240, 255, 0.05);
+            border-bottom: 1px solid var(--border);
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.78rem;
+            font-family: 'JetBrains Mono', monospace;
+            transition: all 0.2s ease;
+        }
+
+        #touchBanner.active {
+            background: rgba(0, 240, 255, 0.25);
+            border-color: var(--cyan);
+            box-shadow: inset 0 0 15px rgba(0, 240, 255, 0.4);
+        }
+
+        .tab-bar {
+            display: flex;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            overflow-x: auto;
+            scrollbar-width: none;
+            padding: 4px 8px;
+            gap: 6px;
+            position: sticky;
+            top: 51px;
+            z-index: 90;
+        }
+        .tab-bar::-webkit-scrollbar { display: none; }
+
+        .tab-btn {
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text-muted);
+            font-weight: 700;
+            font-size: 0.8rem;
+            padding: 8px 12px;
+            border-radius: 6px;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn.active {
+            background: var(--bg-btn);
+            color: var(--cyan);
+            border-color: var(--border);
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.15);
+        }
+
+        main {
+            max-width: 650px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .tab-content {
+            display: none;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .tab-content.active {
+            display: flex;
+        }
+
+        .card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .card-title {
+            font-size: 0.86rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: var(--cyan);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .btn-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 8px;
+        }
+
+        button.btn-opt {
+            background-color: var(--bg-btn);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            font-family: inherit;
+            font-weight: 600;
+            font-size: 0.82rem;
+            padding: 11px 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.15s ease;
+        }
+
+        button.btn-opt:active {
+            transform: scale(0.97);
+        }
+
+        button.btn-opt.active {
+            background-color: rgba(0, 240, 255, 0.15);
+            border-color: var(--cyan);
+            color: var(--cyan);
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.25);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #d29922, #db6d28);
+            color: #fff;
+            font-weight: 700;
+            font-size: 0.84rem;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            text-align: center;
+        }
+
+        .slider-wrap {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .slider-head {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.76rem;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 7px;
+            border-radius: 4px;
+            background: #21262d;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--cyan);
+            box-shadow: 0 0 10px var(--cyan);
+            cursor: pointer;
+        }
+
+        .text-input-wrap {
+            display: flex;
+            gap: 8px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            background: #000;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: #fff;
+            padding: 10px 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+        }
+
+        .emoji-row {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+
+        .emoji-chip {
+            background: var(--bg-btn);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 1.15rem;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .progress-bar-wrap {
+            height: 6px;
+            background: #21262d;
+            border-radius: 3px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--cyan), var(--magenta));
+            transition: width 0.1s ease;
+        }
+
+        .terminal {
+            background: #000;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            color: #39d353;
+            max-height: 90px;
+            overflow-y: auto;
+        }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h1>⚡ BLE Connection Test</h1>
-        <p>Isolated minimal Bluetooth connection diagnostic.</p>
-        
-        <div id="status" class="status-pill">STATUS: OFFLINE</div>
-        
-        <button id="btnConnect" class="btn btn-connect" onclick="connect()">CONNECT TO DIGI_KEYCHAIN</button>
-        <button class="btn btn-test" onclick="sendPing()">SEND TEST PING (MODE WRITE)</button>
-        
-        <div id="terminal">> Diagnostics ready. Tap Connect...</div>
+    <header>
+        <div class="brand-title">⚡ DIGI KEYCHAIN</div>
+        <div class="header-actions">
+            <div id="batteryPill" class="pill">⚡ 4.2V</div>
+            <div id="statusBadge" class="pill offline">OFFLINE</div>
+            <button id="btnConnect" class="btn-connect-head" onclick="connectBLE()">PAIR</button>
+        </div>
+    </header>
+
+    <div id="touchBanner">
+        <span>HARDWARE TOUCH SENSOR</span>
+        <strong id="touchText" style="color:var(--text-muted);">[ IDLE ]</strong>
     </div>
 
-    <script>
-        const SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
-        const CHAR_MODE_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
-        const CHAR_BATTERY_UUID = "6e400007-b5a3-f393-e0a9-e50e24dcca9e";
+    <nav class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('tabMascots')">🎭 Mascots</button>
+        <button class="tab-btn" onclick="switchTab('tabBoot')">🎬 Boot Splash</button>
+        <button class="tab-btn" onclick="switchTab('tabDisplay')">📱 Display</button>
+        <button class="tab-btn" onclick="switchTab('tabMarquee')">✨ Marquee</button>
+        <button class="tab-btn" onclick="switchTab('tabStream')">🖼️ Stream</button>
+    </nav>
 
-        let device = null;
-        let charMode = null;
-        let charBattery = null;
+    <main>
+        <!-- TAB 1: MASCOTS & AVATARS -->
+        <section id="tabMascots" class="tab-content active">
+            <div class="card">
+                <div class="card-title"><span>SYSTEM MODE</span></div>
+                <div class="btn-grid">
+                    <button class="btn-opt active" id="modeBtn0" onclick="setMode(0)">🐱 CyberPet</button>
+                    <button class="btn-opt" id="modeBtn1" onclick="setMode(1)">🤖 Robot Eyes</button>
+                    <button class="btn-opt" id="modeBtn2" onclick="setMode(2)">⚡ Cyber HUD</button>
+                    <button class="btn-opt" id="modeBtn3" onclick="setMode(3)">📟 Matrix</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title"><span>REACTION AVATAR</span></div>
+                <div class="btn-grid">
+                    <button class="btn-opt active" id="emoBtn0" onclick="setEmotion(0)">🏴‍☠️ Luffy</button>
+                    <button class="btn-opt" id="emoBtn1" onclick="setEmotion(1)">👉👈 Shy Love</button>
+                    <button class="btn-opt" id="emoBtn2" onclick="setEmotion(2)">🐱 Giggling Cat</button>
+                    <button class="btn-opt" id="emoBtn3" onclick="setEmotion(3)">🍌 Sad Banana</button>
+                    <button class="btn-opt" id="emoBtn4" onclick="setEmotion(4)">😭 Umaru Cry</button>
+                    <button class="btn-opt" id="emoBtn5" onclick="setEmotion(5)">😾 Angry Cat</button>
+                    <button class="btn-opt" id="emoBtn6" onclick="setEmotion(6)">🐰 Bunny</button>
+                </div>
+
+                <button class="btn-primary" style="margin-top:6px;" onclick="saveAsDefault()">
+                    ⭐ SET AS DEFAULT BOOT AVATAR
+                </button>
+            </div>
+        </section>
+
+        <!-- TAB 2: BOOT SPLASH STUDIO -->
+        <section id="tabBoot" class="tab-content">
+            <div class="card">
+                <div class="card-title">
+                    <span>STARTUP ANIMATION TYPE</span>
+                    <button class="btn-opt" style="padding:4px 8px; font-size:0.75rem;" onclick="testBootSplash()">▶️ Preview</button>
+                </div>
+                <div class="btn-grid">
+                    <button class="btn-opt active" id="bootBtn0" onclick="setBootType(0)">☕ Joyboy</button>
+                    <button class="btn-opt" id="bootBtn1" onclick="setBootType(1)">🖼️ Custom Pic</button>
+                    <button class="btn-opt" id="bootBtn2" onclick="setBootType(2)">🎞️ Custom Video</button>
+                    <button class="btn-opt" id="bootBtn3" onclick="setBootType(3)">⚡ Instant</button>
+                </div>
+
+                <div class="slider-wrap">
+                    <div class="slider-head">
+                        <span>DISPLAY DURATION</span>
+                        <span id="bootDurVal">2 Seconds</span>
+                    </div>
+                    <input type="range" id="bootDurSlider" min="1" max="4" value="2" oninput="updateBootDuration(this.value)">
+                </div>
+
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                    <div style="display:flex; gap:8px;">
+                        <label class="btn-opt" style="flex:1; text-align:center; background:#1f2937;">
+                            📁 Upload Pic
+                            <input type="file" accept="image/*" style="display:none;" onchange="uploadBootImage(event)">
+                        </label>
+                        <label class="btn-opt" style="flex:1; text-align:center; background:#1f2937;">
+                            🎥 Upload Clip
+                            <input type="file" accept="video/*,image/gif" style="display:none;" onchange="uploadBootVideo(event)">
+                        </label>
+                    </div>
+                    <div id="bootProgressWrap" class="progress-bar-wrap">
+                        <div id="bootProgressBar" class="progress-bar"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: DISPLAY & POWER -->
+        <section id="tabDisplay" class="tab-content">
+            <div class="card">
+                <div class="card-title"><span>SCREEN ORIENTATION</span></div>
+                <div class="btn-grid">
+                    <button class="btn-opt" id="rotBtn0" onclick="setRotation(0)">0° Normal</button>
+                    <button class="btn-opt" id="rotBtn1" onclick="setRotation(1)">90° Right</button>
+                    <button class="btn-opt" id="rotBtn2" onclick="setRotation(2)">180° Invert</button>
+                    <button class="btn-opt active" id="rotBtn3" onclick="setRotation(3)">270° Left</button>
+                </div>
+
+                <div class="slider-wrap">
+                    <div class="slider-head">
+                        <span>LIVE ROTATION SLIDER</span>
+                        <span id="angleVal">270°</span>
+                    </div>
+                    <input type="range" id="angleSlider" min="0" max="360" value="270" step="90" oninput="updateAngleSlider(this.value)">
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title"><span>BRIGHTNESS & SLEEP</span></div>
+                
+                <div class="slider-wrap">
+                    <div class="slider-head">
+                        <span>BRIGHTNESS</span>
+                        <span id="brVal">95%</span>
+                    </div>
+                    <input type="range" id="brSlider" min="15" max="255" value="240" oninput="updateBrightness(this.value)">
+                </div>
+
+                <div class="slider-wrap">
+                    <div class="slider-head">
+                        <span>AUTO SLEEP TIMEOUT</span>
+                        <span id="sleepVal">1m</span>
+                    </div>
+                    <input type="range" id="sleepSlider" min="0" max="5" value="2" oninput="updateSleepSlider(this.value)">
+                </div>
+
+                <button class="btn-opt" onclick="syncTimeAndWeather()" style="background:#1f6feb; color:#fff; border-color:#388bfd;">
+                    ⏰ SYNC TIME & WEATHER
+                </button>
+            </div>
+        </section>
+
+        <!-- TAB 4: MARQUEE TEXT -->
+        <section id="tabMarquee" class="tab-content">
+            <div class="card">
+                <div class="card-title"><span>SCROLLING TEXT BROADCAST</span></div>
+                <div class="text-input-wrap">
+                    <input type="text" id="txtMessage" value="JOY BOY COFFEE :coffee: :fire:" placeholder="Enter marquee text...">
+                    <button class="btn-opt" onclick="sendCustomText()" style="background:var(--cyan); color:#000; font-weight:700;">SEND</button>
+                </div>
+
+                <div class="emoji-row">
+                    <div class="emoji-chip" onclick="insertEmoji(':coffee:')">☕</div>
+                    <div class="emoji-chip" onclick="insertEmoji(':heart:')">❤️</div>
+                    <div class="emoji-chip" onclick="insertEmoji(':fire:')">🔥</div>
+                    <div class="emoji-chip" onclick="insertEmoji(':star:')">⭐</div>
+                    <div class="emoji-chip" onclick="insertEmoji(':sparkles:')">✨</div>
+                    <div class="emoji-chip" onclick="insertEmoji(':cat:')">🐱</div>
+                    <div class="emoji-chip" onclick="insertEmoji(':cry:')">😭</div>
+                    <div class="emoji-chip" onclick="insertEmoji(':banana:')">🍌</div>
+                    <div class="emoji-chip" onclick="insertEmoji(':skull:')">💀</div>
+                    <div class="emoji-chip" onclick="insertEmoji(':zap:')">⚡</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 5: MEDIA STREAMING -->
+        <section id="tabStream" class="tab-content">
+            <div class="card">
+                <div class="card-title"><span>LIVE MEDIA STREAM</span></div>
+                <label class="btn-opt" style="text-align:center; padding:14px;">
+                    📷 Stream Single Image (240x240)
+                    <input type="file" accept="image/*" style="display:none;" onchange="uploadLiveImage(event)">
+                </label>
+                <div id="liveProgressWrap" class="progress-bar-wrap">
+                    <div id="liveProgressBar" class="progress-bar"></div>
+                </div>
+            </div>
+        </section>
+
+        <div class="terminal" id="terminal">> Digi Keychain ready. Tap Pair.</div>
+    </main>
+
+    <script>
+        const SERVICE_UUID       = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+        const CHAR_MODE_UUID     = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
+        const CHAR_PET_UUID      = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
+        const CHAR_TEXT_UUID     = "6e400004-b5a3-f393-e0a9-e50e24dcca9e";
+        const CHAR_TIME_UUID     = "6e400005-b5a3-f393-e0a9-e50e24dcca9e";
+        const CHAR_SETTINGS_UUID = "6e400006-b5a3-f393-e0a9-e50e24dcca9e";
+        const CHAR_BATTERY_UUID  = "6e400007-b5a3-f393-e0a9-e50e24dcca9e";
+        const CHAR_STREAM_UUID   = "6e400008-b5a3-f393-e0a9-e50e24dcca9e";
+
+        let bleDevice = null;
+        let gattServer = null;
+        let charMode = null, charPet = null, charText = null, charTime = null, charSettings = null, charBattery = null, charStream = null;
+
+        const sleepValues = [15, 30, 60, 120, 300, 0];
+        const sleepLabels = ["15s", "30s", "1m", "2m", "5m", "Never"];
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            event.target.classList.add('active');
+        }
 
         function log(msg) {
             const term = document.getElementById('terminal');
@@ -48,10 +530,12 @@
             term.scrollTop = term.scrollHeight;
         }
 
-        async function connect() {
+        async function connectBLE() {
             try {
-                log("Requesting Bluetooth device...");
-                device = await navigator.bluetooth.requestDevice({
+                log("Scanning for DIGI_KEYCHAIN...");
+                document.getElementById('statusBadge').innerText = "CONNECTING...";
+                
+                bleDevice = await navigator.bluetooth.requestDevice({
                     filters: [
                         { name: 'DIGI_KEYCHAIN' },
                         { namePrefix: 'DIGI' }
@@ -59,52 +543,436 @@
                     optionalServices: [ SERVICE_UUID ]
                 });
 
-                log(`Found: ${device.name || 'DIGI_KEYCHAIN'}. Connecting to GATT...`);
-                device.addEventListener('gattserverdisconnected', () => {
-                    log("⚠️ Device disconnected.");
-                    document.getElementById('status').innerText = "STATUS: DISCONNECTED";
-                    document.getElementById('status').className = "status-pill";
-                });
+                log(`Connecting to: ${bleDevice.name || 'DIGI_KEYCHAIN'}...`);
+                bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
+                
+                gattServer = await bleDevice.gatt.connect();
+                log("GATT connected! Getting primary service...");
+                
+                const service = await gattServer.getPrimaryService(SERVICE_UUID);
+                log("Primary service found! Initializing characteristics...");
 
-                const server = await device.gatt.connect();
-                log("✅ GATT Connected! Getting primary service...");
+                charMode     = await service.getCharacteristic(CHAR_MODE_UUID).catch(()=>null);
+                charPet      = await service.getCharacteristic(CHAR_PET_UUID).catch(()=>null);
+                charText     = await service.getCharacteristic(CHAR_TEXT_UUID).catch(()=>null);
+                charTime     = await service.getCharacteristic(CHAR_TIME_UUID).catch(()=>null);
+                charSettings = await service.getCharacteristic(CHAR_SETTINGS_UUID).catch(()=>null);
+                charBattery  = await service.getCharacteristic(CHAR_BATTERY_UUID).catch(()=>null);
+                charStream   = await service.getCharacteristic(CHAR_STREAM_UUID).catch(()=>null);
 
-                const service = await server.getPrimaryService(SERVICE_UUID);
-                log("✅ Primary service retrieved successfully!");
+                if (charMode) {
+                    await charMode.startNotifications().catch(()=>{});
+                    charMode.addEventListener('characteristicvaluechanged', (e) => {
+                        const m = parseInt(new TextDecoder().decode(e.target.value));
+                        highlightModeUI(m);
+                    });
+                }
 
-                charMode = await service.getCharacteristic(CHAR_MODE_UUID);
-                log("✅ Mode characteristic ready!");
+                if (charPet) {
+                    await charPet.startNotifications().catch(()=>{});
+                    charPet.addEventListener('characteristicvaluechanged', (e) => {
+                        const a = parseInt(new TextDecoder().decode(e.target.value));
+                        highlightEmotionUI(a);
+                    });
+                }
 
-                charBattery = await service.getCharacteristic(CHAR_BATTERY_UUID);
-                log("✅ Battery characteristic ready! Subscribing to notifications...");
-                await charBattery.startNotifications();
-                charBattery.addEventListener('characteristicvaluechanged', (e) => {
-                    const str = new TextDecoder().decode(e.target.value);
-                    log(`🔋 Battery Telemetry: ${str}`);
-                });
+                if (charBattery) {
+                    await charBattery.startNotifications().catch(()=>{});
+                    charBattery.addEventListener('characteristicvaluechanged', (e) => {
+                        const str = new TextDecoder().decode(e.target.value);
+                        const parts = str.split('|');
+                        if (parts.length >= 2) {
+                            const v = parts[0];
+                            const pct = parts[1];
+                            const usb = parts[2] === '1';
+                            const badge = document.getElementById('batteryPill');
+                            if (badge) badge.innerText = usb ? `⚡ USB (${v}V)` : `🔋 ${v}V (${pct}%)`;
+                        }
+                    });
+                }
 
-                document.getElementById('status').innerText = "STATUS: ONLINE ⚡";
-                document.getElementById('status').className = "status-pill online";
+                if (charSettings) {
+                    await charSettings.startNotifications().catch(()=>{});
+                    charSettings.addEventListener('characteristicvaluechanged', (e) => {
+                        const msg = new TextDecoder().decode(e.target.value);
+                        handleTouchNotification(msg);
+                    });
+                }
+
+                document.getElementById('statusBadge').innerText = "ONLINE ⚡";
+                document.getElementById('statusBadge').className = "pill online";
                 document.getElementById('btnConnect').innerText = "CONNECTED";
-                log("🎉 COMPLETE SUCCESS! Web-BLE is 100% operational.");
+                log("✅ Online! Telemetry & controls active.");
+
+                syncTimeAndWeather();
             } catch (err) {
                 console.error(err);
-                log(`❌ Error: ${err.message}`);
+                log(`Error: ${err.message}`);
+                document.getElementById('statusBadge').innerText = "OFFLINE";
+                document.getElementById('statusBadge').className = "pill offline";
             }
         }
 
-        async function sendPing() {
-            if (!charMode) {
-                log("Connect first!");
+        function onDisconnected() {
+            log("Device disconnected.");
+            document.getElementById('statusBadge').innerText = "OFFLINE";
+            document.getElementById('statusBadge').className = "pill offline";
+            document.getElementById('btnConnect').innerText = "PAIR";
+            const tb = document.getElementById('touchBanner');
+            const tt = document.getElementById('touchText');
+            tb.className = "";
+            tt.innerText = "[ IDLE ]";
+            tt.style.color = "var(--text-muted)";
+        }
+
+        function handleTouchNotification(msg) {
+            const tb = document.getElementById('touchBanner');
+            const tt = document.getElementById('touchText');
+            if (msg === "TOUCH:DOWN") {
+                tb.className = "active";
+                tt.innerText = "⚡ TOUCH ACTIVE";
+                tt.style.color = "var(--cyan)";
+            } else if (msg === "TOUCH:POKE") {
+                tb.className = "active";
+                tt.innerText = "👆 POKE TRIGGERED";
+                tt.style.color = "var(--cyan)";
+            } else if (msg === "TOUCH:DOUBLE") {
+                tb.className = "active";
+                tt.innerText = "⚡ REACTION CYCLED";
+                tt.style.color = "var(--amber)";
+            } else if (msg === "TOUCH:HOLD") {
+                tb.className = "active";
+                tt.innerText = "❤️ SHY LOVE TRIGGERED";
+                tt.style.color = "var(--magenta)";
+            } else if (msg === "TOUCH:UP") {
+                setTimeout(() => {
+                    tb.className = "";
+                    tt.innerText = "[ IDLE ]";
+                    tt.style.color = "var(--text-muted)";
+                }, 250);
+            }
+        }
+
+        async function setMode(modeNum) {
+            if (!charMode) return;
+            highlightModeUI(modeNum);
+            const data = new TextEncoder().encode(modeNum.toString());
+            await charMode.writeValue(data);
+            log(`Mode: ${modeNum}`);
+        }
+
+        function highlightModeUI(m) {
+            for (let i = 0; i < 4; i++) {
+                const b = document.getElementById(`modeBtn${i}`);
+                if (b) b.className = (i === m) ? "btn-opt active" : "btn-opt";
+            }
+        }
+
+        async function setEmotion(emoNum) {
+            if (!charPet) return;
+            highlightEmotionUI(emoNum);
+            const data = new TextEncoder().encode(emoNum.toString());
+            await charPet.writeValue(data);
+            log(`Emotion: ${emoNum}`);
+        }
+
+        function highlightEmotionUI(a) {
+            for (let i = 0; i < 7; i++) {
+                const b = document.getElementById(`emoBtn${i}`);
+                if (b) b.className = (i === a) ? "btn-opt active" : "btn-opt";
+            }
+        }
+
+        async function setBootType(bt) {
+            if (!charSettings) return;
+            for (let i = 0; i < 4; i++) {
+                const b = document.getElementById(`bootBtn${i}`);
+                if (b) b.className = (i === bt) ? "btn-opt active" : "btn-opt";
+            }
+            const data = new TextEncoder().encode(`BOOT_TYPE:${bt}`);
+            await charSettings.writeValue(data);
+            log(`Boot Type: ${bt}`);
+        }
+
+        async function updateBootDuration(dur) {
+            document.getElementById('bootDurVal').innerText = `${dur} Seconds`;
+            if (!charSettings) return;
+            const data = new TextEncoder().encode(`BOOT_DUR:${dur}`);
+            await charSettings.writeValue(data);
+        }
+
+        async function testBootSplash() {
+            if (!charSettings) return;
+            const data = new TextEncoder().encode("BOOT:PREVIEW");
+            await charSettings.writeValue(data);
+            log("Boot preview triggered on Keychain!");
+        }
+
+        async function setRotation(rot) {
+            if (!charSettings) return;
+            for (let i = 0; i < 4; i++) {
+                const b = document.getElementById(`rotBtn${i}`);
+                if (b) b.className = (i === rot) ? "btn-opt active" : "btn-opt";
+            }
+            const deg = rot * 90;
+            document.getElementById('angleSlider').value = deg;
+            document.getElementById('angleVal').innerText = deg + '°';
+            const data = new TextEncoder().encode(`ROT:${rot}`);
+            await charSettings.writeValue(data);
+            log(`Rotation: ${deg}°`);
+        }
+
+        async function updateAngleSlider(deg) {
+            document.getElementById('angleVal').innerText = deg + '°';
+            const rot = Math.round(deg / 90) % 4;
+            for (let i = 0; i < 4; i++) {
+                const b = document.getElementById(`rotBtn${i}`);
+                if (b) b.className = (i === rot) ? "btn-opt active" : "btn-opt";
+            }
+            if (!charSettings) return;
+            const data = new TextEncoder().encode(`ROT:${rot}`);
+            await charSettings.writeValue(data);
+        }
+
+        async function updateSleepSlider(idx) {
+            const sec = sleepValues[idx];
+            document.getElementById('sleepVal').innerText = sleepLabels[idx];
+            if (!charSettings) return;
+            const data = new TextEncoder().encode(`SLEEP:${sec}`);
+            await charSettings.writeValue(data);
+            log(`Sleep timeout: ${sleepLabels[idx]}`);
+        }
+
+        async function saveAsDefault() {
+            if (!charSettings) return;
+            const data = new TextEncoder().encode("DEF:SET");
+            await charSettings.writeValue(data);
+            log("⭐ Saved default avatar!");
+            alert("Default avatar saved!");
+        }
+
+        function insertEmoji(em) {
+            const input = document.getElementById('txtMessage');
+            input.value += " " + em;
+            input.focus();
+        }
+
+        async function sendCustomText() {
+            if (!charText) return;
+            const text = document.getElementById('txtMessage').value;
+            const data = new TextEncoder().encode(text);
+            await charText.writeValue(data);
+            log(`Marquee sent: ${text}`);
+        }
+
+        async function syncTimeAndWeather() {
+            if (!charTime) return;
+            const d = new Date();
+            const h = String(d.getHours()).padStart(2, '0');
+            const m = String(d.getMinutes()).padStart(2, '0');
+            const s = String(d.getSeconds()).padStart(2, '0');
+            const payload = `${h}:${m}:${s}|28.5`;
+            const data = new TextEncoder().encode(payload);
+            await charTime.writeValue(data);
+            log(`Time synced: ${h}:${m}:${s}`);
+        }
+
+        async function updateBrightness(val) {
+            document.getElementById('brVal').innerText = Math.round((val / 255) * 100) + '%';
+            if (!charSettings) return;
+            const data = new TextEncoder().encode(val.toString());
+            await charSettings.writeValue(data);
+        }
+
+        // =========================================================================
+        // BOOT MEDIA UPLOADERS
+        // =========================================================================
+        async function uploadBootImage(e) {
+            const file = e.target.files[0];
+            if (!file || !charStream) {
+                log("Connect BLE first before uploading.");
                 return;
             }
-            try {
-                const data = new TextEncoder().encode("PING_TEST");
-                await charMode.writeValue(data);
-                log("📤 Test write sent to ESP32!");
-            } catch (e) {
-                log(`Write error: ${e.message}`);
+            log(`Processing Boot Image: ${file.name}...`);
+            const progressWrap = document.getElementById('bootProgressWrap');
+            const progressBar = document.getElementById('bootProgressBar');
+            progressWrap.style.display = 'block';
+            progressBar.style.width = '20%';
+
+            const img = new Image();
+            img.src = URL.createObjectURL(file);
+            img.onload = async () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 240;
+                canvas.height = 240;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, 240, 240);
+
+                canvas.toBlob(async (blob) => {
+                    const arrayBuffer = await blob.arrayBuffer();
+                    const bytes = new Uint8Array(arrayBuffer);
+                    const CHUNK_SIZE = 480;
+                    const totalLen = bytes.length;
+
+                    const firstChunkLen = Math.min(CHUNK_SIZE - 4, totalLen);
+                    const header = new Uint8Array(4 + firstChunkLen);
+                    header[0] = 0xAA;
+                    header[1] = 0x99;
+                    header[2] = (totalLen >> 8) & 0xFF;
+                    header[3] = totalLen & 0xFF;
+                    header.set(bytes.subarray(0, firstChunkLen), 4);
+
+                    await charStream.writeValueWithoutResponse(header);
+                    await new Promise(r => setTimeout(r, 25));
+
+                    let offset = firstChunkLen;
+                    while (offset < totalLen) {
+                        const chunkEnd = Math.min(offset + CHUNK_SIZE, totalLen);
+                        const chunk = bytes.subarray(offset, chunkEnd);
+                        await charStream.writeValueWithoutResponse(chunk);
+                        offset = chunkEnd;
+                        progressBar.style.width = `${Math.round((offset / totalLen) * 100)}%`;
+                        await new Promise(r => setTimeout(r, 12));
+                    }
+
+                    setTimeout(() => { progressWrap.style.display = 'none'; }, 1000);
+                    setBootType(1);
+                    log(`✅ Boot Image Saved (${bytes.length} bytes)!`);
+                }, 'image/jpeg', 0.80);
+            };
+        }
+
+        async function uploadBootVideo(e) {
+            const file = e.target.files[0];
+            if (!file || !charStream) {
+                log("Connect BLE first before uploading.");
+                return;
             }
+            log(`Sampling Boot Video: ${file.name}...`);
+            const progressWrap = document.getElementById('bootProgressWrap');
+            const progressBar = document.getElementById('bootProgressBar');
+            progressWrap.style.display = 'block';
+            progressBar.style.width = '10%';
+
+            const video = document.createElement('video');
+            const canvas = document.createElement('canvas');
+            canvas.width = 240;
+            canvas.height = 240;
+            const ctx = canvas.getContext('2d');
+
+            video.src = URL.createObjectURL(file);
+            video.muted = true;
+            await new Promise((resolve) => { video.onloadedmetadata = () => resolve(); });
+
+            const duration = Math.min(video.duration || 1.0, 1.2);
+            const targetFrames = Math.min(Math.floor(duration * 20), 20);
+            const frameBlobs = [];
+
+            for (let i = 0; i < targetFrames; i++) {
+                video.currentTime = (i / targetFrames) * duration;
+                await new Promise(r => { video.onseeked = () => r(); });
+                ctx.drawImage(video, 0, 0, 240, 240);
+                
+                const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.35));
+                const arrayBuffer = await blob.arrayBuffer();
+                frameBlobs.push(new Uint8Array(arrayBuffer));
+                progressBar.style.width = `${Math.round(((i + 1) / targetFrames) * 30)}%`;
+            }
+
+            log(`Uploading ${frameBlobs.length} frames to flash...`);
+            const initHeader = new Uint8Array([0xBB, 0x99, frameBlobs.length, 20]);
+            await charStream.writeValueWithoutResponse(initHeader);
+            await new Promise(r => setTimeout(r, 40));
+
+            const CHUNK_SIZE = 480;
+            for (let fIdx = 0; fIdx < frameBlobs.length; fIdx++) {
+                const fBytes = frameBlobs[fIdx];
+                const totalLen = fBytes.length;
+
+                const firstChunkLen = Math.min(CHUNK_SIZE - 5, totalLen);
+                const fHeader = new Uint8Array(5 + firstChunkLen);
+                fHeader[0] = 0xCC;
+                fHeader[1] = 0x99;
+                fHeader[2] = fIdx;
+                fHeader[3] = (totalLen >> 8) & 0xFF;
+                fHeader[4] = totalLen & 0xFF;
+                fHeader.set(fBytes.subarray(0, firstChunkLen), 5);
+
+                await charStream.writeValueWithoutResponse(fHeader);
+                await new Promise(r => setTimeout(r, 20));
+
+                let offset = firstChunkLen;
+                while (offset < totalLen) {
+                    const chunkEnd = Math.min(offset + CHUNK_SIZE, totalLen);
+                    const chunk = fBytes.subarray(offset, chunkEnd);
+                    await charStream.writeValueWithoutResponse(chunk);
+                    offset = chunkEnd;
+                    await new Promise(r => setTimeout(r, 12));
+                }
+
+                const pct = 30 + Math.round(((fIdx + 1) / frameBlobs.length) * 70);
+                progressBar.style.width = `${pct}%`;
+            }
+
+            const finishHeader = new Uint8Array([0xDD, 0x99]);
+            await charStream.writeValueWithoutResponse(finishHeader);
+
+            setTimeout(() => { progressWrap.style.display = 'none'; }, 1000);
+            log("✅ Custom Video Boot Animation Saved!");
+        }
+
+        async function uploadLiveImage(e) {
+            const file = e.target.files[0];
+            if (!file || !charStream) {
+                log("Connect BLE first before streaming.");
+                return;
+            }
+            log(`Streaming: ${file.name}...`);
+            const progressWrap = document.getElementById('liveProgressWrap');
+            const progressBar = document.getElementById('liveProgressBar');
+            progressWrap.style.display = 'block';
+            progressBar.style.width = '20%';
+
+            const img = new Image();
+            img.src = URL.createObjectURL(file);
+            img.onload = async () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 240;
+                canvas.height = 240;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, 240, 240);
+
+                canvas.toBlob(async (blob) => {
+                    const arrayBuffer = await blob.arrayBuffer();
+                    const bytes = new Uint8Array(arrayBuffer);
+                    const CHUNK_SIZE = 480;
+                    const totalLen = bytes.length;
+
+                    const firstChunkLen = Math.min(CHUNK_SIZE - 4, totalLen);
+                    const header = new Uint8Array(4 + firstChunkLen);
+                    header[0] = 0xAA;
+                    header[1] = 0x55;
+                    header[2] = (totalLen >> 8) & 0xFF;
+                    header[3] = totalLen & 0xFF;
+                    header.set(bytes.subarray(0, firstChunkLen), 4);
+
+                    await charStream.writeValueWithoutResponse(header);
+                    await new Promise(r => setTimeout(r, 20));
+
+                    let offset = firstChunkLen;
+                    while (offset < totalLen) {
+                        const chunkEnd = Math.min(offset + CHUNK_SIZE, totalLen);
+                        const chunk = bytes.subarray(offset, chunkEnd);
+                        await charStream.writeValueWithoutResponse(chunk);
+                        offset = chunkEnd;
+                        progressBar.style.width = `${Math.round((offset / totalLen) * 100)}%`;
+                        await new Promise(r => setTimeout(r, 12));
+                    }
+
+                    setTimeout(() => { progressWrap.style.display = 'none'; }, 1000);
+                    log(`✅ Streamed image (${bytes.length} bytes)!`);
+                }, 'image/jpeg', 0.80);
+            };
         }
     </script>
 </body>
