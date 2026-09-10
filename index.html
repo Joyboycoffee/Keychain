@@ -558,41 +558,48 @@
                 bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
                 
                 gattServer = await bleDevice.gatt.connect();
+                await new Promise(r => setTimeout(r, 150));
                 const service = await gattServer.getPrimaryService(SERVICE_UUID);
 
-                charMode     = await service.getCharacteristic(CHAR_MODE_UUID);
-                charPet      = await service.getCharacteristic(CHAR_PET_UUID);
-                charText     = await service.getCharacteristic(CHAR_TEXT_UUID);
-                charTime     = await service.getCharacteristic(CHAR_TIME_UUID);
-                charSettings = await service.getCharacteristic(CHAR_SETTINGS_UUID);
-                charBattery  = await service.getCharacteristic(CHAR_BATTERY_UUID);
-                charStream   = await service.getCharacteristic(CHAR_STREAM_UUID);
+                charMode     = await service.getCharacteristic(CHAR_MODE_UUID).catch(()=>null);
+                charPet      = await service.getCharacteristic(CHAR_PET_UUID).catch(()=>null);
+                charText     = await service.getCharacteristic(CHAR_TEXT_UUID).catch(()=>null);
+                charTime     = await service.getCharacteristic(CHAR_TIME_UUID).catch(()=>null);
+                charSettings = await service.getCharacteristic(CHAR_SETTINGS_UUID).catch(()=>null);
+                charBattery  = await service.getCharacteristic(CHAR_BATTERY_UUID).catch(()=>null);
+                charStream   = await service.getCharacteristic(CHAR_STREAM_UUID).catch(()=>null);
 
                 // Enable Live Notifications for Mode, Emotion, and Battery
-                await charMode.startNotifications().catch(()=>{});
-                charMode.addEventListener('characteristicvaluechanged', (e) => {
-                    const m = parseInt(new TextDecoder().decode(e.target.value));
-                    highlightModeUI(m);
-                });
+                if (charMode) {
+                    await charMode.startNotifications().catch(()=>{});
+                    charMode.addEventListener('characteristicvaluechanged', (e) => {
+                        const m = parseInt(new TextDecoder().decode(e.target.value));
+                        highlightModeUI(m);
+                    });
+                }
 
-                await charPet.startNotifications().catch(()=>{});
-                charPet.addEventListener('characteristicvaluechanged', (e) => {
-                    const a = parseInt(new TextDecoder().decode(e.target.value));
-                    highlightEmotionUI(a);
-                });
+                if (charPet) {
+                    await charPet.startNotifications().catch(()=>{});
+                    charPet.addEventListener('characteristicvaluechanged', (e) => {
+                        const a = parseInt(new TextDecoder().decode(e.target.value));
+                        highlightEmotionUI(a);
+                    });
+                }
 
-                await charBattery.startNotifications().catch(()=>{});
-                charBattery.addEventListener('characteristicvaluechanged', (e) => {
-                    const str = new TextDecoder().decode(e.target.value);
-                    const parts = str.split('|');
-                    if (parts.length >= 2) {
-                        const v = parts[0];
-                        const pct = parts[1];
-                        const usb = parts[2] === '1';
-                        const badge = document.getElementById('batteryBadge');
-                        badge.innerText = usb ? `⚡ USB (${v}V)` : `🔋 ${v}V (${pct}%)`;
-                    }
-                });
+                if (charBattery) {
+                    await charBattery.startNotifications().catch(()=>{});
+                    charBattery.addEventListener('characteristicvaluechanged', (e) => {
+                        const str = new TextDecoder().decode(e.target.value);
+                        const parts = str.split('|');
+                        if (parts.length >= 2) {
+                            const v = parts[0];
+                            const pct = parts[1];
+                            const usb = parts[2] === '1';
+                            const badge = document.getElementById('batteryBadge');
+                            if (badge) badge.innerText = usb ? `⚡ USB (${v}V)` : `🔋 ${v}V (${pct}%)`;
+                        }
+                    });
+                }
 
                 document.getElementById('statusBadge').innerText = "ONLINE ⚡";
                 document.getElementById('statusBadge').className = "status-badge online";
