@@ -6,7 +6,7 @@
 
 enum MemeEmotion {
     EMOTION_LUFFY = 0,       // Default / Star-Eyes / Excited
-    EMOTION_SHY = 1,         // Shy Love `????` (Rub / Hold)
+    EMOTION_SHY = 1,         // Shy Love (Rub / Hold)
     EMOTION_GIGGLE_CAT = 2,  // Giggling Kitten with Pink Bows
     EMOTION_SAD_BANANA = 3,  // Sad / Crying Banana Cat
     EMOTION_UMARU_CRY = 4,   // Whining Dramatic Umaru
@@ -29,11 +29,6 @@ public:
     void update() {
         uint32_t now = millis();
 
-        // If in temporary emotion, return to Luffy after 6 seconds of idle
-        if (currentEmotion != EMOTION_LUFFY && (now - emotionStartTime > 6000)) {
-            currentEmotion = EMOTION_LUFFY;
-        }
-
         if (now - lastAnimTime > 50) {
             lastAnimTime = now;
             animTick = (animTick + 1) % 120;
@@ -42,30 +37,30 @@ public:
         // 1. Draw the selected Meme Emotion JPEG
         switch (currentEmotion) {
             case EMOTION_LUFFY:
-                canvas.drawJpg(EMO_LUFFY_JPG, EMO_LUFFY_LEN, 0, 0, 240, 240);
+                canvas.drawJpg(EMO_LUFFY_JPG, EMO_LUFFY_LEN, 0, 0);
                 break;
             case EMOTION_SHY:
-                canvas.drawJpg(EMO_SHY_JPG, EMO_SHY_LEN, 0, 0, 240, 240);
+                canvas.drawJpg(EMO_SHY_JPG, EMO_SHY_LEN, 0, 0);
                 drawFloatingHearts();
                 break;
             case EMOTION_GIGGLE_CAT:
-                canvas.drawJpg(EMO_GIGGLE_CAT_JPG, EMO_GIGGLE_CAT_LEN, 0, 0, 240, 240);
+                canvas.drawJpg(EMO_GIGGLE_CAT_JPG, EMO_GIGGLE_CAT_LEN, 0, 0);
                 drawGiggleStars();
                 break;
             case EMOTION_SAD_BANANA:
-                canvas.drawJpg(EMO_SAD_BANANA_JPG, EMO_SAD_BANANA_LEN, 0, 0, 240, 240);
+                canvas.drawJpg(EMO_SAD_BANANA_JPG, EMO_SAD_BANANA_LEN, 0, 0);
                 drawTears();
                 break;
             case EMOTION_UMARU_CRY:
-                canvas.drawJpg(EMO_UMARU_JPG, EMO_UMARU_LEN, 0, 0, 240, 240);
+                canvas.drawJpg(EMO_UMARU_JPG, EMO_UMARU_LEN, 0, 0);
                 drawWhineEffects();
                 break;
             case EMOTION_ANGRY_CAT:
-                canvas.drawJpg(EMO_ANGRY_CAT_JPG, EMO_ANGRY_CAT_LEN, 0, 0, 240, 240);
+                canvas.drawJpg(EMO_ANGRY_CAT_JPG, EMO_ANGRY_CAT_LEN, 0, 0);
                 drawAngerSparks();
                 break;
             case EMOTION_BUNNY:
-                canvas.drawJpg(EMO_BUNNY_JPG, EMO_BUNNY_LEN, 0, 0, 240, 240);
+                canvas.drawJpg(EMO_BUNNY_JPG, EMO_BUNNY_LEN, 0, 0);
                 drawAngerSparks();
                 break;
         }
