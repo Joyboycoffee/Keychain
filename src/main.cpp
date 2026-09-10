@@ -53,12 +53,14 @@ uint16_t lastSavedEndMv      = 4200;
 bool     lastSavedWasUsb     = false;
 uint32_t totalRunCycles      = 1;
 
-// Touch State & Gestures (Hardware-Debounced FSM)
-bool        isTouching          = false;
-uint32_t    touchStartTime      = 0;
-bool        pendingSingleTap    = false;
-uint32_t    firstTapReleaseTime = 0;
-bool        secondTapActive     = false;
+// Touch Interrupt & State Engine (Zero-Latency Hardware ISR)
+volatile bool     isrTouchDown       = false;
+volatile uint32_t isrDownTime        = 0;
+volatile uint32_t isrUpTime          = 0;
+volatile uint32_t isrTapCount        = 0;
+volatile uint32_t isrLastTapEndTime  = 0;
+volatile uint32_t isrLastEdgeTime    = 0;
+
 uint32_t    lastActivityTime    = 0;
 bool        holdTriggered       = false;
 MemeEmotion preHoldEmotion      = EMOTION_LUFFY;
@@ -529,87 +531,67 @@ void triggerTouchVisual(const String& label, uint16_t color, uint32_t durationMs
 }
 
 // =========================================================================
-// TOUCH GESTURES (HARDWARE-DEBOUNCED INSTANT DOUBLE-TAP & 2.0s HOLD)
+// ZERO-LATENCY HARDWARE TOUCH ISR & GESTURE ENGINE
 // =========================================================================
-void processTouch() {
-    static bool lastRawPinState = false;
-    static bool debouncedTouch  = false;
-    static uint32_t lastDebounceTime = 0;
-
+void IRAM_ATTR touchISR() {
     uint32_t now = millis();
-    bool rawReading = (digitalRead(PIN_TOUCH) == HIGH);
+    if (now - isrLastEdgeTime < 10) return; // 10ms spike rejection
+    isrLastEdgeTime = now;
 
-    // 1. Hardware Contact Bounce Filter (20ms)
-    if (rawReading != lastRawPinState) {
-        lastDebounceTime = now;
-        lastRawPinState = rawReading;
-    }
-
-    if ((now - lastDebounceTime) >= 20) {
-        if (rawReading != debouncedTouch) {
-            debouncedTouch = rawReading;
-
-            if (debouncedTouch) {
-                // FINGER TOUCH DOWN
-                isTouching = true;
-                touchStartTime = now;
-                holdTriggered = false;
-                lastActivityTime = now;
-
-                // Check if this is the 2nd tap of a Double-Tap sequence
-                if (pendingSingleTap && (now - firstTapReleaseTime <= 550) && (now - firstTapReleaseTime >= 20)) {
-                    // INSTANT DOUBLE TAP! (NEXT MASCOT)
-                    pendingSingleTap = false;
-                    secondTapActive = true;
-
-                    int next = ((int)memePet.currentEmotion + 1) % 7;
-                    memePet.setEmotion((MemeEmotion)next);
-                    memePet.defaultEmotion = (MemeEmotion)next; // Persist mascot
-                    isTemporaryLove = false; // Cancel any pending love revert
-                    currentMode = MODE_CYBERPET;
-                    isVideoPlaying = false;
-
-                    const char* emoNames[] = { "LUFFY ⚡", "SHY LOVE 👉👈", "GIGGLE CAT 😸", "SAD BANANA 🍌", "UMARU CRY 😭", "ANGRY CAT 😾", "BUNNY 🐰" };
-                    triggerTouchVisual(emoNames[next], 0xFFE0, 1000, "TOUCH:DOUBLE");
-
-                    if (bleConnected && pCharPet) {
-                        char emoChar[2] = { (char)('0' + (int)next), '\0' };
-                        pCharPet->setValue(std::string(emoChar));
-                        pCharPet->notify();
-                    }
-                    Serial.printf("[TOUCH] Double-Tap -> Switched to Mascot: %d (%s)\n", next, emoNames[next]);
-                } else {
-                    // First Touch Down (Silent - no BLE spam)
-                    pendingSingleTap = false;
-                    secondTapActive = false;
-                }
-            } else {
-                // FINGER TOUCH UP (Release)
-                isTouching = false;
-                lastActivityTime = now;
-                uint32_t touchDuration = now - touchStartTime;
-
-                if (holdTriggered) {
-                    // Released after 2.0s hold - no further tap action
-                } else if (secondTapActive) {
-                    // Released after 2nd tap of double-tap - reset flag
-                    secondTapActive = false;
-                } else if (touchDuration >= 25 && touchDuration < 800) {
-                    // Valid 1st tap released -> wait for potential 2nd tap
-                    pendingSingleTap = true;
-                    firstTapReleaseTime = now;
-                } else {
-                    pendingSingleTap = false;
-                }
+    bool pinHigh = (digitalRead(PIN_TOUCH) == HIGH);
+    if (pinHigh) {
+        if (!isrTouchDown) {
+            isrTouchDown = true;
+            isrDownTime = now;
+        }
+    } else {
+        if (isrTouchDown) {
+            isrTouchDown = false;
+            isrUpTime = now;
+            uint32_t dur = isrUpTime - isrDownTime;
+            if (dur >= 15 && dur < 1200) {
+                isrTapCount++;
+                isrLastTapEndTime = now;
             }
         }
     }
+}
 
-    // 2. CONTINUOUS 2.0s HOLD (Triggers directly while finger is resting on sensor)
-    if (debouncedTouch && isTouching && !holdTriggered && !secondTapActive) {
-        if (now - touchStartTime >= 2000) { // 2.0 seconds continuous hold
+void processTouch() {
+    uint32_t now = millis();
+    bool isDown = isrTouchDown || (digitalRead(PIN_TOUCH) == HIGH);
+
+    // 1. DOUBLE TAP DETECTION (Instant switch on 2nd tap down OR 2 taps completed)
+    if (isrTapCount >= 2 || (isrTapCount == 1 && isDown && (now - isrLastTapEndTime <= 650) && (now - isrLastTapEndTime >= 15))) {
+        isrTapCount = 0;
+        lastActivityTime = now;
+        holdTriggered = false;
+        isTemporaryLove = false;
+
+        int next = ((int)memePet.currentEmotion + 1) % 7;
+        memePet.setEmotion((MemeEmotion)next);
+        memePet.defaultEmotion = (MemeEmotion)next; // Persist mascot
+        currentMode = MODE_CYBERPET;
+        isVideoPlaying = false;
+
+        const char* emoNames[] = { "LUFFY ⚡", "SHY LOVE 👉👈", "GIGGLE CAT 😸", "SAD BANANA 🍌", "UMARU CRY 😭", "ANGRY CAT 😾", "BUNNY 🐰" };
+        triggerTouchVisual(emoNames[next], 0xFFE0, 1000, "TOUCH:DOUBLE");
+
+        if (bleConnected && pCharPet) {
+            char emoChar[2] = { (char)('0' + (int)next), '\0' };
+            pCharPet->setValue(std::string(emoChar));
+            pCharPet->notify();
+        }
+        Serial.printf("[TOUCH] Instant Double-Tap! -> Switched Mascot: %d (%s)\n", next, emoNames[next]);
+        return;
+    }
+
+    // 2. CONTINUOUS 2.0s HOLD (Shy Love ❤️)
+    if (isDown && !holdTriggered && isrTapCount == 0) {
+        if (isrDownTime > 0 && (now - isrDownTime >= 2000)) {
             holdTriggered = true;
-            pendingSingleTap = false; // Cancel any single tap
+            isrTapCount = 0;
+            lastActivityTime = now;
 
             // Save original photo that was there before love triggered
             preHoldEmotion = memePet.currentEmotion;
@@ -627,13 +609,21 @@ void processTouch() {
                 pCharPet->notify();
             }
             Serial.printf("[TOUCH] 2.0s Hold -> Shy Love! (Reverting to %d in 5s)\n", (int)preHoldEmotion);
+            return;
         }
     }
 
-    // 3. PENDING SINGLE TAP TIMEOUT (Fires ONLY when 550ms elapse without a 2nd tap)
-    if (pendingSingleTap && !debouncedTouch && (now - firstTapReleaseTime > 550)) {
-        pendingSingleTap = false;
-        if (!holdTriggered && !secondTapActive) {
+    if (!isDown && holdTriggered) {
+        holdTriggered = false;
+        isrTapCount = 0;
+    }
+
+    // 3. SINGLE TAP TIMEOUT (Poke Triggered)
+    // If 1 tap was recorded, finger is lifted, and 450ms have passed without a second tap:
+    if (isrTapCount == 1 && !isDown && (now - isrLastTapEndTime > 450)) {
+        isrTapCount = 0;
+        lastActivityTime = now;
+        if (!holdTriggered) {
             memePet.triggerTap();
             triggerTouchVisual("POKE 👆", 0x07FF, 700, "TOUCH:POKE");
             Serial.println("[TOUCH] Single Tap Confirmed -> POKE 👆");
@@ -669,6 +659,7 @@ void enterDeepSleep() {
     gpio_hold_en((gpio_num_t)PIN_TFT_BL);
     gpio_deep_sleep_hold_en();
 
+    detachInterrupt(digitalPinToInterrupt(PIN_TOUCH));
     esp_deep_sleep_enable_gpio_wakeup(1ULL << PIN_TOUCH, ESP_GPIO_WAKEUP_GPIO_HIGH);
 
     Serial.flush();
@@ -804,6 +795,7 @@ void setup() {
     digitalWrite(PIN_TFT_BL, HIGH);
 
     pinMode(PIN_TOUCH, INPUT);
+    attachInterrupt(digitalPinToInterrupt(PIN_TOUCH), touchISR, CHANGE);
     analogSetPinAttenuation(PIN_BAT_ADC, ADC_11db);
     pinMode(PIN_BAT_ADC, INPUT);
 
@@ -989,7 +981,7 @@ void loop() {
     // =====================================================================
     // ON-SCREEN TOUCH VISUALIZER OVERLAY
     // =====================================================================
-    if (isTouching || millis() < touchVisualEndTime) {
+    if (millis() < touchVisualEndTime) {
         int pulseR = (millis() / 40) % 10 + 4;
         canvas.drawCircle(222, 18, pulseR, touchVisualColor);
         canvas.fillCircle(222, 18, 4, touchVisualColor);
