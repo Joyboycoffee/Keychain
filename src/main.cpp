@@ -33,7 +33,7 @@ BootSplashType bootSplashType   = BOOT_JOYBOY_INTRO;
 uint8_t        bootDurationSec  = 2;
 uint8_t        screenBrightness = 240;
 uint8_t        screenRotation   = 3;
-uint32_t       sleepTimeoutMs   = 60000;
+uint32_t       sleepTimeoutMs   = 0; // Default to NEVER sleep for battery discharge runs!
 
 bool bleConnected = false;
 
@@ -41,10 +41,17 @@ bool bleConnected = false;
 String customMessage = "I AM JOY BOY COFFEE :coffee: :fire:";
 int scrollX = 240;
 
-// Battery Telemetry
-float currentBatVoltage = 4.20f;
-int   currentBatPercent = 100;
-bool  isUsbPower        = true;
+// Battery Telemetry & Discharge Run Logger
+float    currentBatVoltage   = 4.20f;
+int      currentBatPercent   = 100;
+bool     isUsbPower          = true;
+uint32_t sessionStartTimeMs  = 0;
+uint16_t sessionStartMv      = 4200;
+uint32_t lastSavedRunSec     = 0;
+uint16_t lastSavedStartMv    = 4200;
+uint16_t lastSavedEndMv      = 4200;
+bool     lastSavedWasUsb     = false;
+uint32_t totalRunCycles      = 1;
 
 // Touch State & Gestures
 bool     isTouching          = false;
@@ -59,12 +66,28 @@ String   touchVisualText     = "TOUCH";
 uint16_t touchVisualColor    = 0x07FF;
 uint32_t touchVisualEndTime  = 0;
 
-// Dynamic Stream / Upload Buffer
+// Dynamic Image / Video Stream Buffers
 #define STREAM_CHUNK_BUFFER 20480
 uint8_t* pStreamBuf          = nullptr;
 size_t   streamBytesReceived = 0;
 size_t   expectedStreamBytes = 0;
 bool     newMediaFrameReady  = false;
+
+// 25 FPS Video / GIF Dynamic Stream Pool
+#define MAX_VIDEO_FRAMES 30
+#define VIDEO_POOL_MAX_SIZE 65000
+uint8_t* pVideoPool          = nullptr;
+size_t   videoPoolWriteOffset = 0;
+size_t   frameOffsets[MAX_VIDEO_FRAMES];
+size_t   frameLengths[MAX_VIDEO_FRAMES];
+int      totalVideoFrames     = 0;
+int      currentVideoFrame    = 0;
+uint8_t  videoTargetFps       = 25;
+bool     isVideoPlaying       = false;
+uint32_t lastVideoFrameTime   = 0;
+int      incomingFrameIdx     = -1;
+size_t   incomingFrameExpected= 0;
+size_t   incomingFrameReceived= 0;
 
 // Boot Media Upload State
 File     bootFile;
@@ -81,6 +104,7 @@ NimBLECharacteristic* pCharSet     = nullptr;
 
 // Forward declarations
 void updateBatteryTelemetry();
+void saveBatteryDischargeLog();
 void playBootSplash();
 void triggerTouchVisual(const String& label, uint16_t color, uint32_t durationMs, const char* bleState);
 
@@ -108,6 +132,9 @@ class ModeCallback : public NimBLECharacteristicCallbacks {
             int m = val[0] - '0';
             if (m >= 0 && m <= 5) {
                 currentMode = (SystemMode)m;
+                if (currentMode != MODE_STREAM_MEDIA) {
+                    isVideoPlaying = false;
+                }
                 lastActivityTime = millis();
                 Serial.printf("[BLE] Switched Mode: %d\n", m);
             }
@@ -123,6 +150,7 @@ class PetCallback : public NimBLECharacteristicCallbacks {
             if (a >= 0 && a <= 6) {
                 memePet.setEmotion((MemeEmotion)a);
                 currentMode = MODE_CYBERPET;
+                isVideoPlaying = false;
                 lastActivityTime = millis();
                 Serial.printf("[BLE] Switched Emotion: %d\n", a);
             }
@@ -137,6 +165,7 @@ class TextCallback : public NimBLECharacteristicCallbacks {
             customMessage = String(val.c_str());
             scrollX = 240;
             currentMode = MODE_TEXT_SCROLL;
+            isVideoPlaying = false;
             lastActivityTime = millis();
             prefs.putString("msg", customMessage);
             Serial.printf("[BLE] Marquee Text: %s\n", customMessage.c_str());
@@ -182,7 +211,7 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
                 Serial.printf("[SETTINGS] Rotation set: %d\n", r);
             }
         }
-        // 2. Sleep Timeout Command: "SLEEP:30" (seconds)
+        // 2. Sleep Timeout Command: "SLEEP:0" (0 = Never, 30 = 30s)
         else if (cmd.startsWith("SLEEP:")) {
             int sec = cmd.substring(6).toInt();
             sleepTimeoutMs = (sec <= 0) ? 0 : (sec * 1000);
@@ -220,7 +249,38 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
             Serial.println("[SETTINGS] Previewing Boot Splash...");
             playBootSplash();
         }
-        // 7. Brightness Value: "10".."255"
+        // 7. Get Battery Discharge Log: "BAT:GET_LOG"
+        else if (cmd == "BAT:GET_LOG") {
+            uint32_t curRunSec = (millis() - sessionStartTimeMs) / 1000;
+            char logMsg[96];
+            // Format: "BAT_LOG|last_sec|last_start_mv|last_end_mv|cur_sec|cur_mv|usb|cycles"
+            snprintf(logMsg, sizeof(logMsg), "BAT_LOG|%u|%u|%u|%u|%u|%d|%u",
+                     lastSavedRunSec, lastSavedStartMv, lastSavedEndMv,
+                     curRunSec, (uint16_t)(currentBatVoltage * 1000),
+                     isUsbPower ? 1 : 0, totalRunCycles);
+            if (pCharSet) {
+                pCharSet->setValue(std::string(logMsg));
+                pCharSet->notify();
+            }
+            Serial.printf("[BATTERY] Sent Log: %s\n", logMsg);
+        }
+        // 8. Reset Battery Log: "BAT:RESET_LOG"
+        else if (cmd == "BAT:RESET_LOG") {
+            lastSavedRunSec = 0;
+            lastSavedStartMv = (uint16_t)(currentBatVoltage * 1000);
+            lastSavedEndMv = lastSavedStartMv;
+            totalRunCycles = 1;
+            prefs.putUInt("l_run", 0);
+            prefs.putUShort("l_start", lastSavedStartMv);
+            prefs.putUShort("l_end", lastSavedEndMv);
+            prefs.putUInt("t_cycles", 1);
+            if (pCharSet) {
+                pCharSet->setValue(std::string("BAT_LOG|0|0|0|0|0|0|1"));
+                pCharSet->notify();
+            }
+            Serial.println("[BATTERY] Battery log reset.");
+        }
+        // 9. Brightness Value: "10".."255"
         else {
             int br = cmd.toInt();
             if (br >= 10 && br <= 255) {
@@ -246,6 +306,7 @@ class StreamCallback : public NimBLECharacteristicCallbacks {
             expectedStreamBytes = (bytes[2] << 8) | bytes[3];
             streamBytesReceived = 0;
             newMediaFrameReady = false;
+            isVideoPlaying = false;
             if (!pStreamBuf) pStreamBuf = (uint8_t*)malloc(STREAM_CHUNK_BUFFER);
             if (pStreamBuf && len > 4) {
                 size_t payload = len - 4;
@@ -288,31 +349,77 @@ class StreamCallback : public NimBLECharacteristicCallbacks {
             return;
         }
 
-        // 4. Video Frame Header (Boot): 0xCC 0x99 [frame_idx] [len_hi] [len_lo]
-        if (len >= 5 && bytes[0] == 0xCC && bytes[1] == 0x99 && bootFile) {
-            bootFile.write(bytes[3]);
-            bootFile.write(bytes[4]);
-            size_t payload = len - 5;
-            if (payload > 0) {
-                bootFile.write(bytes + 5, payload);
+        // 4. Live Video / GIF Stream Init Header: 0xBB 0x66 [total_frames] [fps]
+        if (len >= 4 && bytes[0] == 0xBB && bytes[1] == 0x66) {
+            totalVideoFrames = bytes[2];
+            if (totalVideoFrames > MAX_VIDEO_FRAMES) totalVideoFrames = MAX_VIDEO_FRAMES;
+            videoTargetFps = bytes[3] > 0 ? bytes[3] : 25;
+            videoPoolWriteOffset = 0;
+            currentVideoFrame = 0;
+            isVideoPlaying = false;
+            incomingFrameIdx = -1;
+            
+            if (!pVideoPool) pVideoPool = (uint8_t*)malloc(VIDEO_POOL_MAX_SIZE);
+            Serial.printf("[STREAM] Video/GIF Stream Init: %d frames @ %d FPS (Buffer Allocated)\n", totalVideoFrames, videoTargetFps);
+            return;
+        }
+
+        // 5. Video Frame Header (Live or Boot): 0xCC [0x77|0x99] [frame_idx] [len_hi] [len_lo]
+        if (len >= 5 && bytes[0] == 0xCC) {
+            incomingFrameIdx = bytes[2];
+            incomingFrameExpected = (bytes[3] << 8) | bytes[4];
+            incomingFrameReceived = 0;
+
+            if (bytes[1] == 0x99 && bootFile) {
+                // Boot animation to flash
+                bootFile.write(bytes[3]);
+                bootFile.write(bytes[4]);
+                size_t payload = len - 5;
+                if (payload > 0) {
+                    bootFile.write(bytes + 5, payload);
+                    incomingFrameReceived += payload;
+                }
+            } else if (bytes[1] == 0x77 && pVideoPool) {
+                // Live video buffer
+                if (incomingFrameIdx < MAX_VIDEO_FRAMES && (videoPoolWriteOffset + incomingFrameExpected) <= VIDEO_POOL_MAX_SIZE) {
+                    frameOffsets[incomingFrameIdx] = videoPoolWriteOffset;
+                    frameLengths[incomingFrameIdx] = 0;
+                    size_t payload = len - 5;
+                    if (payload > 0) {
+                        memcpy(pVideoPool + videoPoolWriteOffset, bytes + 5, payload);
+                        videoPoolWriteOffset += payload;
+                        incomingFrameReceived += payload;
+                    }
+                }
             }
             return;
         }
 
-        // 5. Finish / Play Header: 0xDD 0x99
-        if (len >= 2 && bytes[0] == 0xDD && bytes[1] == 0x99) {
-            if (bootFile) {
-                bootFile.close();
+        // 6. Finish / Play Header: 0xDD [0x88|0x99]
+        if (len >= 2 && bytes[0] == 0xDD) {
+            if (bytes[1] == 0x99) {
+                // Finalize Boot Media Upload
+                if (bootFile) {
+                    bootFile.close();
+                }
+                isBootUploading = false;
+                bootSplashType = (bootUploadType == 1) ? BOOT_CUSTOM_IMAGE : BOOT_CUSTOM_ANIM;
+                prefs.putUChar("boot_type", (uint8_t)bootSplashType);
+                Serial.printf("[LITTLEFS] Boot Media Saved! Type=%d. Previewing...\n", (int)bootSplashType);
+                playBootSplash();
+            } else if (bytes[1] == 0x88) {
+                // Live Video Play
+                isVideoPlaying = true;
+                currentVideoFrame = 0;
+                currentMode = MODE_STREAM_MEDIA;
+                lastVideoFrameTime = millis();
+                lastActivityTime = millis();
+                Serial.printf("[STREAM] Video/GIF Playback Started (%d frames @ %d FPS)!\n", totalVideoFrames, videoTargetFps);
             }
-            isBootUploading = false;
-            bootSplashType = (bootUploadType == 1) ? BOOT_CUSTOM_IMAGE : BOOT_CUSTOM_ANIM;
-            prefs.putUChar("boot_type", (uint8_t)bootSplashType);
-            Serial.printf("[LITTLEFS] Boot Media Saved! Type=%d. Previewing...\n", (int)bootSplashType);
-            playBootSplash();
             return;
         }
 
-        // 6. Append Boot Upload Chunk
+        // 7. Append Boot Upload Chunk
         if (isBootUploading && bootFile) {
             bootFile.write(bytes, len);
             if (bootUploadType == 1) {
@@ -329,7 +436,21 @@ class StreamCallback : public NimBLECharacteristicCallbacks {
             return;
         }
 
-        // 7. Append Live Single Image Chunk
+        // 8. Append Live Video Frame Chunk
+        if (incomingFrameIdx >= 0 && incomingFrameReceived < incomingFrameExpected && pVideoPool) {
+            if (videoPoolWriteOffset + len <= VIDEO_POOL_MAX_SIZE) {
+                memcpy(pVideoPool + videoPoolWriteOffset, bytes, len);
+                videoPoolWriteOffset += len;
+                incomingFrameReceived += len;
+                if (incomingFrameReceived >= incomingFrameExpected) {
+                    frameLengths[incomingFrameIdx] = incomingFrameExpected;
+                    incomingFrameIdx = -1;
+                }
+            }
+            return;
+        }
+
+        // 9. Append Live Single Image Chunk
         if (expectedStreamBytes > 0 && streamBytesReceived < expectedStreamBytes && pStreamBuf) {
             if (streamBytesReceived + len <= STREAM_CHUNK_BUFFER) {
                 memcpy(pStreamBuf + streamBytesReceived, bytes, len);
@@ -346,8 +467,21 @@ class StreamCallback : public NimBLECharacteristicCallbacks {
 };
 
 // =========================================================================
-// BATTERY VOLTAGE SENSING (100k + 100k DIVIDER ON GPIO 0)
+// BATTERY VOLTAGE SENSING & DISCHARGE LOGGING (GPIO 0)
 // =========================================================================
+void saveBatteryDischargeLog() {
+    uint32_t curRunSec = (millis() - sessionStartTimeMs) / 1000;
+    uint16_t curEndMv = (uint16_t)(currentBatVoltage * 1000);
+    
+    // Save live session state into NVS preferences
+    prefs.putUInt("l_run", curRunSec);
+    prefs.putUShort("l_end", curEndMv);
+    prefs.putBool("l_usb", isUsbPower);
+    lastSavedRunSec = curRunSec;
+    lastSavedEndMv = curEndMv;
+    lastSavedWasUsb = isUsbPower;
+}
+
 void updateBatteryTelemetry() {
     uint32_t rawMv = analogReadMilliVolts(PIN_BAT_ADC);
     float vbat = (rawMv * 2.0f) / 1000.0f;
@@ -411,6 +545,7 @@ void processTouch() {
         if (pressDuration >= 450) {
             memePet.triggerHold();
             currentMode = MODE_CYBERPET;
+            isVideoPlaying = false;
             triggerTouchVisual("SHY LOVE ❤️", 0xF81F, 1000, "TOUCH:HOLD");
             if (bleConnected && pCharPet) {
                 char emoChar[2] = { (char)('0' + (int)EMOTION_SHY), '\0' };
@@ -428,6 +563,7 @@ void processTouch() {
                 tapCount = 0;
                 memePet.triggerDoubleTap();
                 currentMode = MODE_CYBERPET;
+                isVideoPlaying = false;
                 triggerTouchVisual("REACT ⚡", 0xFFE0, 800, "TOUCH:DOUBLE");
                 if (bleConnected && pCharPet) {
                     char emoChar[2] = { (char)('0' + (int)memePet.currentEmotion), '\0' };
@@ -448,6 +584,8 @@ void processTouch() {
 // =========================================================================
 void enterDeepSleep() {
     Serial.println("[POWER] Entering Deep Sleep...");
+
+    saveBatteryDischargeLog();
 
     tft.setBrightness(0);
     tft.sleep();
@@ -565,7 +703,7 @@ void playBootSplash() {
 
         canvas.setTextColor(0x07E0, 0x0000);
         canvas.setTextSize(1);
-        canvas.drawCenterString("DIGI KEYCHAIN v4.2", 120, 168);
+        canvas.drawCenterString("DIGI KEYCHAIN v4.3", 120, 168);
 
         // Cyber Progress Bar
         float pct = (float)(millis() - startIntro) / (float)(bootDurationSec * 1000);
@@ -584,7 +722,7 @@ void playBootSplash() {
 void setup() {
     Serial.begin(115200);
     delay(200);
-    Serial.println("\n=== DIGI KEYCHAIN ENGINE v4.2 STARTUP ===");
+    Serial.println("\n=== DIGI KEYCHAIN ENGINE v4.3 STARTUP ===");
 
     // 1. Release Deep Sleep GPIO Hold
     gpio_hold_dis((gpio_num_t)PIN_TFT_BL);
@@ -602,7 +740,7 @@ void setup() {
         Serial.println("[LITTLEFS] Mounted successfully.");
     }
 
-    // Load Persistent Preferences
+    // Load Persistent Preferences & Battery Run Logger Stats
     prefs.begin("digi_keychain", false);
     defaultMode = (SystemMode)prefs.getUChar("def_mode", (uint8_t)MODE_CYBERPET);
     currentMode = defaultMode;
@@ -612,8 +750,24 @@ void setup() {
     bootDurationSec = prefs.getUChar("boot_dur", 2);
     screenBrightness = prefs.getUChar("br", 240);
     screenRotation = prefs.getUChar("rot", 3);
-    sleepTimeoutMs = prefs.getUInt("sleep", 60000);
+    sleepTimeoutMs = prefs.getUInt("sleep", 0); // 0 = Never sleep by default
     customMessage = prefs.getString("msg", "I AM JOY BOY COFFEE :coffee: :fire:");
+
+    // Battery Discharge Logger State from NVS
+    lastSavedRunSec  = prefs.getUInt("l_run", 0);
+    lastSavedStartMv = prefs.getUShort("l_start", 4200);
+    lastSavedEndMv   = prefs.getUShort("l_end", 4200);
+    lastSavedWasUsb  = prefs.getBool("l_usb", false);
+    totalRunCycles   = prefs.getUInt("t_cycles", 0) + 1;
+    prefs.putUInt("t_cycles", totalRunCycles);
+
+    sessionStartTimeMs = millis();
+    updateBatteryTelemetry();
+    sessionStartMv = (uint16_t)(currentBatVoltage * 1000);
+    prefs.putUShort("l_start", sessionStartMv);
+
+    Serial.printf("[BATTERY LOGGER] Last Run: %u sec | Start: %u mV -> End: %u mV | Cycle #%u\n",
+                  lastSavedRunSec, lastSavedStartMv, lastSavedEndMv, totalRunCycles);
 
     // 2. Initialize Display & Canvas (115KB heap)
     Serial.println("[DISPLAY] Initializing ST7789 display...");
@@ -676,7 +830,6 @@ void setup() {
         Serial.printf("[BOOT] Woke from Deep Sleep (%d). Skipping splash.\n", (int)wakeupReason);
     }
 
-    updateBatteryTelemetry();
     lastActivityTime = millis();
     Serial.printf("[SYSTEM] Ready! Running active engine. Free Heap: %u bytes\n", (unsigned int)ESP.getFreeHeap());
 }
@@ -692,11 +845,12 @@ void loop() {
         enterDeepSleep();
     }
 
-    // Periodic Battery Telemetry Update (every 3 seconds)
+    // Periodic Battery Telemetry & Flash Log Update (every 20 seconds)
     static uint32_t lastBatCheck = 0;
-    if (millis() - lastBatCheck >= 3000) {
+    if (millis() - lastBatCheck >= 20000) {
         lastBatCheck = millis();
         updateBatteryTelemetry();
+        saveBatteryDischargeLog();
     }
 
     // Render Active Mode into Canvas
@@ -739,7 +893,19 @@ void loop() {
         }
 
         case MODE_STREAM_MEDIA: {
-            if (newMediaFrameReady && streamBytesReceived > 0 && pStreamBuf) {
+            if (isVideoPlaying && totalVideoFrames > 0 && pVideoPool) {
+                uint32_t now = millis();
+                uint32_t frameInterval = 1000 / videoTargetFps;
+                if (now - lastVideoFrameTime >= frameInterval) {
+                    lastVideoFrameTime = now;
+                    if (frameLengths[currentVideoFrame] > 0) {
+                        uint8_t* fData = pVideoPool + frameOffsets[currentVideoFrame];
+                        size_t fLen = frameLengths[currentVideoFrame];
+                        canvas.drawJpg(fData, fLen, 0, 0, 240, 240);
+                    }
+                    currentVideoFrame = (currentVideoFrame + 1) % totalVideoFrames;
+                }
+            } else if (newMediaFrameReady && streamBytesReceived > 0 && pStreamBuf) {
                 canvas.drawJpg(pStreamBuf, streamBytesReceived, 0, 0, 240, 240);
             }
             break;
@@ -763,5 +929,10 @@ void loop() {
 
     // Push Double Buffer to Physical ST7789 Screen
     canvas.pushSprite(0, 0);
-    delay(25);
+
+    if (currentMode == MODE_STREAM_MEDIA && isVideoPlaying) {
+        delay(5);
+    } else {
+        delay(25);
+    }
 }

@@ -306,6 +306,23 @@
             transition: width 0.1s ease;
         }
 
+        .stats-box {
+            background: #05070a;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+        }
+
         .terminal {
             background: #000;
             border: 1px solid var(--border);
@@ -337,9 +354,9 @@
     <nav class="tab-bar">
         <button class="tab-btn active" onclick="switchTab('tabMascots')">🎭 Mascots</button>
         <button class="tab-btn" onclick="switchTab('tabBoot')">🎬 Boot Splash</button>
-        <button class="tab-btn" onclick="switchTab('tabDisplay')">📱 Display</button>
+        <button class="tab-btn" onclick="switchTab('tabDisplay')">📱 Display & Battery</button>
         <button class="tab-btn" onclick="switchTab('tabMarquee')">✨ Marquee</button>
-        <button class="tab-btn" onclick="switchTab('tabStream')">🖼️ Stream</button>
+        <button class="tab-btn" onclick="switchTab('tabStream')">🖼️ Stream Media</button>
     </nav>
 
     <main>
@@ -398,11 +415,11 @@
                 <div style="display:flex; flex-direction:column; gap:8px;">
                     <div style="display:flex; gap:8px;">
                         <label class="btn-opt" style="flex:1; text-align:center; background:#1f2937;">
-                            📁 Upload Pic
+                            📁 Upload Boot Pic
                             <input type="file" accept="image/*" style="display:none;" onchange="uploadBootImage(event)">
                         </label>
                         <label class="btn-opt" style="flex:1; text-align:center; background:#1f2937;">
-                            🎥 Upload Clip
+                            🎥 Upload Boot Video
                             <input type="file" accept="video/*,image/gif" style="display:none;" onchange="uploadBootVideo(event)">
                         </label>
                     </div>
@@ -413,8 +430,43 @@
             </div>
         </section>
 
-        <!-- TAB 3: DISPLAY & POWER -->
+        <!-- TAB 3: DISPLAY & BATTERY DISCHARGE LOGGER -->
         <section id="tabDisplay" class="tab-content">
+            <div class="card">
+                <div class="card-title">
+                    <span>🔋 BATTERY DISCHARGE & RUNTIME TRACKER</span>
+                    <button class="btn-opt" style="padding:4px 8px; font-size:0.75rem;" onclick="fetchBatteryLog()">🔄 Refresh</button>
+                </div>
+                
+                <div class="stats-box">
+                    <div class="stats-row">
+                        <span style="color:var(--text-muted)">LAST DISCHARGE RUN:</span>
+                        <strong id="logLastRun" style="color:var(--cyan)">--</strong>
+                    </div>
+                    <div class="stats-row">
+                        <span style="color:var(--text-muted)">LAST VOLTAGE DROP:</span>
+                        <strong id="logLastVolt" style="color:var(--amber)">--</strong>
+                    </div>
+                    <div class="stats-row">
+                        <span style="color:var(--text-muted)">CURRENT SESSION UPTIME:</span>
+                        <strong id="logCurRun" style="color:var(--green)">0s</strong>
+                    </div>
+                    <div class="stats-row">
+                        <span style="color:var(--text-muted)">CURRENT VOLTAGE:</span>
+                        <strong id="logCurVolt">--</strong>
+                    </div>
+                    <div class="stats-row">
+                        <span style="color:var(--text-muted)">RECORDED CYCLES:</span>
+                        <strong id="logCycles">--</strong>
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:8px;">
+                    <button class="btn-opt" style="flex:1;" onclick="fetchBatteryLog()">📖 Read ESP Flash Log</button>
+                    <button class="btn-opt" style="flex:1; background:#3b1219; color:#f85149; border-color:#da3633;" onclick="resetBatteryLog()">🗑️ Reset Log</button>
+                </div>
+            </div>
+
             <div class="card">
                 <div class="card-title"><span>SCREEN ORIENTATION</span></div>
                 <div class="btn-grid">
@@ -447,9 +499,9 @@
                 <div class="slider-wrap">
                     <div class="slider-head">
                         <span>AUTO SLEEP TIMEOUT</span>
-                        <span id="sleepVal">1m</span>
+                        <span id="sleepVal">Never (Always ON)</span>
                     </div>
-                    <input type="range" id="sleepSlider" min="0" max="5" value="2" oninput="updateSleepSlider(this.value)">
+                    <input type="range" id="sleepSlider" min="0" max="5" value="5" oninput="updateSleepSlider(this.value)">
                 </div>
 
                 <button class="btn-opt" onclick="syncTimeAndWeather()" style="background:#1f6feb; color:#fff; border-color:#388bfd;">
@@ -482,16 +534,23 @@
             </div>
         </section>
 
-        <!-- TAB 5: MEDIA STREAMING -->
+        <!-- TAB 5: LIVE MEDIA STREAMING (IMAGE, VIDEO & GIF) -->
         <section id="tabStream" class="tab-content">
             <div class="card">
-                <div class="card-title"><span>LIVE MEDIA STREAM</span></div>
-                <label class="btn-opt" style="text-align:center; padding:14px;">
-                    📷 Stream Single Image (240x240)
+                <div class="card-title"><span>LIVE MEDIA STREAM (IMAGE / VIDEO / GIF)</span></div>
+                
+                <label class="btn-opt" style="text-align:center; padding:14px; background:#161c26;">
+                    📷 Stream Static Image (PNG / JPG / WebP)
                     <input type="file" accept="image/*" style="display:none;" onchange="uploadLiveImage(event)">
                 </label>
-                <div id="liveProgressWrap" class="progress-bar-wrap">
-                    <div id="liveProgressBar" class="progress-bar"></div>
+                
+                <label class="btn-opt" style="text-align:center; padding:14px; background:linear-gradient(135deg, #8957e5, #d946ef); color:#fff;">
+                    🎬 Stream 25 FPS Video / Animated GIF Loop
+                    <input type="file" accept="video/*,image/gif" style="display:none;" onchange="uploadLiveVideo(event)">
+                </label>
+
+                <div id="streamProgressWrap" class="progress-bar-wrap">
+                    <div id="streamProgressBar" class="progress-bar"></div>
                 </div>
             </div>
         </section>
@@ -514,13 +573,26 @@
         let charMode = null, charPet = null, charText = null, charTime = null, charSettings = null, charBattery = null, charStream = null;
 
         const sleepValues = [15, 30, 60, 120, 300, 0];
-        const sleepLabels = ["15s", "30s", "1m", "2m", "5m", "Never"];
+        const sleepLabels = ["15s", "30s", "1m", "2m", "5m", "Never (Always ON)"];
 
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
             event.target.classList.add('active');
+            if (tabId === 'tabDisplay') {
+                fetchBatteryLog();
+            }
+        }
+
+        function formatDuration(sec) {
+            if (sec < 60) return `${sec}s`;
+            const m = Math.floor(sec / 60);
+            const s = sec % 60;
+            if (m < 60) return `${m}m ${s}s`;
+            const h = Math.floor(m / 60);
+            const rm = m % 60;
+            return `${h}h ${rm}m ${s}s`;
         }
 
         function log(msg) {
@@ -587,6 +659,8 @@
                             const usb = parts[2] === '1';
                             const badge = document.getElementById('batteryPill');
                             if (badge) badge.innerText = usb ? `⚡ USB (${v}V)` : `🔋 ${v}V (${pct}%)`;
+                            const cv = document.getElementById('logCurVolt');
+                            if (cv) cv.innerText = usb ? `5.0V (USB Powered)` : `${v}V (${pct}%)`;
                         }
                     });
                 }
@@ -595,7 +669,7 @@
                     await charSettings.startNotifications().catch(()=>{});
                     charSettings.addEventListener('characteristicvaluechanged', (e) => {
                         const msg = new TextDecoder().decode(e.target.value);
-                        handleTouchNotification(msg);
+                        handleSettingsNotification(msg);
                     });
                 }
 
@@ -605,6 +679,7 @@
                 log("✅ Online! Telemetry & controls active.");
 
                 syncTimeAndWeather();
+                setTimeout(() => fetchBatteryLog(), 800);
             } catch (err) {
                 console.error(err);
                 log(`Error: ${err.message}`);
@@ -625,7 +700,8 @@
             tt.style.color = "var(--text-muted)";
         }
 
-        function handleTouchNotification(msg) {
+        function handleSettingsNotification(msg) {
+            // 1. Touch notifications
             const tb = document.getElementById('touchBanner');
             const tt = document.getElementById('touchText');
             if (msg === "TOUCH:DOWN") {
@@ -651,6 +727,40 @@
                     tt.style.color = "var(--text-muted)";
                 }, 250);
             }
+            // 2. Battery Log format: "BAT_LOG|last_sec|last_start_mv|last_end_mv|cur_sec|cur_mv|usb|cycles"
+            else if (msg.startsWith("BAT_LOG|")) {
+                const parts = msg.split('|');
+                if (parts.length >= 8) {
+                    const lastSec   = parseInt(parts[1]);
+                    const lastStart = (parseInt(parts[2]) / 1000).toFixed(2);
+                    const lastEnd   = (parseInt(parts[3]) / 1000).toFixed(2);
+                    const curSec    = parseInt(parts[4]);
+                    const curVolt   = (parseInt(parts[5]) / 1000).toFixed(2);
+                    const isUsb     = parts[6] === '1';
+                    const cycles    = parts[7];
+
+                    document.getElementById('logLastRun').innerText = lastSec > 0 ? formatDuration(lastSec) : "No Previous Run Saved";
+                    document.getElementById('logLastVolt').innerText = lastSec > 0 ? `${lastStart}V ➔ ${lastEnd}V` : "--";
+                    document.getElementById('logCurRun').innerText = formatDuration(curSec);
+                    document.getElementById('logCurVolt').innerText = isUsb ? `5.0V (USB Powered)` : `${curVolt}V`;
+                    document.getElementById('logCycles').innerText = `Cycle #${cycles}`;
+                    log(`🔋 Battery Log Read: Last Run was ${formatDuration(lastSec)} (${lastStart}V ➔ ${lastEnd}V)`);
+                }
+            }
+        }
+
+        async function fetchBatteryLog() {
+            if (!charSettings) return;
+            const data = new TextEncoder().encode("BAT:GET_LOG");
+            await charSettings.writeValue(data);
+        }
+
+        async function resetBatteryLog() {
+            if (!charSettings) return;
+            if (!confirm("Reset the battery discharge log?")) return;
+            const data = new TextEncoder().encode("BAT:RESET_LOG");
+            await charSettings.writeValue(data);
+            log("Battery discharge log cleared.");
         }
 
         async function setMode(modeNum) {
@@ -921,15 +1031,18 @@
             log("✅ Custom Video Boot Animation Saved!");
         }
 
+        // =========================================================================
+        // LIVE MEDIA STREAMING: SINGLE IMAGE, VIDEO & ANIMATED GIF
+        // =========================================================================
         async function uploadLiveImage(e) {
             const file = e.target.files[0];
             if (!file || !charStream) {
                 log("Connect BLE first before streaming.");
                 return;
             }
-            log(`Streaming: ${file.name}...`);
-            const progressWrap = document.getElementById('liveProgressWrap');
-            const progressBar = document.getElementById('liveProgressBar');
+            log(`Streaming Image: ${file.name}...`);
+            const progressWrap = document.getElementById('streamProgressWrap');
+            const progressBar = document.getElementById('streamProgressBar');
             progressWrap.style.display = 'block';
             progressBar.style.width = '20%';
 
@@ -973,6 +1086,88 @@
                     log(`✅ Streamed image (${bytes.length} bytes)!`);
                 }, 'image/jpeg', 0.80);
             };
+        }
+
+        async function uploadLiveVideo(e) {
+            const file = e.target.files[0];
+            if (!file || !charStream) {
+                log("Connect BLE first before streaming.");
+                return;
+            }
+            log(`Sampling Video/GIF: ${file.name}...`);
+            const progressWrap = document.getElementById('streamProgressWrap');
+            const progressBar = document.getElementById('streamProgressBar');
+            progressWrap.style.display = 'block';
+            progressBar.style.width = '10%';
+
+            const video = document.createElement('video');
+            const canvas = document.createElement('canvas');
+            canvas.width = 240;
+            canvas.height = 240;
+            const ctx = canvas.getContext('2d');
+
+            video.src = URL.createObjectURL(file);
+            video.muted = true;
+            await new Promise((resolve) => { 
+                video.onloadedmetadata = () => resolve();
+                video.onerror = () => resolve();
+            });
+
+            const duration = Math.min(video.duration || 1.2, 1.5);
+            const targetFrames = Math.min(Math.max(Math.floor(duration * 20), 8), 24);
+            const frameBlobs = [];
+
+            for (let i = 0; i < targetFrames; i++) {
+                video.currentTime = (i / targetFrames) * duration;
+                await new Promise(r => { video.onseeked = () => r(); setTimeout(r, 100); });
+                ctx.drawImage(video, 0, 0, 240, 240);
+                
+                const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.35));
+                const arrayBuffer = await blob.arrayBuffer();
+                frameBlobs.push(new Uint8Array(arrayBuffer));
+                progressBar.style.width = `${Math.round(((i + 1) / targetFrames) * 30)}%`;
+            }
+
+            log(`Streaming ${frameBlobs.length} frames over BLE @ 25 FPS...`);
+            const initHeader = new Uint8Array([0xBB, 0x66, frameBlobs.length, 25]);
+            await charStream.writeValueWithoutResponse(initHeader);
+            await new Promise(r => setTimeout(r, 40));
+
+            const CHUNK_SIZE = 480;
+            for (let fIdx = 0; fIdx < frameBlobs.length; fIdx++) {
+                const fBytes = frameBlobs[fIdx];
+                const totalLen = fBytes.length;
+
+                const firstChunkLen = Math.min(CHUNK_SIZE - 5, totalLen);
+                const fHeader = new Uint8Array(5 + firstChunkLen);
+                fHeader[0] = 0xCC;
+                fHeader[1] = 0x77; // Live Stream Video Tag
+                fHeader[2] = fIdx;
+                fHeader[3] = (totalLen >> 8) & 0xFF;
+                fHeader[4] = totalLen & 0xFF;
+                fHeader.set(fBytes.subarray(0, firstChunkLen), 5);
+
+                await charStream.writeValueWithoutResponse(fHeader);
+                await new Promise(r => setTimeout(r, 20));
+
+                let offset = firstChunkLen;
+                while (offset < totalLen) {
+                    const chunkEnd = Math.min(offset + CHUNK_SIZE, totalLen);
+                    const chunk = fBytes.subarray(offset, chunkEnd);
+                    await charStream.writeValueWithoutResponse(chunk);
+                    offset = chunkEnd;
+                    await new Promise(r => setTimeout(r, 12));
+                }
+
+                const pct = 30 + Math.round(((fIdx + 1) / frameBlobs.length) * 70);
+                progressBar.style.width = `${pct}%`;
+            }
+
+            const playHeader = new Uint8Array([0xDD, 0x88]);
+            await charStream.writeValueWithoutResponse(playHeader);
+
+            setTimeout(() => { progressWrap.style.display = 'none'; }, 1000);
+            log(`🎬 Playing live 25 FPS video loop (${frameBlobs.length} frames)!`);
         }
     </script>
 </body>
