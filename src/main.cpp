@@ -104,11 +104,10 @@ void triggerTouchVisual(const String& label, uint16_t color, uint32_t durationMs
 // BLE CALLBACKS
 // =========================================================================
 class ServerCallbacks : public NimBLEServerCallbacks {
-    void onConnect(NimBLEServer* pServer, ble_gap_conn_desc* desc) {
+    void onConnect(NimBLEServer* pServer) {
         bleConnected = true;
         lastActivityTime = millis();
-        pServer->updateConnParams(desc->conn_handle, 12, 24, 0, 400);
-        Serial.printf("[BLE] Client Connected (handle=%d)!\n", desc->conn_handle);
+        Serial.println("[BLE] Client Connected!");
     }
     void onDisconnect(NimBLEServer* pServer) {
         bleConnected = false;
@@ -698,11 +697,10 @@ void setup() {
     sleepTimeoutMs = prefs.getUInt("sleep", 60000);
     customMessage = prefs.getString("msg", "I AM JOY BOY COFFEE :coffee: :fire:");
 
-    // 2. Initialize NimBLE Bluetooth FIRST with High Power & Optimal Parameters
+    // 2. Initialize NimBLE Bluetooth FIRST
     Serial.println("[BLE] Initializing NimBLE stack...");
     NimBLEDevice::init("DIGI_KEYCHAIN");
-    NimBLEDevice::setPower(ESP_PWR_LVL_P9); // Maximum +9dBm BLE TX Power
-    NimBLEDevice::setSecurityAuth(false, false, false);
+    NimBLEDevice::setPower(ESP_PWR_LVL_P9);
 
     NimBLEServer* pServer = NimBLEDevice::createServer();
     pServer->setCallbacks(new ServerCallbacks());
@@ -734,10 +732,8 @@ void setup() {
     NimBLEAdvertising* pAdv = NimBLEDevice::getAdvertising();
     pAdv->addServiceUUID(SERVICE_UUID);
     pAdv->setScanResponse(true);
-    pAdv->setMinPreferred(0x06); // 7.5 ms min interval
-    pAdv->setMaxPreferred(0x12); // 22.5 ms max interval
     pAdv->start();
-    Serial.println("[BLE] Advertising started as DIGI_KEYCHAIN (0xFFE0)");
+    Serial.println("[BLE] Advertising started as DIGI_KEYCHAIN (0000ffe0-0000-1000-8000-00805f9b34fb)");
 
     // 3. Initialize Display
     Serial.println("[DISPLAY] Initializing ST7789 display...");

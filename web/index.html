@@ -33,10 +33,9 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            padding-bottom: 75px; /* Space for mobile bottom bar */
+            padding-bottom: 75px;
         }
 
-        /* Top Header */
         header {
             background-color: rgba(14, 19, 27, 0.95);
             backdrop-filter: blur(12px);
@@ -90,7 +89,6 @@
             cursor: pointer;
         }
 
-        /* Live Touch Banner */
         #touchBanner {
             background: rgba(0, 240, 255, 0.05);
             border-bottom: 1px solid var(--border);
@@ -109,7 +107,6 @@
             box-shadow: inset 0 0 15px rgba(0, 240, 255, 0.4);
         }
 
-        /* Tab Navigation (Mobile & Desktop) */
         .tab-bar {
             display: flex;
             background: var(--bg-card);
@@ -144,7 +141,6 @@
             box-shadow: 0 0 10px rgba(0, 240, 255, 0.15);
         }
 
-        /* Content Sections */
         main {
             max-width: 650px;
             width: 100%;
@@ -333,13 +329,11 @@
         </div>
     </header>
 
-    <!-- Real-Time Hardware Touch Feedback Indicator -->
     <div id="touchBanner">
         <span>HARDWARE TOUCH SENSOR</span>
         <strong id="touchText" style="color:var(--text-muted);">[ IDLE ]</strong>
     </div>
 
-    <!-- Clean Mobile Segment Tab Bar -->
     <nav class="tab-bar">
         <button class="tab-btn active" onclick="switchTab('tabMascots')">🎭 Mascots</button>
         <button class="tab-btn" onclick="switchTab('tabBoot')">🎬 Boot Splash</button>
@@ -508,7 +502,6 @@
             </div>
         </section>
 
-        <!-- Terminal Log -->
         <div class="terminal" id="terminal">> Digi Keychain ready. Tap Pair.</div>
     </main>
 
@@ -556,7 +549,6 @@
                     ],
                     optionalServices: [
                         SERVICE_UUID,
-                        '0000ffe0-0000-1000-8000-00805f9b34fb',
                         0xffe0
                     ]
                 });
@@ -565,18 +557,37 @@
                 bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
                 
                 gattServer = await bleDevice.gatt.connect();
-                log("GATT Connected! Discovering services...");
+                log("GATT connected! Getting service...");
                 await new Promise(r => setTimeout(r, 200));
 
-                const service = await gattServer.getPrimaryService(SERVICE_UUID);
+                let service = null;
+                try {
+                    service = await gattServer.getPrimaryService(SERVICE_UUID);
+                } catch(e) {
+                    const services = await gattServer.getPrimaryServices();
+                    if (services && services.length > 0) {
+                        service = services[0];
+                    }
+                }
 
-                charMode     = await service.getCharacteristic(CHAR_MODE_UUID).catch(()=>null);
-                charPet      = await service.getCharacteristic(CHAR_PET_UUID).catch(()=>null);
-                charText     = await service.getCharacteristic(CHAR_TEXT_UUID).catch(()=>null);
-                charTime     = await service.getCharacteristic(CHAR_TIME_UUID).catch(()=>null);
-                charSettings = await service.getCharacteristic(CHAR_SETTINGS_UUID).catch(()=>null);
-                charBattery  = await service.getCharacteristic(CHAR_BATTERY_UUID).catch(()=>null);
-                charStream   = await service.getCharacteristic(CHAR_STREAM_UUID).catch(()=>null);
+                if (!service) {
+                    throw new Error("Could not find DIGI_KEYCHAIN service.");
+                }
+
+                log("Discovering characteristics...");
+                const chars = await service.getCharacteristics();
+                log(`Found ${chars.length} characteristics!`);
+
+                for (const c of chars) {
+                    const u = c.uuid.toLowerCase();
+                    if (u.includes('ffe1')) charMode = c;
+                    else if (u.includes('ffe2')) charPet = c;
+                    else if (u.includes('ffe3')) charText = c;
+                    else if (u.includes('ffe4')) charTime = c;
+                    else if (u.includes('ffe5')) charSettings = c;
+                    else if (u.includes('ffe6')) charBattery = c;
+                    else if (u.includes('ffe7')) charStream = c;
+                }
 
                 if (charMode) {
                     await charMode.startNotifications().catch(()=>{});
