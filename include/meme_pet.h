@@ -32,6 +32,19 @@ public:
         emotionStartTime = millis();
     }
 
+    void triggerTap() {
+        emotionStartTime = millis();
+    }
+
+    void triggerHold() {
+        setEmotion(EMOTION_SHY);
+    }
+
+    void triggerDoubleTap() {
+        int next = ((int)currentEmotion + 1) % 7;
+        setEmotion((MemeEmotion)next);
+    }
+
     void update() {
         uint32_t now = millis();
 

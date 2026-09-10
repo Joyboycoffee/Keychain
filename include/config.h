@@ -1,5 +1,6 @@
 #pragma once
 #include <Arduino.h>
+#include <LittleFS.h>
 
 // =========================================================================
 // HARDWARE PIN DEFINITIONS (ESP32-C3 SuperMini)
@@ -20,7 +21,7 @@
 #define PIN_DEBUG_LED  8    // Onboard Blue LED
 
 // Battery Voltage Sensing (GPIO 0 - ADC1_CH0)
-#define PIN_BAT_ADC    0    // Center tap of 100k+100k or 200k+200k voltage divider
+#define PIN_BAT_ADC    0    // Center tap of 100k+100k voltage divider
 
 // =========================================================================
 // BLE 16-BIT COMPACT UUIDs
@@ -30,12 +31,12 @@
 #define CHAR_PET_UUID          "FFE2" // Pet Avatar & Interaction
 #define CHAR_TEXT_UUID         "FFE3" // Custom Text Message
 #define CHAR_TIME_UUID         "FFE4" // Time & Weather Sync
-#define CHAR_SETTINGS_UUID     "FFE5" // Brightness
+#define CHAR_SETTINGS_UUID     "FFE5" // Brightness, Rotation, Sleep, Boot, Touch telemetry
 #define CHAR_BATTERY_UUID      "FFE6" // Live Battery Voltage & Telemetry
 #define CHAR_STREAM_UUID       "FFE7" // Live Custom Image & Video Stream Chunks
 
 // =========================================================================
-// SYSTEM MODES
+// SYSTEM MODES & BOOT SPLASH TYPES
 // =========================================================================
 enum SystemMode {
     MODE_CYBERPET = 0,   // Interactive Meme Emotion Mascot (Luffy, Shy, Cat, etc.)
@@ -44,6 +45,13 @@ enum SystemMode {
     MODE_MATRIX_RAIN = 3,// Matrix Digital Rain
     MODE_TEXT_SCROLL = 4,// Screen-filling Max-Font Scrolling Message
     MODE_STREAM_MEDIA = 5// Live Web-BLE Custom Image / Video Stream
+};
+
+enum BootSplashType {
+    BOOT_JOYBOY_INTRO = 0, // Built-in 2s Cyber Coffee Animation
+    BOOT_CUSTOM_IMAGE = 1, // Stored /boot_splash.jpg from LittleFS
+    BOOT_CUSTOM_ANIM  = 2, // Stored /boot_anim.bin from LittleFS
+    BOOT_INSTANT      = 3  // Skip boot splash entirely
 };
 
 enum PetMood {

@@ -1,8 +1,10 @@
 #include <Arduino.h>
+#include <LovyanGFX.hpp>
 #include <NimBLEDevice.h>
 #include <Preferences.h>
-#include "esp_sleep.h"
+#include <LittleFS.h>
 #include "driver/gpio.h"
+#include "esp_sleep.h"
 #include "config.h"
 #include "display_setup.h"
 #include "meme_pet.h"
@@ -11,74 +13,92 @@
 #include "matrix_rain.h"
 #include "emoji_renderer.h"
 
-// Instantiate Display & Double Buffer Sprite
+// Define Global Display Objects declared in display_setup.h
 LGFX_ST7789 tft;
 LGFX_Sprite canvas(&tft);
 
-// Non-Volatile Storage Preferences
+// =========================================================================
+// GLOBAL ENGINE OBJECTS & STATE
+// =========================================================================
 Preferences prefs;
 
-// Mode Engines
-SystemMode currentMode = MODE_CYBERPET;
-SystemMode defaultMode = MODE_CYBERPET;
-MemePet memePet;
-RobotEyes robotEyes;
-CyberHUD cyberHUD;
-MatrixRain matrixRain;
+MemePet     memePet;
+RobotEyes   robotEyes;
+CyberHUD    cyberHUD;
+MatrixRain  matrixRain;
 
-// Custom Scrolling Text with Emoji Support
+SystemMode     currentMode      = MODE_CYBERPET;
+SystemMode     defaultMode      = MODE_CYBERPET;
+BootSplashType bootSplashType   = BOOT_JOYBOY_INTRO;
+uint8_t        bootDurationSec  = 2;
+uint8_t        screenBrightness = 240;
+uint8_t        screenRotation   = 3;
+uint32_t       sleepTimeoutMs   = 30000;
+
+bool bleConnected = false;
+
+// Scrolling Marquee Message State
 String customMessage = "I AM JOY BOY COFFEE :coffee: :fire:";
 int scrollX = 240;
 
-// Power, Battery & Settings
-uint8_t screenBrightness = 240; // 0-255 PWM
-uint8_t screenRotation = 3;     // 0=0 deg, 1=90 deg, 2=180 deg, 3=270 deg
-uint32_t sleepTimeoutMs = 30000; // 30s auto-sleep (0 = never)
-uint32_t lastActivityTime = 0;
-bool bleConnected = false;
-
 // Battery Telemetry
-float currentBatVoltage = 4.12f;
-int currentBatPercent = 95;
-bool isUsbPower = false;
-uint32_t lastBatterySampleTime = 0;
+float currentBatVoltage = 4.20f;
+int   currentBatPercent = 100;
+bool  isUsbPower        = true;
 
-// Touch Gesture Tracker
-uint32_t touchStartTime = 0;
-uint32_t touchReleaseTime = 0;
-int tapCount = 0;
-bool isTouching = false;
+// Touch State & Gestures
+bool     isTouching          = false;
+uint32_t touchStartTime      = 0;
+uint32_t lastTapReleaseTime  = 0;
+int      tapCount            = 0;
+uint32_t lastActivityTime    = 0;
 
-// BLE Characteristics (for bidirectional notifications)
-NimBLECharacteristic* pCharMode = nullptr;
-NimBLECharacteristic* pCharPet = nullptr;
-NimBLECharacteristic* pCharBattery = nullptr;
+// On-Screen Touch Visualizer
+bool     touchVisualActive   = false;
+String   touchVisualText     = "TOUCH";
+uint16_t touchVisualColor    = 0x07FF;
+uint32_t touchVisualEndTime  = 0;
 
-// Media & 30 FPS Video Buffers
-#define STREAM_BUFFER_SIZE 32768
+// Media Streaming Buffers
+#define STREAM_BUFFER_SIZE 28000
 uint8_t streamBuffer[STREAM_BUFFER_SIZE];
-size_t streamBytesReceived = 0;
-size_t expectedStreamBytes = 0;
-bool newMediaFrameReady = false;
+size_t  streamBytesReceived = 0;
+size_t  expectedStreamBytes = 0;
+bool    newMediaFrameReady  = false;
 
-#define MAX_VIDEO_FRAMES 30
-#define VIDEO_POOL_SIZE 32768
-uint8_t videoPool[VIDEO_POOL_SIZE];
-size_t videoPoolWriteOffset = 0;
-uint32_t frameOffsets[MAX_VIDEO_FRAMES];
-uint16_t frameLengths[MAX_VIDEO_FRAMES];
-int totalVideoFrames = 0;
-int currentVideoFrame = 0;
-int videoTargetFps = 30;
-uint32_t lastVideoFrameTime = 0;
-bool isVideoPlaying = false;
+// 30 FPS Video Chunk Pool
+#define VIDEO_POOL_SIZE 180000
+#define MAX_VIDEO_FRAMES 40
+uint8_t  videoPool[VIDEO_POOL_SIZE];
+size_t   videoPoolWriteOffset = 0;
+size_t   frameOffsets[MAX_VIDEO_FRAMES];
+size_t   frameLengths[MAX_VIDEO_FRAMES];
+int      totalVideoFrames     = 0;
+int      currentVideoFrame    = 0;
+uint8_t  videoTargetFps       = 30;
+bool     isVideoPlaying       = false;
+uint32_t lastVideoFrameTime   = 0;
+int      incomingFrameIdx     = -1;
+size_t   incomingFrameExpected= 0;
+size_t   incomingFrameReceived= 0;
 
-int incomingFrameIdx = -1;
-size_t incomingFrameExpected = 0;
-size_t incomingFrameReceived = 0;
+// Boot Splash Upload State
+File     bootFile;
+bool     isBootUploading      = false;
+uint8_t  bootUploadType       = 0; // 1 = image, 2 = video
+size_t   bootBytesExpected    = 0;
+size_t   bootBytesReceived    = 0;
+
+// BLE Characteristic Pointers for Notifications
+NimBLECharacteristic* pCharMode    = nullptr;
+NimBLECharacteristic* pCharPet     = nullptr;
+NimBLECharacteristic* pCharBattery = nullptr;
+NimBLECharacteristic* pCharSet     = nullptr;
 
 // Forward declarations
 void updateBatteryTelemetry();
+void playBootSplash();
+void triggerTouchVisual(const String& label, uint16_t color, uint32_t durationMs, const char* bleState);
 
 // =========================================================================
 // BLE CALLBACKS
@@ -194,9 +214,32 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
             memePet.defaultEmotion = memePet.currentEmotion;
             prefs.putUChar("def_mode", (uint8_t)defaultMode);
             prefs.putUChar("def_emo", (uint8_t)memePet.defaultEmotion);
-            Serial.printf("[SETTINGS] Saved default mode: %d, emotion: %d\n", (int)defaultMode, (int)memePet.defaultEmotion);
+            Serial.printf("[SETTINGS] Default Boot screen saved: Mode=%d, Emo=%d\n", (int)defaultMode, (int)memePet.defaultEmotion);
         }
-        // 4. Brightness Number
+        // 4. Boot Splash Type: "BOOT_TYPE:0" .. "BOOT_TYPE:3"
+        else if (cmd.startsWith("BOOT_TYPE:")) {
+            int bt = cmd.substring(10).toInt();
+            if (bt >= 0 && bt <= 3) {
+                bootSplashType = (BootSplashType)bt;
+                prefs.putUChar("boot_type", (uint8_t)bootSplashType);
+                Serial.printf("[SETTINGS] Boot Splash Type: %d\n", bt);
+            }
+        }
+        // 5. Boot Splash Duration: "BOOT_DUR:2" (seconds)
+        else if (cmd.startsWith("BOOT_DUR:")) {
+            int dur = cmd.substring(9).toInt();
+            if (dur >= 1 && dur <= 6) {
+                bootDurationSec = dur;
+                prefs.putUChar("boot_dur", bootDurationSec);
+                Serial.printf("[SETTINGS] Boot Duration: %d s\n", dur);
+            }
+        }
+        // 6. Test/Preview Boot Splash: "BOOT:PREVIEW"
+        else if (cmd == "BOOT:PREVIEW") {
+            Serial.println("[SETTINGS] Previewing Boot Splash...");
+            playBootSplash();
+        }
+        // 7. Brightness Value: "10".."255"
         else {
             int br = cmd.toInt();
             if (br >= 10 && br <= 255) {
@@ -217,7 +260,7 @@ class StreamCallback : public NimBLECharacteristicCallbacks {
         const uint8_t* bytes = (const uint8_t*)data.data();
         size_t len = data.length();
 
-        // 1. Single Image Header: 0xAA 0x55 [len_hi] [len_lo]
+        // 1. Single Live Image Header: 0xAA 0x55 [len_hi] [len_lo]
         if (len >= 4 && bytes[0] == 0xAA && bytes[1] == 0x55) {
             expectedStreamBytes = (bytes[2] << 8) | bytes[3];
             streamBytesReceived = 0;
@@ -234,7 +277,38 @@ class StreamCallback : public NimBLECharacteristicCallbacks {
             return;
         }
 
-        // 2. Video Init Header: 0xBB 0x66 [total_frames] [fps]
+        // 2. Persistent Boot Image Header: 0xAA 0x99 [len_hi] [len_lo]
+        if (len >= 4 && bytes[0] == 0xAA && bytes[1] == 0x99) {
+            bootBytesExpected = (bytes[2] << 8) | bytes[3];
+            bootBytesReceived = 0;
+            bootUploadType = 1;
+            isBootUploading = true;
+            LittleFS.remove("/boot_splash.jpg");
+            bootFile = LittleFS.open("/boot_splash.jpg", "w");
+            if (len > 4 && bootFile) {
+                size_t payload = len - 4;
+                bootFile.write(bytes + 4, payload);
+                bootBytesReceived += payload;
+            }
+            Serial.printf("[LITTLEFS] Receiving Boot Image (%d bytes)...\n", (int)bootBytesExpected);
+            return;
+        }
+
+        // 3. Persistent Boot Video Header: 0xBB 0x99 [total_frames] [fps]
+        if (len >= 4 && bytes[0] == 0xBB && bytes[1] == 0x99) {
+            bootUploadType = 2;
+            isBootUploading = true;
+            LittleFS.remove("/boot_anim.bin");
+            bootFile = LittleFS.open("/boot_anim.bin", "w");
+            if (bootFile) {
+                bootFile.write(bytes[2]); // total_frames
+                bootFile.write(bytes[3]); // fps
+            }
+            Serial.printf("[LITTLEFS] Receiving Boot Video (%d frames @ %d FPS)...\n", bytes[2], bytes[3]);
+            return;
+        }
+
+        // 4. Live Video Init Header: 0xBB 0x66 [total_frames] [fps]
         if (len >= 4 && bytes[0] == 0xBB && bytes[1] == 0x66) {
             totalVideoFrames = bytes[2];
             if (totalVideoFrames > MAX_VIDEO_FRAMES) totalVideoFrames = MAX_VIDEO_FRAMES;
@@ -247,37 +321,79 @@ class StreamCallback : public NimBLECharacteristicCallbacks {
             return;
         }
 
-        // 3. Video Frame Header: 0xCC 0x77 [frame_idx] [len_hi] [len_lo]
-        if (len >= 5 && bytes[0] == 0xCC && bytes[1] == 0x77) {
+        // 5. Video Frame Header (Live or Boot): 0xCC [0x77|0x99] [frame_idx] [len_hi] [len_lo]
+        if (len >= 5 && bytes[0] == 0xCC) {
             incomingFrameIdx = bytes[2];
             incomingFrameExpected = (bytes[3] << 8) | bytes[4];
             incomingFrameReceived = 0;
 
-            if (incomingFrameIdx < MAX_VIDEO_FRAMES && (videoPoolWriteOffset + incomingFrameExpected) <= VIDEO_POOL_SIZE) {
-                frameOffsets[incomingFrameIdx] = videoPoolWriteOffset;
-                frameLengths[incomingFrameIdx] = 0;
+            if (bytes[1] == 0x99 && bootFile) {
+                // Write 2-byte frame length header to LittleFS
+                bootFile.write(bytes[3]);
+                bootFile.write(bytes[4]);
                 size_t payload = len - 5;
                 if (payload > 0) {
-                    memcpy(videoPool + videoPoolWriteOffset, bytes + 5, payload);
-                    videoPoolWriteOffset += payload;
+                    bootFile.write(bytes + 5, payload);
                     incomingFrameReceived += payload;
+                }
+            } else if (bytes[1] == 0x77) {
+                // Live Video buffer
+                if (incomingFrameIdx < MAX_VIDEO_FRAMES && (videoPoolWriteOffset + incomingFrameExpected) <= VIDEO_POOL_SIZE) {
+                    frameOffsets[incomingFrameIdx] = videoPoolWriteOffset;
+                    frameLengths[incomingFrameIdx] = 0;
+                    size_t payload = len - 5;
+                    if (payload > 0) {
+                        memcpy(videoPool + videoPoolWriteOffset, bytes + 5, payload);
+                        videoPoolWriteOffset += payload;
+                        incomingFrameReceived += payload;
+                    }
                 }
             }
             return;
         }
 
-        // 4. Video Play Header: 0xDD 0x88
-        if (len >= 2 && bytes[0] == 0xDD && bytes[1] == 0x88) {
-            isVideoPlaying = true;
-            currentVideoFrame = 0;
-            currentMode = MODE_STREAM_MEDIA;
-            lastVideoFrameTime = millis();
-            lastActivityTime = millis();
-            Serial.printf("[STREAM] Playback started (%d frames @ %d FPS)!\n", totalVideoFrames, videoTargetFps);
+        // 6. Finish / Play Header: 0xDD [0x88|0x99]
+        if (len >= 2 && bytes[0] == 0xDD) {
+            if (bytes[1] == 0x99) {
+                // Finalize Boot Media Upload
+                if (bootFile) {
+                    bootFile.close();
+                }
+                isBootUploading = false;
+                bootSplashType = (bootUploadType == 1) ? BOOT_CUSTOM_IMAGE : BOOT_CUSTOM_ANIM;
+                prefs.putUChar("boot_type", (uint8_t)bootSplashType);
+                Serial.printf("[LITTLEFS] Boot Media Saved! Type=%d. Previewing...\n", (int)bootSplashType);
+                playBootSplash();
+            } else if (bytes[1] == 0x88) {
+                // Live Video Play
+                isVideoPlaying = true;
+                currentVideoFrame = 0;
+                currentMode = MODE_STREAM_MEDIA;
+                lastVideoFrameTime = millis();
+                lastActivityTime = millis();
+                Serial.printf("[STREAM] Playback started (%d frames @ %d FPS)!\n", totalVideoFrames, videoTargetFps);
+            }
             return;
         }
 
-        // 5. Append Video Frame Chunk
+        // 7. Append Boot Upload Chunk
+        if (isBootUploading && bootFile) {
+            bootFile.write(bytes, len);
+            if (bootUploadType == 1) {
+                bootBytesReceived += len;
+                if (bootBytesReceived >= bootBytesExpected) {
+                    bootFile.close();
+                    isBootUploading = false;
+                    bootSplashType = BOOT_CUSTOM_IMAGE;
+                    prefs.putUChar("boot_type", (uint8_t)bootSplashType);
+                    Serial.println("[LITTLEFS] Boot Image Upload Complete! Previewing...");
+                    playBootSplash();
+                }
+            }
+            return;
+        }
+
+        // 8. Append Live Video Frame Chunk
         if (incomingFrameIdx >= 0 && incomingFrameReceived < incomingFrameExpected) {
             if (videoPoolWriteOffset + len <= VIDEO_POOL_SIZE) {
                 memcpy(videoPool + videoPoolWriteOffset, bytes, len);
@@ -291,7 +407,7 @@ class StreamCallback : public NimBLECharacteristicCallbacks {
             return;
         }
 
-        // 6. Append Single Image Chunk
+        // 9. Append Live Single Image Chunk
         if (expectedStreamBytes > 0 && streamBytesReceived < expectedStreamBytes) {
             if (streamBytesReceived + len <= STREAM_BUFFER_SIZE) {
                 memcpy(streamBuffer + streamBytesReceived, bytes, len);
@@ -338,6 +454,21 @@ void updateBatteryTelemetry() {
 }
 
 // =========================================================================
+// VISUAL TOUCH RIPPLE & BLE NOTIFICATION TRIGGER
+// =========================================================================
+void triggerTouchVisual(const String& label, uint16_t color, uint32_t durationMs, const char* bleState) {
+    touchVisualActive = true;
+    touchVisualText = label;
+    touchVisualColor = color;
+    touchVisualEndTime = millis() + durationMs;
+
+    if (bleConnected && pCharSet && bleState) {
+        pCharSet->setValue(bleState);
+        pCharSet->notify();
+    }
+}
+
+// =========================================================================
 // TOUCH GESTURES (INTENTIONAL DOUBLE-TAP & HOLD, WITH LIVE BLE UI NOTIFICATION)
 // =========================================================================
 void processTouch() {
@@ -348,249 +479,225 @@ void processTouch() {
         isTouching = true;
         touchStartTime = now;
         lastActivityTime = now;
-    } else if (!rawTouch && isTouching) {
-        isTouching = false;
-        touchReleaseTime = now;
-        uint32_t duration = touchReleaseTime - touchStartTime;
-
-        if (duration < 350) {
-            tapCount++;
-        }
+        triggerTouchVisual("TOUCH ⚡", 0x07FF, 300, "TOUCH:DOWN");
     }
+    else if (!rawTouch && isTouching) {
+        isTouching = false;
+        uint32_t pressDuration = now - touchStartTime;
+        lastActivityTime = now;
+        triggerTouchVisual("IDLE", 0x8410, 100, "TOUCH:UP");
 
-    // 1. Long Hold (> 0.5s) -> Trigger Shy Love Emoji 👉👈
-    if (isTouching && (now - touchStartTime > 500)) {
-        if (currentMode == MODE_CYBERPET && memePet.currentEmotion != EMOTION_SHY) {
-            memePet.setEmotion(EMOTION_SHY);
+        if (pressDuration >= 450) {
+            // HOLD GESTURE (>0.45s) -> Shy Love ❤️
+            memePet.triggerHold();
+            currentMode = MODE_CYBERPET;
+            triggerTouchVisual("SHY LOVE ❤️", 0xF81F, 1000, "TOUCH:HOLD");
             if (bleConnected && pCharPet) {
-                pCharPet->setValue(String((int)EMOTION_SHY));
+                char emoChar[2] = { (char)('0' + (int)EMOTION_SHY), '\0' };
+                pCharPet->setValue(emoChar);
                 pCharPet->notify();
             }
-            Serial.println("[TOUCH] Hold -> Shy Love 👉👈");
-        } else if (currentMode == MODE_ROBOT_EYES) {
-            robotEyes.setMood(MOOD_LOVE);
+            tapCount = 0;
+        } else {
+            // SHORT TAP
+            if (tapCount == 0) {
+                tapCount = 1;
+                lastTapReleaseTime = now;
+                memePet.triggerTap(); // Gentle poke
+                triggerTouchVisual("POKE 👆", 0x07FF, 600, "TOUCH:POKE");
+            } else if (tapCount == 1 && (now - lastTapReleaseTime) <= 350) {
+                // DOUBLE TAP -> Cycle Meme Reactions
+                tapCount = 0;
+                memePet.triggerDoubleTap();
+                currentMode = MODE_CYBERPET;
+                triggerTouchVisual("REACT ⚡", 0xFFE0, 800, "TOUCH:DOUBLE");
+                if (bleConnected && pCharPet) {
+                    char emoChar[2] = { (char)('0' + (int)memePet.currentEmotion), '\0' };
+                    pCharPet->setValue(emoChar);
+                    pCharPet->notify();
+                }
+            }
         }
-        tapCount = 0;
-        lastActivityTime = now;
     }
 
-    // 2. Multi-Tap Execution Window (280ms)
-    if (!isTouching && tapCount > 0 && (now - touchReleaseTime > 280)) {
-        if (tapCount >= 3) {
-            // Triple Tap -> Grumpy Cat
-            if (currentMode == MODE_CYBERPET) {
-                memePet.setEmotion(EMOTION_ANGRY_CAT);
-                if (bleConnected && pCharPet) {
-                    pCharPet->setValue(String((int)EMOTION_ANGRY_CAT));
-                    pCharPet->notify();
-                }
-                Serial.println("[TOUCH] 3x -> Grumpy Cat 😾");
-            }
-        } else if (tapCount == 2) {
-            // Double Tap -> Cycle through interactive meme emotions
-            if (currentMode == MODE_CYBERPET) {
-                MemeEmotion nextEmo = (MemeEmotion)((memePet.currentEmotion + 1) % 7);
-                if (nextEmo == memePet.defaultEmotion) nextEmo = (MemeEmotion)((nextEmo + 1) % 7);
-                memePet.setEmotion(nextEmo);
-                if (bleConnected && pCharPet) {
-                    pCharPet->setValue(String((int)nextEmo));
-                    pCharPet->notify();
-                }
-                Serial.printf("[TOUCH] 2x -> Emotion: %d\n", (int)nextEmo);
-            } else if (currentMode == MODE_ROBOT_EYES) {
-                currentMode = MODE_CYBER_HUD;
-                if (bleConnected && pCharMode) { pCharMode->setValue(String((int)currentMode)); pCharMode->notify(); }
-            } else if (currentMode == MODE_CYBER_HUD) {
-                currentMode = MODE_MATRIX_RAIN;
-                if (bleConnected && pCharMode) { pCharMode->setValue(String((int)currentMode)); pCharMode->notify(); }
-            } else if (currentMode == MODE_MATRIX_RAIN) {
-                currentMode = MODE_TEXT_SCROLL;
-                if (bleConnected && pCharMode) { pCharMode->setValue(String((int)currentMode)); pCharMode->notify(); }
-            } else {
-                currentMode = MODE_CYBERPET;
-                if (bleConnected && pCharMode) { pCharMode->setValue(String((int)currentMode)); pCharMode->notify(); }
-            }
-        } else if (tapCount == 1) {
-            Serial.println("[TOUCH] 1x -> Interaction poke");
-        }
+    if (tapCount == 1 && (now - lastTapReleaseTime) > 350) {
         tapCount = 0;
-        lastActivityTime = now;
     }
 }
 
 // =========================================================================
-// DEEP SLEEP ROUTINE (100% PITCH BLACK BACKLIGHT SHUTOFF)
+// DEEP SLEEP WITH HARDWARE PIN HOLD (PURE ZERO-GLOW BACKLIGHT SHUTDOWN)
 // =========================================================================
 void enterDeepSleep() {
-    Serial.println("[POWER] Entering Deep Sleep (100% Backlight OFF)...");
-    
-    for (int b = screenBrightness; b >= 0; b -= 30) {
-        tft.setBrightness(b);
-        delay(10);
-    }
-    tft.setBrightness(0);
-    
-    tft.writeCommand(0x28); // Display OFF
-    tft.writeCommand(0x10); // Sleep IN
-    delay(20);
+    Serial.println("[POWER] Entering Deep Sleep. Clamping backlight LOW...");
 
-    pinMode(PIN_TFT_BL, OUTPUT);
+    tft.setBrightness(0);
+    tft.sleep();
+
     digitalWrite(PIN_TFT_BL, LOW);
-    gpio_set_direction((gpio_num_t)PIN_TFT_BL, GPIO_MODE_OUTPUT);
-    gpio_set_level((gpio_num_t)PIN_TFT_BL, 0);
+    pinMode(PIN_TFT_BL, OUTPUT);
     gpio_hold_en((gpio_num_t)PIN_TFT_BL);
     gpio_deep_sleep_hold_en();
 
-    gpio_wakeup_enable((gpio_num_t)PIN_TOUCH, GPIO_INTR_HIGH_LEVEL);
     esp_deep_sleep_enable_gpio_wakeup(1ULL << PIN_TOUCH, ESP_GPIO_WAKEUP_GPIO_HIGH);
 
+    Serial.flush();
     esp_deep_sleep_start();
 }
 
 // =========================================================================
-// 2-SECOND JOYBOYCOFFEE CYBER BOOT INTRO ANIMATION
+// BOOT SPLASH SYSTEM (CUSTOM IMAGE, CUSTOM VIDEO, JOYBOY INTRO, OR INSTANT)
 // =========================================================================
-void playBootAnimation() {
-    Serial.println("[BOOT] Playing 2-second Joyboycoffee Cyber Intro...");
-    uint32_t start = millis();
+void playBootSplash() {
+    if (bootSplashType == BOOT_INSTANT) {
+        Serial.println("[BOOT] Instant boot requested. Skipping splash.");
+        return;
+    }
 
-    while (millis() - start < 2000) {
-        uint32_t elapsed = millis() - start;
-        float progress = (float)elapsed / 2000.0f;
+    // 1. Custom Image Boot Splash (/boot_splash.jpg from LittleFS)
+    if (bootSplashType == BOOT_CUSTOM_IMAGE && LittleFS.exists("/boot_splash.jpg")) {
+        File f = LittleFS.open("/boot_splash.jpg", "r");
+        if (f) {
+            size_t sz = f.size();
+            uint8_t* buf = (uint8_t*)malloc(sz);
+            if (buf) {
+                f.read(buf, sz);
+                f.close();
+                Serial.printf("[BOOT] Rendering /boot_splash.jpg (%d bytes)...\n", (int)sz);
+                canvas.fillScreen(TFT_BLACK);
+                canvas.drawJpg(buf, sz, 0, 0, 240, 240);
+                canvas.pushSprite(0, 0);
+                free(buf);
+                delay(bootDurationSec * 1000);
+                return;
+            }
+            f.close();
+        }
+    }
 
-        canvas.fillScreen(TFT_BLACK);
+    // 2. Custom Video Boot Splash (/boot_anim.bin from LittleFS)
+    if (bootSplashType == BOOT_CUSTOM_ANIM && LittleFS.exists("/boot_anim.bin")) {
+        File f = LittleFS.open("/boot_anim.bin", "r");
+        if (f) {
+            uint8_t totalFrames = f.read();
+            uint8_t fps = f.read();
+            if (fps == 0 || fps > 60) fps = 25;
+            uint32_t frameDelay = 1000 / fps;
+            Serial.printf("[BOOT] Playing /boot_anim.bin (%d frames @ %d FPS)...\n", totalFrames, fps);
 
-        int ringR = (int)(progress * 110.0f);
-        canvas.drawCircle(120, 100, ringR % 90, 0x07FF);
-        canvas.drawCircle(120, 100, (ringR + 30) % 90, 0x0210);
+            uint32_t endTime = millis() + (bootDurationSec * 1000);
+            while (millis() < endTime && f.available() > 2) {
+                f.seek(2); // rewind to first frame
+                for (int i = 0; i < totalFrames && f.available() > 2; i++) {
+                    uint8_t hi = f.read();
+                    uint8_t lo = f.read();
+                    size_t fLen = (hi << 8) | lo;
+                    if (fLen == 0 || fLen > 15000 || fLen > (size_t)f.available()) break;
+                    uint8_t* fBuf = (uint8_t*)malloc(fLen);
+                    if (fBuf) {
+                        f.read(fBuf, fLen);
+                        canvas.drawJpg(fBuf, fLen, 0, 0, 240, 240);
+                        canvas.pushSprite(0, 0);
+                        free(fBuf);
+                    } else {
+                        f.seek(f.position() + fLen);
+                    }
+                    delay(frameDelay);
+                }
+            }
+            f.close();
+            return;
+        }
+    }
 
-        int cx = 120 - 10;
-        int cy = 80;
-        canvas.fillRoundRect(cx, cy, 20, 16, 4, 0xD440);
-        canvas.fillRect(cx + 2, cy + 2, 16, 3, 0x5180);
-        canvas.drawRoundRect(cx + 17, cy + 3, 7, 10, 2, 0xD440);
+    // 3. Default Built-in Joyboy Cyber Boot Intro
+    Serial.println("[BOOT] Playing Built-in Joyboy Cyber Intro...");
+    uint32_t startIntro = millis();
+    int pulse = 0;
+    while (millis() - startIntro < (uint32_t)(bootDurationSec * 1000)) {
+        canvas.fillScreen(0x0000);
+        pulse = (pulse + 4) % 360;
+        float rad = pulse * 0.0174533f;
+        int ringR = 90 + (int)(sin(rad) * 6);
 
-        int steamOffset = (elapsed / 40) % 10;
-        canvas.drawFastVLine(cx + 5, cy - 3 - steamOffset, 5, 0xFFFF);
-        canvas.drawFastVLine(cx + 10, cy - 5 - ((steamOffset + 4) % 10), 6, 0xFFFF);
-        canvas.drawFastVLine(cx + 15, cy - 2 - ((steamOffset + 7) % 10), 4, 0xFFFF);
+        // Cyber Grid Lines
+        canvas.drawFastHLine(20, 120, 200, 0x18E3);
+        canvas.drawFastVLine(120, 20, 200, 0x18E3);
 
-        canvas.setTextColor(0xFFE0, TFT_BLACK);
+        // Cyber Concentric Glowing Rings
+        canvas.drawCircle(120, 120, ringR, 0x07FF);
+        canvas.drawCircle(120, 120, ringR - 2, 0x03EF);
+        canvas.drawCircle(120, 120, 48, 0xFD20);
+
+        // Neon Border Frame
+        canvas.drawRoundRect(6, 6, 228, 228, 8, 0x07FF);
+        canvas.drawRoundRect(8, 8, 224, 224, 6, 0x0210);
+
+        // Coffee Icon in center
+        EmojiRenderer::drawEmoji(&canvas, EMOJI_COFFEE, 108, 64);
+
+        // Glowing Typography
+        canvas.setTextColor(0x07FF, 0x0000);
         canvas.setTextSize(2);
-        canvas.drawCenterString("JOYBOYCOFFEE", 120, 125);
+        canvas.drawCenterString("JOYBOY", 120, 112);
 
-        canvas.setTextColor(0x07FF, TFT_BLACK);
+        canvas.setTextColor(0xFD20, 0x0000);
+        canvas.setTextSize(2);
+        canvas.drawCenterString("COFFEE", 120, 134);
+
+        canvas.setTextColor(0x07E0, 0x0000);
         canvas.setTextSize(1);
-        canvas.drawCenterString("DIGI_KEYCHAIN // V4.0", 120, 155);
+        canvas.drawCenterString("DIGI KEYCHAIN v4.1", 120, 168);
 
-        int barW = (int)(progress * 180.0f);
-        canvas.drawRoundRect(30, 185, 180, 8, 3, 0x07FF);
-        canvas.fillRect(32, 187, barW, 4, 0x07E0);
+        // Cyber Progress Bar
+        float pct = (float)(millis() - startIntro) / (float)(bootDurationSec * 1000);
+        if (pct > 1.0f) pct = 1.0f;
+        canvas.drawRoundRect(40, 192, 160, 8, 3, 0x07FF);
+        canvas.fillRect(42, 194, (int)(156 * pct), 4, 0x07E0);
 
         canvas.pushSprite(0, 0);
-        delay(20);
+        delay(30);
     }
 }
 
 // =========================================================================
-// MARQUEE TEXT WITH EMOJI RENDERING ENGINE
-// =========================================================================
-void renderMarqueeText() {
-    canvas.fillScreen(TFT_BLACK);
-    canvas.drawRoundRect(2, 2, 236, 236, 6, 0x07FF);
-
-    int curX = scrollX;
-    int curY = 108;
-    int len = customMessage.length();
-    int i = 0;
-
-    while (i < len) {
-        EmojiType em = EMOJI_NONE;
-        int skipLen = 0;
-
-        if (customMessage.substring(i).startsWith(":coffee:"))   { em = EMOJI_COFFEE;   skipLen = 8; }
-        else if (customMessage.substring(i).startsWith(":heart:"))  { em = EMOJI_HEART;    skipLen = 7; }
-        else if (customMessage.substring(i).startsWith(":fire:"))   { em = EMOJI_FIRE;     skipLen = 6; }
-        else if (customMessage.substring(i).startsWith(":star:"))   { em = EMOJI_STAR;     skipLen = 6; }
-        else if (customMessage.substring(i).startsWith(":sparkles:")){ em = EMOJI_SPARKLES; skipLen = 10; }
-        else if (customMessage.substring(i).startsWith(":cat:"))    { em = EMOJI_CAT;      skipLen = 5; }
-        else if (customMessage.substring(i).startsWith(":cry:"))    { em = EMOJI_CRY;      skipLen = 5; }
-        else if (customMessage.substring(i).startsWith(":banana:")) { em = EMOJI_BANANA;   skipLen = 8; }
-        else if (customMessage.substring(i).startsWith(":skull:"))  { em = EMOJI_SKULL;    skipLen = 7; }
-        else if (customMessage.substring(i).startsWith(":rocket:")) { em = EMOJI_ROCKET;   skipLen = 8; }
-        else if ((uint8_t)customMessage[i] == 0xF0 && (uint8_t)customMessage[i+1] == 0x9F) {
-            uint8_t b2 = (uint8_t)customMessage[i+2];
-            uint8_t b3 = (uint8_t)customMessage[i+3];
-            skipLen = 4;
-            if (b2 == 0x8D && b3 == 0xB5) em = EMOJI_COFFEE;
-            else if (b2 == 0x94 && b3 == 0xA5) em = EMOJI_FIRE;
-            else if (b2 == 0x90 && b3 == 0xB1) em = EMOJI_CAT;
-            else if (b2 == 0x98 && b3 == 0xAD) em = EMOJI_CRY;
-            else if (b2 == 0x8D && b3 == 0x8C) em = EMOJI_BANANA;
-            else if (b2 == 0x92 && b3 == 0x80) em = EMOJI_SKULL;
-            else if (b2 == 0x9A && b3 == 0x80) em = EMOJI_ROCKET;
-        } else if ((uint8_t)customMessage[i] == 0xE2) {
-            uint8_t b2 = (uint8_t)customMessage[i+1];
-            skipLen = 3;
-            if (b2 == 0x9D) em = EMOJI_HEART;
-            else if (b2 == 0xAD) em = EMOJI_STAR;
-            else if (b2 == 0x9C) em = EMOJI_SPARKLES;
-        }
-
-        if (em != EMOJI_NONE) {
-            if (curX > -24 && curX < 240) {
-                EmojiRenderer::drawEmoji(&canvas, em, curX, curY - 6);
-            }
-            curX += 28;
-            i += skipLen;
-        } else {
-            char c = customMessage[i];
-            if (curX > -20 && curX < 240) {
-                canvas.setTextColor(0x07E0, TFT_BLACK);
-                canvas.setTextSize(3);
-                canvas.drawChar(c, curX, curY);
-            }
-            curX += 20;
-            i++;
-        }
-    }
-
-    scrollX -= 4;
-    int totalPixelWidth = curX - scrollX;
-    if (scrollX < -totalPixelWidth) {
-        scrollX = 240;
-    }
-}
-
-// =========================================================================
-// SETUP
+// INITIAL SETUP
 // =========================================================================
 void setup() {
     Serial.begin(115200);
-    delay(250);
-    Serial.println("\n\n========================================");
-    Serial.println("  ESP32-C3 DIGI KEYCHAIN v4.0 BOOT");
-    Serial.println("========================================");
+    delay(100);
+    Serial.println("\n=== DIGI KEYCHAIN ENGINE v4.1 STARTUP ===");
 
+    // 1. Release Deep Sleep GPIO Hold
     gpio_hold_dis((gpio_num_t)PIN_TFT_BL);
-    gpio_deep_sleep_hold_dis();
+    pinMode(PIN_TFT_BL, OUTPUT);
+    digitalWrite(PIN_TFT_BL, HIGH);
 
-    pinMode(PIN_DEBUG_LED, OUTPUT);
-    digitalWrite(PIN_DEBUG_LED, HIGH);
     pinMode(PIN_TOUCH, INPUT);
     analogSetPinAttenuation(PIN_BAT_ADC, ADC_11db);
     pinMode(PIN_BAT_ADC, INPUT);
 
+    // Initialize LittleFS
+    if (!LittleFS.begin(true)) {
+        Serial.println("[LITTLEFS] Mount Failed!");
+    } else {
+        Serial.println("[LITTLEFS] Mounted successfully.");
+    }
+
+    // Load Persistent Preferences
     prefs.begin("digi_keychain", false);
     defaultMode = (SystemMode)prefs.getUChar("def_mode", (uint8_t)MODE_CYBERPET);
     currentMode = defaultMode;
     memePet.defaultEmotion = (MemeEmotion)prefs.getUChar("def_emo", (uint8_t)EMOTION_LUFFY);
     memePet.currentEmotion = memePet.defaultEmotion;
+    bootSplashType = (BootSplashType)prefs.getUChar("boot_type", (uint8_t)BOOT_JOYBOY_INTRO);
+    bootDurationSec = prefs.getUChar("boot_dur", 2);
     screenBrightness = prefs.getUChar("br", 240);
     screenRotation = prefs.getUChar("rot", 3);
     sleepTimeoutMs = prefs.getUInt("sleep", 30000);
     customMessage = prefs.getString("msg", "I AM JOY BOY COFFEE :coffee: :fire:");
 
+    // 2. Initialize NimBLE Bluetooth FIRST
     Serial.println("[BLE] Initializing NimBLE stack...");
     NimBLEDevice::init("DIGI_KEYCHAIN");
     NimBLEServer* pServer = NimBLEDevice::createServer();
@@ -610,7 +717,7 @@ void setup() {
     auto pCharTime = pService->createCharacteristic(CHAR_TIME_UUID, NIMBLE_PROPERTY::WRITE);
     pCharTime->setCallbacks(new TimeCallback());
 
-    auto pCharSet = pService->createCharacteristic(CHAR_SETTINGS_UUID, NIMBLE_PROPERTY::WRITE);
+    pCharSet = pService->createCharacteristic(CHAR_SETTINGS_UUID, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::NOTIFY);
     pCharSet->setCallbacks(new SettingsCallback());
 
     pCharBattery = pService->createCharacteristic(CHAR_BATTERY_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY);
@@ -625,19 +732,22 @@ void setup() {
     pAdv->start();
     Serial.println("[BLE] Advertising started as DIGI_KEYCHAIN (0xFFE0)");
 
+    // 3. Initialize Display
     Serial.println("[DISPLAY] Initializing ST7789 display...");
     tft.init();
     tft.setRotation(screenRotation);
     tft.setBrightness(screenBrightness);
 
+    // 4. Create Double Buffer Canvas Sprite
     canvas.setColorDepth(16);
     canvas.createSprite(240, 240);
 
+    // 5. Cold Boot Splash vs Deep Sleep Wakeup
     esp_sleep_wakeup_cause_t wakeupReason = esp_sleep_get_wakeup_cause();
     if (wakeupReason == ESP_SLEEP_WAKEUP_UNDEFINED) {
-        playBootAnimation();
+        playBootSplash();
     } else {
-        Serial.printf("[BOOT] Woke from Deep Sleep (%d). Skipping intro.\n", (int)wakeupReason);
+        Serial.printf("[BOOT] Woke from Deep Sleep (%d). Skipping splash.\n", (int)wakeupReason);
     }
 
     updateBatteryTelemetry();
@@ -651,11 +761,19 @@ void setup() {
 void loop() {
     processTouch();
 
-    if (millis() - lastBatterySampleTime > 2500) {
-        lastBatterySampleTime = millis();
+    // Auto Sleep Check
+    if (sleepTimeoutMs > 0 && (millis() - lastActivityTime) > sleepTimeoutMs) {
+        enterDeepSleep();
+    }
+
+    // Periodic Battery Telemetry Update (every 5 seconds)
+    static uint32_t lastBatCheck = 0;
+    if (millis() - lastBatCheck >= 5000) {
+        lastBatCheck = millis();
         updateBatteryTelemetry();
     }
 
+    // Render Active Mode into Canvas
     switch (currentMode) {
         case MODE_CYBERPET:
             memePet.update();
@@ -673,35 +791,69 @@ void loop() {
             matrixRain.update();
             break;
 
-        case MODE_TEXT_SCROLL:
-            renderMarqueeText();
-            break;
+        case MODE_TEXT_SCROLL: {
+            canvas.fillScreen(TFT_BLACK);
+            canvas.drawRoundRect(2, 2, 236, 236, 8, 0x07FF);
+            canvas.drawRoundRect(4, 4, 232, 232, 6, 0x18E3);
 
-        case MODE_STREAM_MEDIA:
+            canvas.setTextColor(0x07FF, TFT_BLACK);
+            canvas.setTextSize(1);
+            canvas.drawCenterString("MARQUEE BROADCAST", 120, 18);
+
+            int endX = EmojiRenderer::renderTextWithEmojis(&canvas, customMessage, scrollX, 96, 3, 0xFFFF, 0x0000);
+            scrollX -= 3;
+            if (endX < 0) {
+                scrollX = 240;
+            }
+
+            canvas.setTextColor(0x8410, TFT_BLACK);
+            canvas.setTextSize(1);
+            canvas.drawCenterString("DIGI KEYCHAIN", 120, 205);
+            break;
+        }
+
+        case MODE_STREAM_MEDIA: {
             if (isVideoPlaying && totalVideoFrames > 0) {
+                uint32_t now = millis();
                 uint32_t frameInterval = 1000 / videoTargetFps;
-                if (millis() - lastVideoFrameTime >= frameInterval) {
-                    lastVideoFrameTime = millis();
+                if (now - lastVideoFrameTime >= frameInterval) {
+                    lastVideoFrameTime = now;
                     if (frameLengths[currentVideoFrame] > 0) {
-                        canvas.fillScreen(TFT_BLACK);
-                        canvas.drawJpg(videoPool + frameOffsets[currentVideoFrame], frameLengths[currentVideoFrame], 0, 0);
-                        canvas.drawRoundRect(0, 0, 240, 240, 4, 0x07FF);
+                        uint8_t* fData = videoPool + frameOffsets[currentVideoFrame];
+                        size_t fLen = frameLengths[currentVideoFrame];
+                        canvas.drawJpg(fData, fLen, 0, 0, 240, 240);
                     }
                     currentVideoFrame = (currentVideoFrame + 1) % totalVideoFrames;
                 }
             } else if (newMediaFrameReady && streamBytesReceived > 0) {
-                canvas.fillScreen(TFT_BLACK);
-                canvas.drawJpg(streamBuffer, streamBytesReceived, 0, 0);
-                canvas.drawRoundRect(0, 0, 240, 240, 4, 0x07FF);
+                canvas.drawJpg(streamBuffer, streamBytesReceived, 0, 0, 240, 240);
             }
             break;
+        }
     }
 
+    // =====================================================================
+    // ON-SCREEN TOUCH VISUALIZER OVERLAY
+    // =====================================================================
+    if (isTouching || millis() < touchVisualEndTime) {
+        int pulseR = (millis() / 40) % 10 + 4;
+        canvas.drawCircle(222, 18, pulseR, touchVisualColor);
+        canvas.fillCircle(222, 18, 4, touchVisualColor);
+
+        canvas.fillRoundRect(134, 6, 82, 22, 4, 0x0000);
+        canvas.drawRoundRect(134, 6, 82, 22, 4, touchVisualColor);
+        canvas.setTextColor(touchVisualColor, 0x0000);
+        canvas.setTextSize(1);
+        canvas.drawCenterString(touchVisualText.c_str(), 175, 13);
+    }
+
+    // Push Double Buffer to Physical ST7789 Screen
     canvas.pushSprite(0, 0);
 
-    if (!bleConnected && sleepTimeoutMs > 0 && (millis() - lastActivityTime > sleepTimeoutMs)) {
-        enterDeepSleep();
+    // Dynamic frame pacing
+    if (currentMode == MODE_STREAM_MEDIA && isVideoPlaying) {
+        delay(5);
+    } else {
+        delay(25);
     }
-
-    delay(10);
 }

@@ -22,9 +22,9 @@ public:
 
         switch (type) {
             case EMOJI_COFFEE: // ☕ Coffee Cup
-                canvas->fillRoundRect(x + 2, y + 6, 16, 14, 3, 0xD440); // Brown cup
-                canvas->fillRect(x + 3, y + 7, 14, 3, 0x5180); // Dark Coffee liquid
-                canvas->drawRoundRect(x + 16, y + 8, 6, 10, 2, 0xD440); // Handle
+                canvas->fillRoundRect(x + 2, y + 6, 16, 14, 3, 0xD440);
+                canvas->fillRect(x + 3, y + 7, 14, 3, 0x5180);
+                canvas->drawRoundRect(x + 16, y + 8, 6, 10, 2, 0xD440);
                 canvas->drawFastVLine(x + 5, y + 1, 3, 0xFFFF);
                 canvas->drawFastVLine(x + 9, y + 0, 4, 0xFFFF);
                 canvas->drawFastVLine(x + 13, y + 2, 3, 0xFFFF);
@@ -102,5 +102,47 @@ public:
             default:
                 break;
         }
+    }
+
+    static int renderTextWithEmojis(LGFX_Sprite* canvas, const String& text, int startX, int y, int textSize = 3, uint16_t textColor = 0xFFFF, uint16_t bg = 0x0000) {
+        if (!canvas) return startX;
+        int curX = startX;
+        int len = text.length();
+        int charWidth = 6 * textSize;
+
+        canvas->setTextColor(textColor, bg);
+        canvas->setTextSize(textSize);
+
+        for (int i = 0; i < len; ) {
+            if (text[i] == ':' && i + 1 < len) {
+                int nextColon = text.indexOf(':', i + 1);
+                if (nextColon != -1 && (nextColon - i) <= 12) {
+                    String code = text.substring(i, nextColon + 1);
+                    EmojiType et = EMOJI_NONE;
+                    if (code == ":coffee:") et = EMOJI_COFFEE;
+                    else if (code == ":heart:") et = EMOJI_HEART;
+                    else if (code == ":fire:") et = EMOJI_FIRE;
+                    else if (code == ":star:") et = EMOJI_STAR;
+                    else if (code == ":sparkles:") et = EMOJI_SPARKLES;
+                    else if (code == ":cat:") et = EMOJI_CAT;
+                    else if (code == ":cry:") et = EMOJI_CRY;
+                    else if (code == ":banana:") et = EMOJI_BANANA;
+                    else if (code == ":skull:") et = EMOJI_SKULL;
+                    else if (code == ":rocket:") et = EMOJI_ROCKET;
+
+                    if (et != EMOJI_NONE) {
+                        drawEmoji(canvas, et, curX, y);
+                        curX += 26;
+                        i = nextColon + 1;
+                        continue;
+                    }
+                }
+            }
+            char buf[2] = { text[i], '\0' };
+            canvas->drawString(buf, curX, y + 2);
+            curX += charWidth;
+            i++;
+        }
+        return curX;
     }
 };

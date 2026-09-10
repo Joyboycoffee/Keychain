@@ -3,536 +3,554 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DIGI KEYCHAIN // NEURAL LINK</title>
+    <title>DIGI KEYCHAIN // Control Deck</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #090c10;
-            --card-bg: #161b22;
-            --cyan: #00f0ff;
-            --pink: #ff007f;
-            --green: #00ff66;
-            --yellow: #ffe600;
-            --orange: #ff8800;
+            --bg-base: #06090e;
+            --bg-surface: #0d1117;
+            --bg-surface-elevated: #161b22;
             --border: #30363d;
+            --border-active: #58a6ff;
+            --cyan: #00f0ff;
+            --magenta: #ff007f;
+            --amber: #ffaa00;
+            --green: #00ff66;
+            --purple: #a371f7;
+            --text-main: #f0f6fc;
+            --text-muted: #8b949e;
         }
 
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace;
-            -webkit-tap-highlight-color: transparent;
+            user-select: none;
         }
 
         body {
-            background-color: var(--bg);
-            color: #c9d1d9;
-            padding: 16px;
-            max-width: 500px;
-            margin: 0 auto;
-            transition: max-width 0.3s ease;
-        }
-
-        @media (orientation: landscape) or (min-width: 680px) {
-            body {
-                max-width: 950px;
-                padding: 14px 20px;
-            }
-            .dashboard-grid {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 14px;
-            }
-            .card-full {
-                grid-column: 1 / -1;
-            }
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            font-family: 'Space Grotesk', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-image: 
+                radial-gradient(circle at 10% 10%, rgba(0, 240, 255, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 90% 90%, rgba(255, 0, 127, 0.05) 0%, transparent 40%);
         }
 
         header {
-            text-align: center;
-            padding: 12px 0 16px;
+            background-color: var(--bg-surface);
             border-bottom: 1px solid var(--border);
-            margin-bottom: 16px;
+            padding: 12px 24px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 10px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
 
-        h1 {
-            font-size: 18px;
-            color: var(--cyan);
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            text-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
-        }
-
-        .header-badges {
+        .brand {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 12px;
+        }
+
+        .brand h1 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            background: linear-gradient(90deg, var(--cyan), var(--magenta));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-pills {
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
         .status-badge {
-            padding: 5px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: bold;
-            background: #21262d;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 999px;
             border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.02);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .online { color: var(--green); border-color: var(--green); }
-        .offline { color: #8b949e; }
+        .status-badge.offline { color: #f85149; border-color: rgba(248, 81, 73, 0.3); }
+        .status-badge.online { color: var(--green); border-color: rgba(0, 255, 102, 0.4); box-shadow: 0 0 10px rgba(0, 255, 102, 0.2); }
 
-        .battery-badge {
-            padding: 5px 10px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: bold;
-            background: #21262d;
-            border: 1px solid #388bfd;
-            color: #58a6ff;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .card {
-            background: var(--card-bg);
+        .touch-badge {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 999px;
             border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 14px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            background: rgba(255, 255, 255, 0.02);
+            color: var(--text-muted);
+            transition: all 0.2s ease;
         }
 
-        h2 {
-            font-size: 13px;
-            color: var(--yellow);
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+        .touch-badge.active {
+            color: #000;
+            background: var(--cyan);
+            border-color: var(--cyan);
+            box-shadow: 0 0 12px rgba(0, 240, 255, 0.7);
+            transform: scale(1.05);
         }
 
-        button {
-            background: #21262d;
-            border: 1px solid var(--border);
+        .touch-badge.double {
+            color: #000;
+            background: var(--amber);
+            border-color: var(--amber);
+            box-shadow: 0 0 12px rgba(255, 170, 0, 0.7);
+            transform: scale(1.05);
+        }
+
+        .touch-badge.hold {
             color: #fff;
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: bold;
-            cursor: pointer;
-            width: 100%;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        button:active {
-            transform: scale(0.98);
+            background: var(--magenta);
+            border-color: var(--magenta);
+            box-shadow: 0 0 14px rgba(255, 0, 127, 0.8);
+            transform: scale(1.08);
         }
 
         .btn-connect {
-            background: linear-gradient(135deg, #00f0ff22, #00ff6622);
-            border-color: var(--cyan);
-            color: var(--cyan);
-            font-size: 15px;
-            padding: 14px;
-        }
-
-        .grid-modes {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-        }
-
-        .btn-mode {
-            padding: 14px 10px;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .btn-mode.active {
-            background: #00f0ff22;
-            border-color: var(--cyan);
-            color: var(--cyan);
-            box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
-        }
-
-        .grid-emotions {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
-        }
-
-        @media (max-width: 480px) {
-            .grid-emotions {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-
-        .btn-emo {
-            font-size: 13px;
-            padding: 12px 6px;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .btn-emo.active {
-            background: #ff007f22;
-            border-color: var(--pink);
-            color: var(--pink);
-            box-shadow: 0 0 10px rgba(255, 0, 127, 0.3);
-        }
-
-        .input-group {
-            display: flex;
-            gap: 8px;
-            margin-top: 8px;
-        }
-
-        input[type="text"] {
-            flex: 1;
-            background: #0d1117;
-            border: 1px solid var(--border);
-            color: var(--cyan);
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 14px;
-            outline: none;
-        }
-
-        input[type="text"]:focus {
-            border-color: var(--cyan);
-        }
-
-        .btn-send {
-            width: auto;
-            padding: 12px 18px;
-            background: var(--cyan);
-            color: #000;
-            border: none;
-        }
-
-        .emoji-bar {
-            display: flex;
-            gap: 6px;
-            margin-top: 8px;
-            overflow-x: auto;
-            padding-bottom: 4px;
-        }
-
-        .btn-mini-emoji {
-            width: auto;
-            padding: 6px 10px;
-            font-size: 16px;
-            background: #21262d;
-            border: 1px solid var(--border);
+            background: linear-gradient(135deg, #1f6feb, #238636);
+            color: #ffffff;
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 700;
+            font-size: 0.82rem;
+            padding: 7px 16px;
             border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
-        input[type="file"] {
-            display: none;
+        .btn-connect:hover {
+            filter: brightness(1.15);
+            box-shadow: 0 0 12px rgba(31, 111, 235, 0.4);
         }
 
-        .btn-file {
-            background: #238636;
-            border-color: #2ea043;
-        }
-
-        .slider-wrap {
-            margin-top: 8px;
-        }
-
-        input[type="range"] {
+        main {
+            max-width: 1320px;
+            margin: 0 auto;
+            padding: 20px;
             width: 100%;
-            accent-color: var(--cyan);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+            gap: 18px;
+        }
+
+        .card {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            position: relative;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+        }
+
+        .card-title {
+            font-size: 0.92rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(95px, 1fr));
+            gap: 8px;
+        }
+
+        button.btn-ctrl, button.btn-mode, button.btn-emo, button.btn-rot, button.btn-boot {
+            background-color: var(--bg-surface-elevated);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 600;
+            font-size: 0.8rem;
+            padding: 9px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+
+        button.btn-ctrl:hover, button.btn-mode:hover, button.btn-emo:hover, button.btn-rot:hover, button.btn-boot:hover {
+            border-color: var(--border-active);
+            background-color: #1f242c;
+        }
+
+        button.active {
+            background-color: rgba(0, 240, 255, 0.12) !important;
+            border-color: var(--cyan) !important;
+            color: var(--cyan) !important;
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
+        }
+
+        .btn-default {
+            background: linear-gradient(135deg, #d29922, #db6d28);
+            color: #fff;
+            font-weight: 700;
+            padding: 9px 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-default:hover {
+            filter: brightness(1.15);
+            box-shadow: 0 0 12px rgba(219, 109, 40, 0.4);
+        }
+
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
         }
 
         .slider-label {
             display: flex;
             justify-content: space-between;
-            font-size: 12px;
-            color: #8b949e;
-            margin-bottom: 6px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
         }
 
-        .grid-rotations {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #21262d;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--cyan);
+            cursor: pointer;
+            box-shadow: 0 0 8px var(--cyan);
+        }
+
+        .text-input-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            background: var(--bg-base);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-main);
+            padding: 8px 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--cyan);
+        }
+
+        .emoji-bar {
+            display: flex;
             gap: 6px;
-            margin-bottom: 8px;
+            flex-wrap: wrap;
         }
 
-        .btn-rot {
-            padding: 8px 4px;
-            font-size: 12px;
+        .emoji-pill {
+            background: #21262d;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: transform 0.15s ease;
         }
 
-        .btn-rot.active {
-            background: #ffe60022;
-            border-color: var(--yellow);
-            color: var(--yellow);
-        }
-
-        .btn-save-default {
-            background: linear-gradient(135deg, #ff880022, #ffe60022);
-            border-color: var(--orange);
-            color: var(--yellow);
-            margin-top: 8px;
-            padding: 10px;
+        .emoji-pill:hover {
+            transform: scale(1.2);
+            border-color: var(--cyan);
         }
 
         .progress-bar-wrap {
-            width: 100%;
-            height: 8px;
+            height: 6px;
             background: #21262d;
-            border-radius: 4px;
-            margin-top: 8px;
+            border-radius: 3px;
             overflow: hidden;
             display: none;
+            margin-top: 4px;
         }
 
-        .progress-bar-fill {
+        .progress-bar {
             height: 100%;
-            background: linear-gradient(90deg, var(--cyan), var(--green));
             width: 0%;
-            transition: width 0.1s;
+            background: linear-gradient(90deg, var(--cyan), var(--magenta));
+            transition: width 0.1s ease;
         }
 
         #logBox {
-            background: #090d16;
-            border: 1px solid #30363d;
-            border-radius: 6px;
-            padding: 8px;
-            font-size: 11px;
-            color: #8b949e;
-            max-height: 80px;
-            overflow-y: auto;
-            margin-top: 10px;
-            font-family: monospace;
+            max-width: 1320px;
+            margin: 0 auto 20px;
+            padding: 0 20px;
+            width: 100%;
         }
 
-        .preview-canvas {
-            display: none;
+        .terminal {
+            background: #000000;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: #39d353;
+            max-height: 110px;
+            overflow-y: auto;
         }
     </style>
 </head>
 <body>
-
     <header>
-        <h1>⚡ DIGI KEYCHAIN</h1>
-        <div class="header-badges">
-            <div id="batteryBadge" class="battery-badge">🔋 --V (--%)</div>
+        <div class="brand">
+            <h1>DIGI KEYCHAIN</h1>
+        </div>
+        <div class="header-pills">
+            <div id="touchBadge" class="touch-badge">TOUCH: IDLE</div>
+            <div id="batteryBadge" class="status-badge">⚡ USB / 4.2V</div>
             <div id="statusBadge" class="status-badge offline">DISCONNECTED</div>
+            <button id="btnConnect" class="btn-connect" onclick="connectBLE()">
+                <span>📡 CONNECT KEYCHAIN</span>
+            </button>
         </div>
     </header>
 
-    <div class="dashboard-grid">
-        <!-- Bluetooth Connect Card -->
-        <div class="card card-full">
-            <button id="btnConnect" class="btn-connect" onclick="connectBLE()">
-                <span>📡 CONNECT DIGI KEYCHAIN</span>
-            </button>
-            <div id="logBox">Ready. Click Connect to pair with ESP32 Digi Keychain over Web-BLE.</div>
-        </div>
-
-        <!-- 7 Meme Emotion Selector Card -->
-        <div class="card card-full">
-            <h2>🎭 Meme Emotion Avatars</h2>
-            <div class="grid-emotions">
-                <button id="emoBtn0" class="btn-emo active" onclick="setEmotion(0)">
-                    <span style="font-size:22px;">✨</span>
-                    <span>Luffy Star</span>
-                </button>
-                <button id="emoBtn1" class="btn-emo" onclick="setEmotion(1)">
-                    <span style="font-size:22px;">👉👈</span>
-                    <span>Shy Cute</span>
-                </button>
-                <button id="emoBtn2" class="btn-emo" onclick="setEmotion(2)">
-                    <span style="font-size:22px;">🎀</span>
-                    <span>Giggle Cat</span>
-                </button>
-                <button id="emoBtn3" class="btn-emo" onclick="setEmotion(3)">
-                    <span style="font-size:22px;">🍌</span>
-                    <span>Banana Cat</span>
-                </button>
-                <button id="emoBtn4" class="btn-emo" onclick="setEmotion(4)">
-                    <span style="font-size:22px;">😭</span>
-                    <span>Umaru Whine</span>
-                </button>
-                <button id="emoBtn5" class="btn-emo" onclick="setEmotion(5)">
-                    <span style="font-size:22px;">😾</span>
-                    <span>Grumpy Cat</span>
-                </button>
-                <button id="emoBtn6" class="btn-emo" onclick="setEmotion(6)">
-                    <span style="font-size:22px;">🐰</span>
-                    <span>Bunny Hum!</span>
-                </button>
+    <main>
+        <!-- CARD 1: CYBER MASCOTS & MEMES -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">🎭 MEME MASCOT & SYSTEM MODES</div>
             </div>
-            <button class="btn-save-default" onclick="saveAsDefault()">
+            
+            <div class="btn-grid">
+                <button class="btn-mode active" id="modeBtn0" onclick="setMode(0)">🐱 CyberPet</button>
+                <button class="btn-mode" id="modeBtn1" onclick="setMode(1)">🤖 Robot Eyes</button>
+                <button class="btn-mode" id="modeBtn2" onclick="setMode(2)">⚡ Cyber HUD</button>
+                <button class="btn-mode" id="modeBtn3" onclick="setMode(3)">📟 Matrix Rain</button>
+            </div>
+
+            <div class="slider-label" style="margin-top:4px;">REACTION AVATARS</div>
+            <div class="btn-grid">
+                <button class="btn-emo active" id="emoBtn0" onclick="setEmotion(0)">🏴‍☠️ Luffy</button>
+                <button class="btn-emo" id="emoBtn1" onclick="setEmotion(1)">👉👈 Shy Love</button>
+                <button class="btn-emo" id="emoBtn2" onclick="setEmotion(2)">🐱 Bongo Cat</button>
+                <button class="btn-emo" id="emoBtn3" onclick="setEmotion(3)">✨ Smile</button>
+                <button class="btn-emo" id="emoBtn4" onclick="setEmotion(4)">👁️ Glares</button>
+                <button class="btn-emo" id="emoBtn5" onclick="setEmotion(5)">💾 Hacker</button>
+                <button class="btn-emo" id="emoBtn6" onclick="setEmotion(6)">🔥 Rage</button>
+            </div>
+
+            <button class="btn-default" onclick="saveAsDefault()">
                 <span>⭐ SET CURRENT AS DEFAULT BOOT AVATAR</span>
             </button>
         </div>
 
-        <!-- Mode Selector Card -->
+        <!-- CARD 2: BOOT SPLASH & STARTUP ANIMATION STUDIO -->
         <div class="card">
-            <h2>📟 Display Mode</h2>
-            <div class="grid-modes">
-                <button id="modeBtn0" class="btn-mode active" onclick="setMode(0)">
-                    <span style="font-size:20px;">😺</span>
-                    <span>Meme Pet</span>
-                </button>
-                <button id="modeBtn1" class="btn-mode" onclick="setMode(1)">
-                    <span style="font-size:20px;">👀</span>
-                    <span>Robot Eyes</span>
-                </button>
-                <button id="modeBtn2" class="btn-mode" onclick="setMode(2)">
-                    <span style="font-size:20px;">📊</span>
-                    <span>Cyber HUD</span>
-                </button>
-                <button id="modeBtn3" class="btn-mode" onclick="setMode(3)">
-                    <span style="font-size:20px;">🟢</span>
-                    <span>Matrix Rain</span>
-                </button>
+            <div class="card-header">
+                <div class="card-title">🎬 BOOT SPLASH STUDIO</div>
+                <button class="btn-ctrl" style="padding:4px 8px; font-size:0.75rem;" onclick="testBootSplash()">▶️ Test On Screen</button>
             </div>
-        </div>
 
-        <!-- Custom Scrolling Text Sender with Emojis -->
-        <div class="card">
-            <h2>📢 Marquee Banner & Emojis</h2>
-            <div class="input-group">
-                <input type="text" id="txtMessage" placeholder="Type message..." value="I AM JOY BOY COFFEE :coffee: :fire:">
-                <button class="btn-send" onclick="sendCustomText()">SEND</button>
+            <div class="slider-label">BOOT SPLASH TYPE</div>
+            <div class="btn-grid">
+                <button class="btn-boot active" id="bootBtn0" onclick="setBootType(0)">☕ Joyboy Intro</button>
+                <button class="btn-boot" id="bootBtn1" onclick="setBootType(1)">🖼️ Custom Image</button>
+                <button class="btn-boot" id="bootBtn2" onclick="setBootType(2)">🎞️ Custom Video</button>
+                <button class="btn-boot" id="bootBtn3" onclick="setBootType(3)">⚡ Instant (Off)</button>
             </div>
-            <div class="emoji-bar">
-                <button class="btn-mini-emoji" onclick="insertEmoji(':coffee:')">☕</button>
-                <button class="btn-mini-emoji" onclick="insertEmoji(':heart:')">❤️</button>
-                <button class="btn-mini-emoji" onclick="insertEmoji(':fire:')">🔥</button>
-                <button class="btn-mini-emoji" onclick="insertEmoji(':star:')">⭐</button>
-                <button class="btn-mini-emoji" onclick="insertEmoji(':sparkles:')">✨</button>
-                <button class="btn-mini-emoji" onclick="insertEmoji(':cat:')">🐱</button>
-                <button class="btn-mini-emoji" onclick="insertEmoji(':cry:')">😭</button>
-                <button class="btn-mini-emoji" onclick="insertEmoji(':banana:')">🍌</button>
-                <button class="btn-mini-emoji" onclick="insertEmoji(':skull:')">💀</button>
-                <button class="btn-mini-emoji" onclick="insertEmoji(':rocket:')">🚀</button>
-            </div>
-        </div>
 
-        <!-- Screen Rotation 360 & Quadrants Card -->
-        <div class="card">
-            <h2>🔄 Screen Orientation & 360° Angle</h2>
-            <div class="grid-rotations">
-                <button id="rotBtn0" class="btn-rot" onclick="setRotation(0)">0° Top</button>
-                <button id="rotBtn1" class="btn-rot" onclick="setRotation(1)">90° Right</button>
-                <button id="rotBtn2" class="btn-rot" onclick="setRotation(2)">180° Down</button>
-                <button id="rotBtn3" class="btn-rot active" onclick="setRotation(3)">270° Left</button>
-            </div>
-            <div class="slider-wrap">
+            <div class="slider-group">
                 <div class="slider-label">
-                    <span>Angle</span>
+                    <span>BOOT DISPLAY DURATION</span>
+                    <span id="bootDurVal">2 Seconds</span>
+                </div>
+                <input type="range" id="bootDurSlider" min="1" max="4" value="2" oninput="updateBootDuration(this.value)">
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                <div style="display:flex; gap:8px;">
+                    <label class="btn-ctrl" style="flex:1; text-align:center;">
+                        📁 Upload Boot Image
+                        <input type="file" accept="image/*" style="display:none;" onchange="uploadBootImage(event)">
+                    </label>
+                    <label class="btn-ctrl" style="flex:1; text-align:center;">
+                        🎥 Upload Boot Video
+                        <input type="file" accept="video/*,image/gif" style="display:none;" onchange="uploadBootVideo(event)">
+                    </label>
+                </div>
+                <div id="bootProgressWrap" class="progress-bar-wrap">
+                    <div id="bootProgressBar" class="progress-bar"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CARD 3: ROTATION, BRIGHTNESS & SLEEP -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">📱 DISPLAY & POWER SETTINGS</div>
+            </div>
+
+            <div class="slider-label">ORIENTATION PRESETS</div>
+            <div class="btn-grid">
+                <button class="btn-rot" id="rotBtn0" onclick="setRotation(0)">0° Normal</button>
+                <button class="btn-rot" id="rotBtn1" onclick="setRotation(1)">90° Right</button>
+                <button class="btn-rot" id="rotBtn2" onclick="setRotation(2)">180° Invert</button>
+                <button class="btn-rot active" id="rotBtn3" onclick="setRotation(3)">270° Left</button>
+            </div>
+
+            <div class="slider-group">
+                <div class="slider-label">
+                    <span>360° LIVE ROTATION SLIDER</span>
                     <span id="angleVal">270°</span>
                 </div>
-                <input type="range" min="0" max="360" value="270" id="angleSlider" oninput="updateAngleSlider(this.value)">
+                <input type="range" id="angleSlider" min="0" max="360" value="270" step="90" oninput="updateAngleSlider(this.value)">
             </div>
-        </div>
 
-        <!-- Sleep Timeout & Power Card -->
-        <div class="card">
-            <h2>⏱️ Auto-Sleep Inactivity Timer</h2>
-            <div class="slider-wrap">
+            <div class="slider-group">
                 <div class="slider-label">
-                    <span>Timer</span>
-                    <span id="sleepVal">30s</span>
+                    <span>BRIGHTNESS</span>
+                    <span id="brVal">95%</span>
                 </div>
-                <input type="range" min="0" max="5" value="1" id="sleepSlider" oninput="updateSleepSlider(this.value)">
-                <div class="slider-label" style="margin-top:4px; font-size:10px;">
-                    <span>Off</span>
-                    <span>15s</span>
-                    <span>30s</span>
-                    <span>1m</span>
-                    <span>2m</span>
-                    <span>5m</span>
-                </div>
+                <input type="range" id="brSlider" min="15" max="255" value="240" oninput="updateBrightness(this.value)">
             </div>
-        </div>
 
-        <!-- 30 FPS Video / GIF Upload Card -->
-        <div class="card">
-            <h2>🎬 30 FPS Video & GIF Player</h2>
-            <label class="btn-file" style="display:flex; padding:12px; border-radius:8px; align-items:center; justify-content:center; cursor:pointer; font-weight:bold; background:#8957e5; border-color:#a371f7;">
-                <span>🎬 UPLOAD VIDEO / GIF (30 FPS)</span>
-                <input type="file" id="videoPicker" accept="video/*,image/gif" onchange="uploadVideoLoop(event)">
-            </label>
-            <div id="videoProgressWrap" class="progress-bar-wrap">
-                <div id="videoProgressBar" class="progress-bar-fill"></div>
-            </div>
-        </div>
-
-        <!-- Custom Single Image Upload Card -->
-        <div class="card">
-            <h2>🖼️ Upload Custom Image</h2>
-            <label class="btn-file" style="display:flex; padding:12px; border-radius:8px; align-items:center; justify-content:center; cursor:pointer; font-weight:bold;">
-                <span>🖼️ CHOOSE IMAGE FILE</span>
-                <input type="file" id="imgPicker" accept="image/*" onchange="uploadImage(event)">
-            </label>
-        </div>
-
-        <!-- Brightness Control -->
-        <div class="card">
-            <h2>☀️ Screen Brightness</h2>
-            <div class="slider-wrap">
+            <div class="slider-group">
                 <div class="slider-label">
-                    <span>Dim</span>
-                    <span id="brVal">94%</span>
-                    <span>Max</span>
+                    <span>SLEEP TIMEOUT</span>
+                    <span id="sleepVal">30 Seconds</span>
                 </div>
-                <input type="range" min="30" max="255" value="240" id="brSlider" oninput="updateBrightness(this.value)">
+                <input type="range" id="sleepSlider" min="0" max="5" value="1" oninput="updateSleepSlider(this.value)">
             </div>
-        </div>
 
-        <!-- Live Phone Time Sync -->
-        <div class="card">
-            <h2>🕒 Phone Time Sync</h2>
-            <button onclick="syncTimeAndWeather()" style="background:#1f6feb; border-color:#388bfd;">
-                <span>🕒 SYNC TIME & WEATHER NOW</span>
+            <button class="btn-ctrl" onclick="syncTimeAndWeather()" style="background:#1f6feb; border-color:#388bfd;">
+                <span>⏰ SYNC TIME & WEATHER</span>
             </button>
         </div>
+
+        <!-- CARD 4: NEON MARQUEE & EMOJIS -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">✨ MARQUEE BROADCAST & EMOJIS</div>
+            </div>
+
+            <div class="text-input-row">
+                <input type="text" id="txtMessage" value="JOY BOY COFFEE ☕ 🔥" placeholder="Type custom message...">
+                <button class="btn-ctrl" onclick="sendCustomText()" style="background:var(--cyan); color:#000; font-weight:700;">SEND</button>
+            </div>
+
+            <div class="slider-label">INLINE VECTOR EMOJIS</div>
+            <div class="emoji-bar">
+                <div class="emoji-pill" onclick="insertEmoji(':coffee:')">☕</div>
+                <div class="emoji-pill" onclick="insertEmoji(':heart:')">❤️</div>
+                <div class="emoji-pill" onclick="insertEmoji(':fire:')">🔥</div>
+                <div class="emoji-pill" onclick="insertEmoji(':star:')">⭐</div>
+                <div class="emoji-pill" onclick="insertEmoji(':sparkles:')">✨</div>
+                <div class="emoji-pill" onclick="insertEmoji(':cat:')">🐱</div>
+                <div class="emoji-pill" onclick="insertEmoji(':cry:')">😭</div>
+                <div class="emoji-pill" onclick="insertEmoji(':banana:')">🍌</div>
+                <div class="emoji-pill" onclick="insertEmoji(':skull:')">💀</div>
+                <div class="emoji-pill" onclick="insertEmoji(':rocket:')">🚀</div>
+            </div>
+        </div>
+
+        <!-- CARD 5: LIVE MEDIA & 30 FPS STREAMING -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">🖼️ LIVE MEDIA STREAMING</div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <label class="btn-ctrl" style="text-align:center;">
+                    📷 Stream Single Image (240x240)
+                    <input type="file" accept="image/*" style="display:none;" onchange="uploadImage(event)">
+                </label>
+                
+                <label class="btn-ctrl" style="text-align:center; background:#8957e5; border-color:#ab7df8;">
+                    🎬 Stream 30 FPS Video Clip (MP4 / GIF)
+                    <input type="file" accept="video/*,image/gif" style="display:none;" onchange="uploadVideo(event)">
+                </label>
+
+                <div id="videoProgressWrap" class="progress-bar-wrap">
+                    <div id="videoProgressBar" class="progress-bar"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="logBox">
+        <div id="terminal" class="terminal">> Digi Keychain Control Deck ready. Click Connect.</div>
     </div>
 
-    <!-- Hidden processing elements for Image & Video conversion -->
-    <canvas id="procCanvas" class="preview-canvas" width="240" height="240"></canvas>
-    <video id="procVideo" class="preview-canvas" muted playsinline></video>
-
     <script>
-        const SERVICE_UUID       = 0xFFE0;
-        const CHAR_MODE_UUID     = 0xFFE1;
-        const CHAR_PET_UUID      = 0xFFE2;
-        const CHAR_TEXT_UUID     = 0xFFE3;
-        const CHAR_TIME_UUID     = 0xFFE4;
-        const CHAR_SETTINGS_UUID = 0xFFE5;
-        const CHAR_BATTERY_UUID  = 0xFFE6;
-        const CHAR_STREAM_UUID   = 0xFFE7;
+        const SERVICE_UUID       = "0000ffe0-0000-1000-8000-00805f9b34fb";
+        const CHAR_MODE_UUID     = "0000ffe1-0000-1000-8000-00805f9b34fb";
+        const CHAR_PET_UUID      = "0000ffe2-0000-1000-8000-00805f9b34fb";
+        const CHAR_TEXT_UUID     = "0000ffe3-0000-1000-8000-00805f9b34fb";
+        const CHAR_TIME_UUID     = "0000ffe4-0000-1000-8000-00805f9b34fb";
+        const CHAR_SETTINGS_UUID = "0000ffe5-0000-1000-8000-00805f9b34fb";
+        const CHAR_BATTERY_UUID  = "0000ffe6-0000-1000-8000-00805f9b34fb";
+        const CHAR_STREAM_UUID   = "0000ffe7-0000-1000-8000-00805f9b34fb";
 
         let bleDevice = null;
         let gattServer = null;
-        let charMode, charPet, charText, charTime, charSettings, charBattery, charStream;
+        let charMode = null, charPet = null, charText = null, charTime = null, charSettings = null, charBattery = null, charStream = null;
 
-        const sleepValues = [0, 15, 30, 60, 120, 300];
-        const sleepLabels = ["Never (Always On)", "15 seconds", "30 seconds", "1 minute", "2 minutes", "5 minutes"];
+        const sleepValues = [15, 30, 60, 120, 300, 0];
+        const sleepLabels = ["15s", "30s", "1m", "2m", "5m", "Never"];
 
         function log(msg) {
-            const box = document.getElementById('logBox');
-            box.innerHTML += `<div>> ${msg}</div>`;
-            box.scrollTop = box.scrollHeight;
+            const term = document.getElementById('terminal');
+            const d = new Date().toLocaleTimeString();
+            term.innerHTML += `<br>[${d}] ${msg}`;
+            term.scrollTop = term.scrollHeight;
         }
 
         async function connectBLE() {
@@ -569,7 +587,6 @@
                 charBattery  = await service.getCharacteristic(CHAR_BATTERY_UUID).catch(()=>null);
                 charStream   = await service.getCharacteristic(CHAR_STREAM_UUID).catch(()=>null);
 
-                // Enable Live Notifications for Mode, Emotion, and Battery
                 if (charMode) {
                     await charMode.startNotifications().catch(()=>{});
                     charMode.addEventListener('characteristicvaluechanged', (e) => {
@@ -601,10 +618,18 @@
                     });
                 }
 
+                if (charSettings) {
+                    await charSettings.startNotifications().catch(()=>{});
+                    charSettings.addEventListener('characteristicvaluechanged', (e) => {
+                        const msg = new TextDecoder().decode(e.target.value);
+                        handleSettingsNotification(msg);
+                    });
+                }
+
                 document.getElementById('statusBadge').innerText = "ONLINE ⚡";
                 document.getElementById('statusBadge').className = "status-badge online";
                 document.getElementById('btnConnect').innerHTML = "<span>✅ CONNECTED</span>";
-                log("Connected! Bidirectional telemetry active.");
+                log("Connected! All controls and telemetry active.");
 
                 syncTimeAndWeather();
             } catch (err) {
@@ -619,7 +644,32 @@
             log("Device disconnected.");
             document.getElementById('statusBadge').innerText = "DISCONNECTED";
             document.getElementById('statusBadge').className = "status-badge offline";
-            document.getElementById('btnConnect').innerHTML = "<span>📡 CONNECT DIGI KEYCHAIN</span>";
+            document.getElementById('btnConnect').innerHTML = "<span>📡 CONNECT KEYCHAIN</span>";
+            const tb = document.getElementById('touchBadge');
+            tb.className = "touch-badge";
+            tb.innerText = "TOUCH: IDLE";
+        }
+
+        function handleSettingsNotification(msg) {
+            const tb = document.getElementById('touchBadge');
+            if (msg === "TOUCH:DOWN") {
+                tb.className = "touch-badge active";
+                tb.innerText = "TOUCH ⚡";
+            } else if (msg === "TOUCH:POKE") {
+                tb.className = "touch-badge active";
+                tb.innerText = "POKE 👆";
+            } else if (msg === "TOUCH:DOUBLE") {
+                tb.className = "touch-badge double";
+                tb.innerText = "REACT ⚡";
+            } else if (msg === "TOUCH:HOLD") {
+                tb.className = "touch-badge hold";
+                tb.innerText = "SHY LOVE ❤️";
+            } else if (msg === "TOUCH:UP") {
+                setTimeout(() => {
+                    tb.className = "touch-badge";
+                    tb.innerText = "TOUCH: IDLE";
+                }, 300);
+            }
         }
 
         async function setMode(modeNum) {
@@ -650,6 +700,31 @@
                 const b = document.getElementById(`emoBtn${i}`);
                 if (b) b.className = (i === a) ? "btn-emo active" : "btn-emo";
             }
+        }
+
+        async function setBootType(bt) {
+            if (!charSettings) return;
+            for (let i = 0; i < 4; i++) {
+                const b = document.getElementById(`bootBtn${i}`);
+                if (b) b.className = (i === bt) ? "btn-boot active" : "btn-boot";
+            }
+            const data = new TextEncoder().encode(`BOOT_TYPE:${bt}`);
+            await charSettings.writeValue(data);
+            log(`Boot Splash set to type: ${bt}`);
+        }
+
+        async function updateBootDuration(dur) {
+            document.getElementById('bootDurVal').innerText = `${dur} Seconds`;
+            if (!charSettings) return;
+            const data = new TextEncoder().encode(`BOOT_DUR:${dur}`);
+            await charSettings.writeValue(data);
+        }
+
+        async function testBootSplash() {
+            if (!charSettings) return;
+            const data = new TextEncoder().encode("BOOT:PREVIEW");
+            await charSettings.writeValue(data);
+            log("Triggered boot splash preview on Keychain!");
         }
 
         async function setRotation(rot) {
@@ -729,7 +804,151 @@
         }
 
         // =========================================================================
-        // CUSTOM SINGLE IMAGE UPLOADER (BASELINE ENCODING)
+        // BOOT MEDIA UPLOADERS (SAVED DIRECTLY TO LITTLEFS FLASH)
+        // =========================================================================
+        async function uploadBootImage(e) {
+            const file = e.target.files[0];
+            if (!file || !charStream) {
+                log("Connect BLE first before uploading.");
+                return;
+            }
+            log(`Processing Boot Image: ${file.name}...`);
+            const progressWrap = document.getElementById('bootProgressWrap');
+            const progressBar = document.getElementById('bootProgressBar');
+            progressWrap.style.display = 'block';
+            progressBar.style.width = '20%';
+
+            const img = new Image();
+            img.src = URL.createObjectURL(file);
+            img.onload = async () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 240;
+                canvas.height = 240;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, 240, 240);
+
+                canvas.toBlob(async (blob) => {
+                    const arrayBuffer = await blob.arrayBuffer();
+                    const bytes = new Uint8Array(arrayBuffer);
+                    const CHUNK_SIZE = 480;
+                    const totalLen = bytes.length;
+
+                    // Boot Image Header: 0xAA 0x99 [len_hi] [len_lo]
+                    const firstChunkLen = Math.min(CHUNK_SIZE - 4, totalLen);
+                    const header = new Uint8Array(4 + firstChunkLen);
+                    header[0] = 0xAA;
+                    header[1] = 0x99;
+                    header[2] = (totalLen >> 8) & 0xFF;
+                    header[3] = totalLen & 0xFF;
+                    header.set(bytes.subarray(0, firstChunkLen), 4);
+
+                    await charStream.writeValueWithoutResponse(header);
+                    await new Promise(r => setTimeout(r, 25));
+
+                    let offset = firstChunkLen;
+                    while (offset < totalLen) {
+                        const chunkEnd = Math.min(offset + CHUNK_SIZE, totalLen);
+                        const chunk = bytes.subarray(offset, chunkEnd);
+                        await charStream.writeValueWithoutResponse(chunk);
+                        offset = chunkEnd;
+                        progressBar.style.width = `${Math.round((offset / totalLen) * 100)}%`;
+                        await new Promise(r => setTimeout(r, 12));
+                    }
+
+                    setTimeout(() => { progressWrap.style.display = 'none'; }, 1000);
+                    setBootType(1);
+                    log(`✅ Boot Image Saved to Flash (${bytes.length} bytes)!`);
+                }, 'image/jpeg', 0.82);
+            };
+        }
+
+        async function uploadBootVideo(e) {
+            const file = e.target.files[0];
+            if (!file || !charStream) {
+                log("Connect BLE first before uploading.");
+                return;
+            }
+            log(`Sampling frames for Boot Video: ${file.name}...`);
+            const progressWrap = document.getElementById('bootProgressWrap');
+            const progressBar = document.getElementById('bootProgressBar');
+            progressWrap.style.display = 'block';
+            progressBar.style.width = '10%';
+
+            const video = document.createElement('video');
+            const canvas = document.createElement('canvas');
+            canvas.width = 240;
+            canvas.height = 240;
+            const ctx = canvas.getContext('2d');
+
+            video.src = URL.createObjectURL(file);
+            video.muted = true;
+            await new Promise((resolve) => { video.onloadedmetadata = () => resolve(); });
+
+            const duration = Math.min(video.duration || 1.0, 1.2);
+            const targetFrames = Math.min(Math.floor(duration * 25), 25);
+            const frameBlobs = [];
+
+            for (let i = 0; i < targetFrames; i++) {
+                video.currentTime = (i / targetFrames) * duration;
+                await new Promise(r => { video.onseeked = () => r(); });
+                ctx.drawImage(video, 0, 0, 240, 240);
+                
+                const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.40));
+                const arrayBuffer = await blob.arrayBuffer();
+                frameBlobs.push(new Uint8Array(arrayBuffer));
+                progressBar.style.width = `${Math.round(((i + 1) / targetFrames) * 30)}%`;
+            }
+
+            log(`Uploading ${frameBlobs.length} boot animation frames to Flash...`);
+
+            // 1. Boot Video Init: 0xBB 0x99 [total_frames] [fps]
+            const initHeader = new Uint8Array([0xBB, 0x99, frameBlobs.length, 25]);
+            await charStream.writeValueWithoutResponse(initHeader);
+            await new Promise(r => setTimeout(r, 40));
+
+            const CHUNK_SIZE = 480;
+            for (let fIdx = 0; fIdx < frameBlobs.length; fIdx++) {
+                const fBytes = frameBlobs[fIdx];
+                const totalLen = fBytes.length;
+
+                // Frame Header: 0xCC 0x99 [frame_idx] [len_hi] [len_lo]
+                const firstChunkLen = Math.min(CHUNK_SIZE - 5, totalLen);
+                const fHeader = new Uint8Array(5 + firstChunkLen);
+                fHeader[0] = 0xCC;
+                fHeader[1] = 0x99;
+                fHeader[2] = fIdx;
+                fHeader[3] = (totalLen >> 8) & 0xFF;
+                fHeader[4] = totalLen & 0xFF;
+                fHeader.set(fBytes.subarray(0, firstChunkLen), 5);
+
+                await charStream.writeValueWithoutResponse(fHeader);
+                await new Promise(r => setTimeout(r, 20));
+
+                let offset = firstChunkLen;
+                while (offset < totalLen) {
+                    const chunkEnd = Math.min(offset + CHUNK_SIZE, totalLen);
+                    const chunk = fBytes.subarray(offset, chunkEnd);
+                    await charStream.writeValueWithoutResponse(chunk);
+                    offset = chunkEnd;
+                    await new Promise(r => setTimeout(r, 12));
+                }
+
+                const pct = 30 + Math.round(((fIdx + 1) / frameBlobs.length) * 70);
+                progressBar.style.width = `${pct}%`;
+            }
+
+            // Finish Boot Video: 0xDD 0x99
+            const finishHeader = new Uint8Array([0xDD, 0x99]);
+            await charStream.writeValueWithoutResponse(finishHeader);
+
+            progressBar.style.width = '100%';
+            setTimeout(() => { progressWrap.style.display = 'none'; }, 1000);
+            setBootType(2);
+            log(`✅ Boot Video Saved to Flash (${frameBlobs.length} frames)!`);
+        }
+
+        // =========================================================================
+        // LIVE MEDIA UPLOADERS
         // =========================================================================
         async function uploadImage(e) {
             const file = e.target.files[0];
@@ -737,27 +956,28 @@
                 log("Connect BLE first before uploading.");
                 return;
             }
-            log(`Processing image: ${file.name}...`);
-            const canvas = document.getElementById('procCanvas');
-            const ctx = canvas.getContext('2d');
+            log(`Streaming image: ${file.name}...`);
             const img = new Image();
             img.src = URL.createObjectURL(file);
             img.onload = async () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 240;
+                canvas.height = 240;
+                const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, 240, 240);
+
                 canvas.toBlob(async (blob) => {
                     const arrayBuffer = await blob.arrayBuffer();
                     const bytes = new Uint8Array(arrayBuffer);
                     await sendSingleImagePacket(bytes);
-                    log(`Image uploaded (${bytes.length} bytes)!`);
+                    log(`Image streamed (${bytes.length} bytes)!`);
                 }, 'image/jpeg', 0.80);
             };
         }
 
         async function sendSingleImagePacket(bytes) {
-            if (!charStream) return;
+            const CHUNK_SIZE = 480;
             const totalLen = bytes.length;
-            const CHUNK_SIZE = 450;
-
             const firstChunkLen = Math.min(CHUNK_SIZE - 4, totalLen);
             const header = new Uint8Array(4 + firstChunkLen);
             header[0] = 0xAA;
@@ -779,10 +999,7 @@
             }
         }
 
-        // =========================================================================
-        // 30 FPS VIDEO / GIF MULTI-FRAME BUFFER UPLOADER
-        // =========================================================================
-        async function uploadVideoLoop(e) {
+        async function uploadVideo(e) {
             const file = e.target.files[0];
             if (!file || !charStream) {
                 log("Connect BLE first before uploading video.");
@@ -794,8 +1011,10 @@
             progressWrap.style.display = 'block';
             progressBar.style.width = '5%';
 
-            const video = document.getElementById('procVideo');
-            const canvas = document.getElementById('procCanvas');
+            const video = document.createElement('video');
+            const canvas = document.createElement('canvas');
+            canvas.width = 240;
+            canvas.height = 240;
             const ctx = canvas.getContext('2d');
 
             video.src = URL.createObjectURL(file);
@@ -824,27 +1043,28 @@
             await charStream.writeValueWithoutResponse(initHeader);
             await new Promise(r => setTimeout(r, 40));
 
-            // 2. Upload Each Frame
-            const CHUNK_SIZE = 450;
+            // 2. Stream Each Frame
+            const CHUNK_SIZE = 480;
             for (let fIdx = 0; fIdx < frameBlobs.length; fIdx++) {
                 const fBytes = frameBlobs[fIdx];
-                const fLen = fBytes.length;
-                
-                const firstChunkLen = Math.min(CHUNK_SIZE - 5, fLen);
-                const frameHeader = new Uint8Array(5 + firstChunkLen);
-                frameHeader[0] = 0xCC;
-                frameHeader[1] = 0x77;
-                frameHeader[2] = fIdx;
-                frameHeader[3] = (fLen >> 8) & 0xFF;
-                frameHeader[4] = fLen & 0xFF;
-                frameHeader.set(fBytes.subarray(0, firstChunkLen), 5);
+                const totalLen = fBytes.length;
 
-                await charStream.writeValueWithoutResponse(frameHeader);
-                await new Promise(r => setTimeout(r, 12));
+                // Frame Header: 0xCC 0x77 [frame_idx] [len_hi] [len_lo]
+                const firstChunkLen = Math.min(CHUNK_SIZE - 5, totalLen);
+                const fHeader = new Uint8Array(5 + firstChunkLen);
+                fHeader[0] = 0xCC;
+                fHeader[1] = 0x77;
+                fHeader[2] = fIdx;
+                fHeader[3] = (totalLen >> 8) & 0xFF;
+                fHeader[4] = totalLen & 0xFF;
+                fHeader.set(fBytes.subarray(0, firstChunkLen), 5);
+
+                await charStream.writeValueWithoutResponse(fHeader);
+                await new Promise(r => setTimeout(r, 20));
 
                 let offset = firstChunkLen;
-                while (offset < fLen) {
-                    const chunkEnd = Math.min(offset + CHUNK_SIZE, fLen);
+                while (offset < totalLen) {
+                    const chunkEnd = Math.min(offset + CHUNK_SIZE, totalLen);
                     const chunk = fBytes.subarray(offset, chunkEnd);
                     await charStream.writeValueWithoutResponse(chunk);
                     offset = chunkEnd;
