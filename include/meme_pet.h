@@ -43,16 +43,11 @@ public:
     void triggerDoubleTap() {
         int next = ((int)currentEmotion + 1) % 7;
         setEmotion((MemeEmotion)next);
-        defaultEmotion = (MemeEmotion)next; // Persist cycled mascot!
+        defaultEmotion = (MemeEmotion)next;
     }
 
     void update() {
         uint32_t now = millis();
-
-        // Auto-return to default emotion after 4 seconds of idle reaction
-        if (currentEmotion != defaultEmotion && (now - emotionStartTime > 4000)) {
-            currentEmotion = defaultEmotion;
-        }
 
         if (now - lastAnimTime > 50) {
             lastAnimTime = now;

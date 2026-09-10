@@ -54,11 +54,15 @@ bool     lastSavedWasUsb     = false;
 uint32_t totalRunCycles      = 1;
 
 // Touch State & Gestures
-bool     isTouching          = false;
-uint32_t touchStartTime      = 0;
-uint32_t lastTapReleaseTime  = 0;
-int      tapCount            = 0;
-uint32_t lastActivityTime    = 0;
+bool        isTouching          = false;
+uint32_t    touchStartTime      = 0;
+uint32_t    lastTapReleaseTime  = 0;
+int         tapCount            = 0;
+uint32_t    lastActivityTime    = 0;
+bool        holdTriggered       = false;
+MemeEmotion preHoldEmotion      = EMOTION_LUFFY;
+bool        isTemporaryLove     = false;
+uint32_t    loveStartTime       = 0;
 
 // On-Screen Touch Visualizer
 bool     touchVisualActive   = false;
@@ -530,61 +534,99 @@ void processTouch() {
     bool rawTouch = digitalRead(PIN_TOUCH) == HIGH;
     uint32_t now = millis();
 
+    // 1. TOUCH DOWN
     if (rawTouch && !isTouching) {
         isTouching = true;
         touchStartTime = now;
+        holdTriggered = false;
         lastActivityTime = now;
         triggerTouchVisual("TOUCH ⚡", 0x07FF, 300, "TOUCH:DOWN");
     }
-    else if (!rawTouch && isTouching) {
-        isTouching = false;
-        uint32_t pressDuration = now - touchStartTime;
-        lastActivityTime = now;
-        triggerTouchVisual("IDLE", 0x8410, 100, "TOUCH:UP");
 
-        // 1. Long Press Hold (>= 1000ms / 1.0s) -> Triggers SHY LOVE
-        if (pressDuration >= 1000) {
-            memePet.triggerHold();
+    // 2. WHILE HOLDING DOWN (Direct 2.0s hold trigger WITHOUT lifting finger)
+    if (rawTouch && isTouching && !holdTriggered) {
+        if (now - touchStartTime >= 2000) { // 2.0s continuous hold
+            holdTriggered = true;
+            tapCount = 0; // Cancel any pending tap
+
+            // Save original photo that was there before love
+            preHoldEmotion = memePet.currentEmotion;
+            isTemporaryLove = true;
+            loveStartTime = now;
+
+            memePet.setEmotion(EMOTION_SHY);
             currentMode = MODE_CYBERPET;
             isVideoPlaying = false;
-            triggerTouchVisual("SHY LOVE ❤️", 0xF81F, 1200, "TOUCH:HOLD");
+            triggerTouchVisual("SHY LOVE ❤️", 0xF81F, 5000, "TOUCH:HOLD");
+
             if (bleConnected && pCharPet) {
                 char emoChar[2] = { (char)('0' + (int)EMOTION_SHY), '\0' };
                 pCharPet->setValue(std::string(emoChar));
                 pCharPet->notify();
             }
+            Serial.printf("[TOUCH] 2-sec Continuous Hold! Saved previous emotion: %d\n", (int)preHoldEmotion);
+        }
+    }
+
+    // 3. TOUCH RELEASE (Finger Lifted)
+    if (!rawTouch && isTouching) {
+        isTouching = false;
+        uint32_t pressDuration = now - touchStartTime;
+        lastActivityTime = now;
+        triggerTouchVisual("IDLE", 0x8410, 100, "TOUCH:UP");
+
+        if (holdTriggered) {
+            // Already handled by 2-second hold event
             tapCount = 0;
-        } else {
-            // 2. Short Taps (< 1000ms)
+        } else if (pressDuration < 1500) {
+            // Short tap
             if (tapCount == 0) {
                 tapCount = 1;
                 lastTapReleaseTime = now;
-                memePet.triggerTap();
-                triggerTouchVisual("POKE 👆", 0x07FF, 400, "TOUCH:POKE");
-            } else if (tapCount == 1 && (now - lastTapReleaseTime) <= 500) {
-                // Double Tap (within 500ms) -> Cycles Mascot Sequence
+            } else if (tapCount == 1 && (now - lastTapReleaseTime) <= 450) {
+                // DOUBLE TAP CONFIRMED!
                 tapCount = 0;
-                memePet.triggerDoubleTap();
+                int next = ((int)memePet.currentEmotion + 1) % 7;
+                memePet.setEmotion((MemeEmotion)next);
+                memePet.defaultEmotion = (MemeEmotion)next; // Persist
+                isTemporaryLove = false; // Cancel any temporary hold revert
                 currentMode = MODE_CYBERPET;
                 isVideoPlaying = false;
-                triggerTouchVisual("CYCLE MASCOT ⚡", 0xFFE0, 900, "TOUCH:DOUBLE");
+                triggerTouchVisual("CYCLE MASCOT ⚡", 0xFFE0, 1000, "TOUCH:DOUBLE");
+
                 if (bleConnected && pCharPet) {
-                    char emoChar[2] = { (char)('0' + (int)memePet.currentEmotion), '\0' };
+                    char emoChar[2] = { (char)('0' + (int)next), '\0' };
                     pCharPet->setValue(std::string(emoChar));
                     pCharPet->notify();
                 }
+                Serial.printf("[TOUCH] Double Tap! Cycled to Mascot: %d\n", next);
             }
         }
     }
 
-    if (tapCount == 1 && (now - lastTapReleaseTime) > 500) {
+    // 4. PENDING SINGLE TAP TIMEOUT (If tapCount == 1 and no 2nd tap arrived within 450ms)
+    if (tapCount == 1 && (now - lastTapReleaseTime) > 450) {
         tapCount = 0;
+        memePet.triggerTap();
+        triggerTouchVisual("POKE 👆", 0x07FF, 600, "TOUCH:POKE");
+        Serial.println("[TOUCH] Single Tap Confirmed: POKE 👆");
+    }
+
+    // 5. AUTO-REVERT FROM SHY LOVE AFTER 5 SECONDS BACK TO ORIGINAL PHOTO
+    if (isTemporaryLove && (now - loveStartTime >= 5000)) {
+        isTemporaryLove = false;
+        memePet.setEmotion(preHoldEmotion);
+        memePet.defaultEmotion = preHoldEmotion;
+        if (bleConnected && pCharPet) {
+            char emoChar[2] = { (char)('0' + (int)preHoldEmotion), '\0' };
+            pCharPet->setValue(std::string(emoChar));
+            pCharPet->notify();
+        }
+        triggerTouchVisual("RETURN TO MASCOT", 0x07FF, 600, "TOUCH:REVERT");
+        Serial.printf("[TOUCH] 5s elapsed: Reverted back to original photo: %d\n", (int)preHoldEmotion);
     }
 }
 
-// =========================================================================
-// DEEP SLEEP WITH HARDWARE PIN HOLD
-// =========================================================================
 void enterDeepSleep() {
     Serial.println("[POWER] Entering Deep Sleep...");
 
