@@ -53,11 +53,11 @@ uint16_t lastSavedEndMv      = 4200;
 bool     lastSavedWasUsb     = false;
 uint32_t totalRunCycles      = 1;
 
-// Touch State & Gestures
+// Touch State & Gestures (Hardware-Debounced FSM)
 bool        isTouching          = false;
 uint32_t    touchStartTime      = 0;
-uint32_t    firstTapDownTime    = 0;
-int         tapCount            = 0;
+bool        pendingSingleTap    = false;
+uint32_t    firstTapReleaseTime = 0;
 uint32_t    lastActivityTime    = 0;
 bool        holdTriggered       = false;
 MemeEmotion preHoldEmotion      = EMOTION_LUFFY;
@@ -528,49 +528,84 @@ void triggerTouchVisual(const String& label, uint16_t color, uint32_t durationMs
 }
 
 // =========================================================================
-// TOUCH GESTURES (INTENTIONAL DOUBLE-TAP & HOLD)
+// TOUCH GESTURES (HARDWARE-DEBOUNCED INSTANT DOUBLE-TAP & 2.0s HOLD)
 // =========================================================================
 void processTouch() {
-    bool rawTouch = digitalRead(PIN_TOUCH) == HIGH;
+    static bool lastRawPinState = false;
+    static bool debouncedTouch  = false;
+    static uint32_t lastDebounceTime = 0;
+
     uint32_t now = millis();
+    bool rawReading = (digitalRead(PIN_TOUCH) == HIGH);
 
-    // 1. TOUCH DOWN (Finger Contacts Sensor)
-    if (rawTouch && !isTouching) {
-        isTouching = true;
-        touchStartTime = now;
-        holdTriggered = false;
-        lastActivityTime = now;
+    // Hardware Contact Bounce Filter (20ms)
+    if (rawReading != lastRawPinState) {
+        lastDebounceTime = now;
+        lastRawPinState = rawReading;
+    }
 
-        if (tapCount == 0) {
-            // First Tap Down
-            tapCount = 1;
-            firstTapDownTime = now;
-            triggerTouchVisual("TOUCH ⚡", 0x07FF, 250, "TOUCH:DOWN");
-        } else if (tapCount == 1 && (now - firstTapDownTime) <= 650) {
-            // SECOND TAP DOWN ARRIVED WITHIN 650ms -> INSTANT DOUBLE TAP!
-            tapCount = 0;
-            int next = ((int)memePet.currentEmotion + 1) % 7;
-            memePet.setEmotion((MemeEmotion)next);
-            memePet.defaultEmotion = (MemeEmotion)next; // Persist mascot
-            isTemporaryLove = false; // Cancel any pending love revert
-            currentMode = MODE_CYBERPET;
-            isVideoPlaying = false;
-            triggerTouchVisual("CYCLE MASCOT ⚡", 0xFFE0, 900, "TOUCH:DOUBLE");
+    if ((now - lastDebounceTime) >= 20) {
+        if (rawReading != debouncedTouch) {
+            debouncedTouch = rawReading;
 
-            if (bleConnected && pCharPet) {
-                char emoChar[2] = { (char)('0' + (int)next), '\0' };
-                pCharPet->setValue(std::string(emoChar));
-                pCharPet->notify();
+            if (debouncedTouch) {
+                // 1. TOUCH DOWN (Debounced Finger Contact)
+                isTouching = true;
+                touchStartTime = now;
+                holdTriggered = false;
+                lastActivityTime = now;
+
+                // Check if this is the 2nd tap of a Double-Tap sequence
+                if (pendingSingleTap && (now - firstTapReleaseTime <= 450) && (now - firstTapReleaseTime >= 30)) {
+                    // INSTANT DOUBLE TAP!
+                    pendingSingleTap = false;
+
+                    int next = ((int)memePet.currentEmotion + 1) % 7;
+                    memePet.setEmotion((MemeEmotion)next);
+                    memePet.defaultEmotion = (MemeEmotion)next; // Persist mascot
+                    isTemporaryLove = false; // Cancel any pending love revert
+                    currentMode = MODE_CYBERPET;
+                    isVideoPlaying = false;
+                    triggerTouchVisual("CYCLE MASCOT ⚡", 0xFFE0, 1000, "TOUCH:DOUBLE");
+
+                    if (bleConnected && pCharPet) {
+                        char emoChar[2] = { (char)('0' + (int)next), '\0' };
+                        pCharPet->setValue(std::string(emoChar));
+                        pCharPet->notify();
+                    }
+                    Serial.printf("[TOUCH] Double-Tap -> Switched to Mascot: %d\n", next);
+                } else {
+                    // First Touch Down
+                    pendingSingleTap = false;
+                    triggerTouchVisual("TOUCH ⚡", 0x07FF, 250, "TOUCH:DOWN");
+                }
+            } else {
+                // 2. TOUCH UP (Debounced Finger Release)
+                isTouching = false;
+                lastActivityTime = now;
+                uint32_t touchDuration = now - touchStartTime;
+
+                if (holdTriggered) {
+                    // Releasing after 2.0s hold -> no tap action
+                    triggerTouchVisual("IDLE", 0x8410, 100, "TOUCH:UP");
+                } else if (touchDuration >= 30 && touchDuration < 600) {
+                    // Valid tap released -> wait for potential second tap
+                    pendingSingleTap = true;
+                    firstTapReleaseTime = now;
+                    triggerTouchVisual("IDLE", 0x8410, 100, "TOUCH:UP");
+                } else {
+                    pendingSingleTap = false;
+                    triggerTouchVisual("IDLE", 0x8410, 100, "TOUCH:UP");
+                }
             }
-            Serial.printf("[TOUCH] Instant Double-Tap! Cycled to Mascot: %d\n", next);
         }
     }
 
-    // 2. WHILE HOLDING DOWN (Direct 2.0s hold trigger WITHOUT lifting finger)
-    if (rawTouch && isTouching && !holdTriggered) {
+    // 3. CONTINUOUS 2.0s HOLD (Triggers directly while finger is resting on sensor)
+    if (debouncedTouch && isTouching && !holdTriggered) {
         if (now - touchStartTime >= 2000) { // 2.0 seconds continuous hold
             holdTriggered = true;
-            tapCount = 0; // Cancel any pending tap
+            pendingSingleTap = false; // Cancel single tap
 
             // Save original photo that was there before love triggered
             preHoldEmotion = memePet.currentEmotion;
@@ -591,22 +626,12 @@ void processTouch() {
         }
     }
 
-    // 3. TOUCH RELEASE (Finger Lifted)
-    if (!rawTouch && isTouching) {
-        isTouching = false;
-        lastActivityTime = now;
-        if (!holdTriggered && tapCount == 0) {
-            triggerTouchVisual("IDLE", 0x8410, 100, "TOUCH:UP");
-        }
-    }
-
-    // 4. PENDING SINGLE TAP TIMEOUT (If tapCount == 1 and no 2nd tap arrived within 650ms)
-    if (tapCount == 1 && (now - firstTapDownTime) > 650) {
-        tapCount = 0;
-        if (!isTouching && !holdTriggered) {
-            // Single tap confirmed!
+    // 4. PENDING SINGLE TAP TIMEOUT (If no 2nd tap arrives within 400ms of release)
+    if (pendingSingleTap && !debouncedTouch && (now - firstTapReleaseTime > 400)) {
+        pendingSingleTap = false;
+        if (!holdTriggered) {
             memePet.triggerTap();
-            triggerTouchVisual("POKE 👆", 0x07FF, 500, "TOUCH:POKE");
+            triggerTouchVisual("POKE 👆", 0x07FF, 600, "TOUCH:POKE");
             Serial.println("[TOUCH] Single Tap Confirmed -> POKE 👆");
         }
     }
@@ -621,7 +646,7 @@ void processTouch() {
             pCharPet->setValue(std::string(emoChar));
             pCharPet->notify();
         }
-        triggerTouchVisual("RETURN TO MASCOT", 0x07FF, 500, "TOUCH:REVERT");
+        triggerTouchVisual("RETURN TO MASCOT", 0x07FF, 600, "TOUCH:REVERT");
         Serial.printf("[TOUCH] 5s elapsed -> Reverted to %d\n", (int)preHoldEmotion);
     }
 }

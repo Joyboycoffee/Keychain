@@ -700,32 +700,40 @@
             tt.style.color = "var(--text-muted)";
         }
 
-        function handleSettingsNotification(msg) {
-            // 1. Touch notifications
+        let touchResetTimer = null;
+        function setTouchBanner(text, color, autoClearMs = 1200) {
             const tb = document.getElementById('touchBanner');
             const tt = document.getElementById('touchText');
-            if (msg === "TOUCH:DOWN") {
-                tb.className = "active";
-                tt.innerText = "⚡ TOUCH ACTIVE";
-                tt.style.color = "var(--cyan)";
-            } else if (msg === "TOUCH:POKE") {
-                tb.className = "active";
-                tt.innerText = "👆 POKE TRIGGERED";
-                tt.style.color = "var(--cyan)";
-            } else if (msg === "TOUCH:DOUBLE") {
-                tb.className = "active";
-                tt.innerText = "⚡ REACTION CYCLED";
-                tt.style.color = "var(--amber)";
-            } else if (msg === "TOUCH:HOLD") {
-                tb.className = "active";
-                tt.innerText = "❤️ SHY LOVE TRIGGERED";
-                tt.style.color = "var(--magenta)";
-            } else if (msg === "TOUCH:UP") {
-                setTimeout(() => {
+            if (!tb || !tt) return;
+            if (touchResetTimer) clearTimeout(touchResetTimer);
+            
+            tb.className = "active";
+            tt.innerText = text;
+            tt.style.color = color;
+            
+            if (autoClearMs > 0) {
+                touchResetTimer = setTimeout(() => {
                     tb.className = "";
                     tt.innerText = "[ IDLE ]";
                     tt.style.color = "var(--text-muted)";
-                }, 250);
+                }, autoClearMs);
+            }
+        }
+
+        function handleSettingsNotification(msg) {
+            // 1. Touch notifications
+            if (msg === "TOUCH:DOWN") {
+                setTouchBanner("⚡ TOUCH ACTIVE", "var(--cyan)", 0);
+            } else if (msg === "TOUCH:POKE") {
+                setTouchBanner("👆 POKE TRIGGERED", "var(--cyan)", 1200);
+            } else if (msg === "TOUCH:DOUBLE") {
+                setTouchBanner("⚡ MASCOT CYCLED", "var(--amber)", 1200);
+            } else if (msg === "TOUCH:HOLD") {
+                setTouchBanner("❤️ SHY LOVE (HOLD 2s)", "var(--magenta)", 3000);
+            } else if (msg === "TOUCH:REVERT") {
+                setTouchBanner("🔄 RETURNED TO MASCOT", "var(--green)", 1200);
+            } else if (msg === "TOUCH:UP") {
+                setTouchBanner("⚡ TOUCH RELEASED", "var(--text-muted)", 250);
             }
             // 2. Battery Log format: "BAT_LOG|last_sec|last_start_mv|last_end_mv|cur_sec|cur_mv|usb|cycles"
             else if (msg.startsWith("BAT_LOG|")) {
