@@ -694,7 +694,7 @@ void setup() {
     sleepTimeoutMs = prefs.getUInt("sleep", 60000);
     customMessage = prefs.getString("msg", "I AM JOY BOY COFFEE :coffee: :fire:");
 
-    // 2. Initialize NimBLE Bluetooth FIRST with 16-bit SIG UUID
+    // 2. Initialize NimBLE Bluetooth
     Serial.println("[BLE] Initializing NimBLE stack...");
     NimBLEDevice::init("DIGI_KEYCHAIN");
     NimBLEDevice::setPower(ESP_PWR_LVL_P9);
@@ -726,11 +726,12 @@ void setup() {
 
     pService->start();
 
+    // Configure Advertising: Device Name in Primary Ad, 128-bit Service in Scan Response
     NimBLEAdvertising* pAdv = NimBLEDevice::getAdvertising();
-    pAdv->addServiceUUID(SERVICE_UUID);
     pAdv->setScanResponse(true);
+    pAdv->addServiceUUID(SERVICE_UUID);
     pAdv->start();
-    Serial.println("[BLE] Advertising started as DIGI_KEYCHAIN (0xFFE0)");
+    Serial.println("[BLE] Advertising started as DIGI_KEYCHAIN (6e400001-b5a3-f393-e0a9-e50e24dcca9e)");
 
     // 3. Initialize Display
     Serial.println("[DISPLAY] Initializing ST7789 display...");

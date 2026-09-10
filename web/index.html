@@ -506,14 +506,14 @@
     </main>
 
     <script>
-        const SERVICE_UUID       = 0xffe0;
-        const CHAR_MODE_UUID     = 0xffe1;
-        const CHAR_PET_UUID      = 0xffe2;
-        const CHAR_TEXT_UUID     = 0xffe3;
-        const CHAR_TIME_UUID     = 0xffe4;
-        const CHAR_SETTINGS_UUID = 0xffe5;
-        const CHAR_BATTERY_UUID  = 0xffe6;
-        const CHAR_STREAM_UUID   = 0xffe7;
+        const SERVICE_UUID       = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+        const CHAR_MODE_UUID     = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
+        const CHAR_PET_UUID      = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
+        const CHAR_TEXT_UUID     = "6e400004-b5a3-f393-e0a9-e50e24dcca9e";
+        const CHAR_TIME_UUID     = "6e400005-b5a3-f393-e0a9-e50e24dcca9e";
+        const CHAR_SETTINGS_UUID = "6e400006-b5a3-f393-e0a9-e50e24dcca9e";
+        const CHAR_BATTERY_UUID  = "6e400007-b5a3-f393-e0a9-e50e24dcca9e";
+        const CHAR_STREAM_UUID   = "6e400008-b5a3-f393-e0a9-e50e24dcca9e";
 
         let bleDevice = null;
         let gattServer = null;
@@ -544,29 +544,29 @@
                 bleDevice = await navigator.bluetooth.requestDevice({
                     filters: [
                         { name: 'DIGI_KEYCHAIN' },
-                        { name: 'CYBER_KEYCHAIN' },
-                        { namePrefix: 'DIGI' },
-                        { services: [0xffe0] }
+                        { namePrefix: 'DIGI' }
                     ],
-                    optionalServices: [0xffe0]
+                    optionalServices: [
+                        SERVICE_UUID
+                    ]
                 });
 
                 log(`Connecting to: ${bleDevice.name || 'DIGI_KEYCHAIN'}...`);
                 bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
                 
                 gattServer = await bleDevice.gatt.connect();
-                log("GATT connected! Getting primary service 0xFFE0...");
+                log("GATT connected! Getting primary service...");
                 
-                const service = await gattServer.getPrimaryService(0xffe0);
-                log("Service found! Getting characteristics...");
+                const service = await gattServer.getPrimaryService(SERVICE_UUID);
+                log("Primary service found! Discovering characteristics...");
 
-                charMode     = await service.getCharacteristic(0xffe1).catch(()=>null);
-                charPet      = await service.getCharacteristic(0xffe2).catch(()=>null);
-                charText     = await service.getCharacteristic(0xffe3).catch(()=>null);
-                charTime     = await service.getCharacteristic(0xffe4).catch(()=>null);
-                charSettings = await service.getCharacteristic(0xffe5).catch(()=>null);
-                charBattery  = await service.getCharacteristic(0xffe6).catch(()=>null);
-                charStream   = await service.getCharacteristic(0xffe7).catch(()=>null);
+                charMode     = await service.getCharacteristic(CHAR_MODE_UUID).catch(()=>null);
+                charPet      = await service.getCharacteristic(CHAR_PET_UUID).catch(()=>null);
+                charText     = await service.getCharacteristic(CHAR_TEXT_UUID).catch(()=>null);
+                charTime     = await service.getCharacteristic(CHAR_TIME_UUID).catch(()=>null);
+                charSettings = await service.getCharacteristic(CHAR_SETTINGS_UUID).catch(()=>null);
+                charBattery  = await service.getCharacteristic(CHAR_BATTERY_UUID).catch(()=>null);
+                charStream   = await service.getCharacteristic(CHAR_STREAM_UUID).catch(()=>null);
 
                 log("Characteristics ready! Starting telemetry...");
 

@@ -24,16 +24,16 @@
 #define PIN_BAT_ADC    0    // Center tap of 100k+100k voltage divider
 
 // =========================================================================
-// BLE 16-BIT COMPACT UUIDs (Fits perfectly inside 31-byte BLE advertising packet)
+// BLE UNIVERSAL 128-BIT VENDOR UUIDs (100% Android / Windows / iOS compliant)
 // =========================================================================
-#define SERVICE_UUID           "FFE0"
-#define CHAR_MODE_UUID         "FFE1"
-#define CHAR_PET_UUID          "FFE2"
-#define CHAR_TEXT_UUID         "FFE3"
-#define CHAR_TIME_UUID         "FFE4"
-#define CHAR_SETTINGS_UUID     "FFE5"
-#define CHAR_BATTERY_UUID      "FFE6"
-#define CHAR_STREAM_UUID       "FFE7"
+#define SERVICE_UUID           "6e400001-b5a3-f393-e0a9-e50e24dcca9e"
+#define CHAR_MODE_UUID         "6e400002-b5a3-f393-e0a9-e50e24dcca9e"
+#define CHAR_PET_UUID          "6e400003-b5a3-f393-e0a9-e50e24dcca9e"
+#define CHAR_TEXT_UUID         "6e400004-b5a3-f393-e0a9-e50e24dcca9e"
+#define CHAR_TIME_UUID         "6e400005-b5a3-f393-e0a9-e50e24dcca9e"
+#define CHAR_SETTINGS_UUID     "6e400006-b5a3-f393-e0a9-e50e24dcca9e"
+#define CHAR_BATTERY_UUID      "6e400007-b5a3-f393-e0a9-e50e24dcca9e"
+#define CHAR_STREAM_UUID       "6e400008-b5a3-f393-e0a9-e50e24dcca9e"
 
 // =========================================================================
 // SYSTEM MODES & BOOT SPLASH TYPES
