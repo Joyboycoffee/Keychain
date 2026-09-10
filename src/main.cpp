@@ -42,8 +42,8 @@ size_t streamBytesReceived = 0;
 size_t expectedStreamBytes = 0;
 bool newMediaFrameReady = false;
 
-#define MAX_VIDEO_FRAMES 35
-#define VIDEO_POOL_SIZE 65536
+#define MAX_VIDEO_FRAMES 30
+#define VIDEO_POOL_SIZE 32768
 uint8_t videoPool[VIDEO_POOL_SIZE];
 size_t videoPoolWriteOffset = 0;
 uint32_t frameOffsets[MAX_VIDEO_FRAMES];
@@ -84,7 +84,7 @@ class ModeCallback : public NimBLECharacteristicCallbacks {
                 currentMode = (SystemMode)m;
                 if (currentMode != MODE_STREAM_MEDIA) isVideoPlaying = false;
                 lastActivityTime = millis();
-                Serial.printf("[BLE] Mode switched to: %d\n", m);
+                Serial.printf("[BLE] Mode: %d\n", m);
             }
         }
     }
@@ -100,7 +100,7 @@ class PetCallback : public NimBLECharacteristicCallbacks {
                 currentMode = MODE_CYBERPET;
                 isVideoPlaying = false;
                 lastActivityTime = millis();
-                Serial.printf("[BLE] Emotion switched to: %d\n", a);
+                Serial.printf("[BLE] Emotion: %d\n", a);
             }
         }
     }
@@ -115,7 +115,7 @@ class TextCallback : public NimBLECharacteristicCallbacks {
             currentMode = MODE_TEXT_SCROLL;
             isVideoPlaying = false;
             lastActivityTime = millis();
-            Serial.printf("[BLE] Custom message: %s\n", customMessage.c_str());
+            Serial.printf("[BLE] Text: %s\n", customMessage.c_str());
         }
     }
 };
@@ -135,7 +135,7 @@ class TimeCallback : public NimBLECharacteristicCallbacks {
                 cyberHUD.setWeather(temp, "SYNC");
             }
             lastActivityTime = millis();
-            Serial.printf("[BLE] Synced Time: %02d:%02d:%02d\n", h, m, s);
+            Serial.printf("[BLE] Time Synced: %02d:%02d:%02d\n", h, m, s);
         }
     }
 };
@@ -149,7 +149,7 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
                 screenBrightness = br;
                 tft.setBrightness(screenBrightness);
                 lastActivityTime = millis();
-                Serial.printf("[BLE] Brightness set to: %d\n", br);
+                Serial.printf("[BLE] Brightness: %d\n", br);
             }
         }
     }
@@ -186,7 +186,7 @@ class StreamCallback : public NimBLECharacteristicCallbacks {
             currentVideoFrame = 0;
             isVideoPlaying = false;
             incomingFrameIdx = -1;
-            Serial.printf("[BLE-VIDEO] Init for %d frames @ %d FPS\n", totalVideoFrames, videoTargetFps);
+            Serial.printf("[BLE-VIDEO] Init %d frames @ %d FPS\n", totalVideoFrames, videoTargetFps);
             return;
         }
 
@@ -214,7 +214,7 @@ class StreamCallback : public NimBLECharacteristicCallbacks {
             currentMode = MODE_STREAM_MEDIA;
             lastVideoFrameTime = millis();
             lastActivityTime = millis();
-            Serial.printf("[BLE-VIDEO] Playback STARTED at %d FPS!\n", videoTargetFps);
+            Serial.printf("[BLE-VIDEO] Playback STARTED @ %d FPS!\n", videoTargetFps);
             return;
         }
 
@@ -257,19 +257,20 @@ void processTouch() {
         isTouching = true;
         touchStartTime = now;
         lastActivityTime = now;
-        Serial.println("[TOUCH] Touch Active");
+        Serial.println("[TOUCH] Touch Pressed!");
     } else if (!rawTouch && isTouching) {
         isTouching = false;
         touchReleaseTime = now;
         uint32_t duration = touchReleaseTime - touchStartTime;
+        Serial.printf("[TOUCH] Released (duration=%ums)\n", (unsigned int)duration);
 
-        if (duration < 500) {
+        if (duration < 450) {
             tapCount++;
         }
     }
 
-    // Long Hold (> 0.6s) -> Trigger Shy Love Emoji 👉👈
-    if (isTouching && (now - touchStartTime > 600)) {
+    // Long Hold (> 0.55s) -> Trigger Shy Love Emoji 👉👈
+    if (isTouching && (now - touchStartTime > 550)) {
         if (currentMode == MODE_CYBERPET && memePet.currentEmotion != EMOTION_SHY) {
             memePet.setEmotion(EMOTION_SHY);
             Serial.println("[TOUCH] Hold -> Shy Love");
@@ -279,19 +280,19 @@ void processTouch() {
         lastActivityTime = now;
     }
 
-    // Process Taps (200ms timeout)
-    if (!isTouching && tapCount > 0 && (now - touchReleaseTime > 200)) {
+    // Process Taps (180ms window)
+    if (!isTouching && tapCount > 0 && (now - touchReleaseTime > 180)) {
         if (tapCount >= 3) {
             if (currentMode == MODE_CYBERPET) memePet.setEmotion(EMOTION_ANGRY_CAT);
             else robotEyes.setMood(MOOD_ANGRY);
-            Serial.println("[TOUCH] 3x Tap -> Grumpy Cat");
+            Serial.println("[TOUCH] 3x -> Grumpy Cat");
         } else if (tapCount == 2) {
             if (currentMode == MODE_CYBERPET) memePet.setEmotion(EMOTION_SAD_BANANA);
-            Serial.println("[TOUCH] 2x Tap -> Sad Banana");
+            Serial.println("[TOUCH] 2x -> Sad Banana");
         } else if (tapCount == 1) {
             if (currentMode == MODE_CYBERPET) {
                 memePet.setEmotion((MemeEmotion)((memePet.currentEmotion + 1) % 7));
-                Serial.printf("[TOUCH] 1x Tap -> Switched to Avatar: %d\n", memePet.currentEmotion);
+                Serial.printf("[TOUCH] 1x -> Switched to Avatar: %d\n", memePet.currentEmotion);
             } else if (currentMode == MODE_ROBOT_EYES) {
                 currentMode = MODE_CYBER_HUD;
             } else if (currentMode == MODE_CYBER_HUD) {
@@ -330,51 +331,19 @@ void enterDeepSleep() {
 // =========================================================================
 void setup() {
     Serial.begin(115200);
-    delay(400);
+    delay(300);
     Serial.println("\n\n========================================");
-    Serial.println("  ESP32-C3 MEME KEYCHAIN v3.4 BOOT");
+    Serial.println("  ESP32-C3 MEME KEYCHAIN v3.5 BOOT");
     Serial.println("========================================");
 
-    // Hardware Pins
+    // 1. Hardware Pins
     pinMode(PIN_DEBUG_LED, OUTPUT);
-    digitalWrite(PIN_DEBUG_LED, HIGH); // OFF
-
+    digitalWrite(PIN_DEBUG_LED, HIGH); // Permanently OFF
     pinMode(PIN_TOUCH, INPUT);
 
-    // Initialize Display via LovyanGFX
-    tft.init();
-    tft.setRotation(3);
-    tft.setBrightness(screenBrightness);
-
-    // Double Buffer Sprite
-    canvas.setColorDepth(16);
-    canvas.createSprite(240, 240);
-
-    // Check Wakeup Reason: ONLY on fresh cold power-on, show KEYCHAIN POWER ON!
-    esp_sleep_wakeup_cause_t wakeupReason = esp_sleep_get_wakeup_cause();
-    if (wakeupReason == ESP_SLEEP_WAKEUP_UNDEFINED) {
-        Serial.println("[BOOT] Cold Power-On. Showing KEYCHAIN POWER ON...");
-        canvas.fillScreen(TFT_BLACK);
-        canvas.drawRoundRect(2, 2, 236, 236, 6, 0x07FF);
-        canvas.drawRoundRect(3, 3, 234, 234, 5, 0x07FF);
-        
-        canvas.setTextColor(0x07FF, TFT_BLACK);
-        canvas.setTextSize(2);
-        canvas.drawCenterString("KEYCHAIN", 120, 85);
-        
-        canvas.setTextColor(0x07E0, TFT_BLACK);
-        canvas.setTextSize(2);
-        canvas.drawCenterString("POWER ON", 120, 125);
-        
-        canvas.pushSprite(0, 0);
-        delay(600);
-    } else {
-        Serial.printf("[BOOT] Woke from Deep Sleep (%d). Skipping splash.\n", (int)wakeupReason);
-    }
-
-    // Initialize NimBLE Bluetooth Server
+    // 2. Initialize NimBLE Bluetooth FIRST (guarantees contiguous BT memory)
+    Serial.println("[BLE] Initializing NimBLE stack...");
     NimBLEDevice::init("CYBER_KEYCHAIN");
-    NimBLEDevice::setPower(ESP_PWR_LVL_P9);
     NimBLEServer* pServer = NimBLEDevice::createServer();
     pServer->setCallbacks(new ServerCallbacks());
 
@@ -403,9 +372,44 @@ void setup() {
     NimBLEAdvertising* pAdv = NimBLEDevice::getAdvertising();
     pAdv->addServiceUUID(SERVICE_UUID);
     pAdv->start();
+    Serial.println("[BLE] Advertising started as CYBER_KEYCHAIN (0xFFE0)");
+
+    // 3. Initialize Display
+    Serial.println("[DISPLAY] Initializing ST7789 display...");
+    tft.init();
+    tft.setRotation(3);
+    tft.setBrightness(screenBrightness);
+
+    // 4. Create Double Buffer Canvas Sprite
+    Serial.println("[DISPLAY] Creating canvas double buffer sprite...");
+    canvas.setColorDepth(16);
+    void* ptr = canvas.createSprite(240, 240);
+    Serial.printf("[DISPLAY] Canvas ptr: %p, free heap: %u bytes\n", ptr, (unsigned int)ESP.getFreeHeap());
+
+    // 5. Cold Boot Splash vs Deep Sleep Wakeup
+    esp_sleep_wakeup_cause_t wakeupReason = esp_sleep_get_wakeup_cause();
+    if (wakeupReason == ESP_SLEEP_WAKEUP_UNDEFINED) {
+        Serial.println("[BOOT] Cold Power-On. Showing KEYCHAIN POWER ON...");
+        canvas.fillScreen(TFT_BLACK);
+        canvas.drawRoundRect(2, 2, 236, 236, 6, 0x07FF);
+        canvas.drawRoundRect(3, 3, 234, 234, 5, 0x07FF);
+        
+        canvas.setTextColor(0x07FF, TFT_BLACK);
+        canvas.setTextSize(2);
+        canvas.drawCenterString("KEYCHAIN", 120, 85);
+        
+        canvas.setTextColor(0x07E0, TFT_BLACK);
+        canvas.setTextSize(2);
+        canvas.drawCenterString("POWER ON", 120, 125);
+        
+        canvas.pushSprite(0, 0);
+        delay(600);
+    } else {
+        Serial.printf("[BOOT] Woke from Deep Sleep (%d). Skipping splash.\n", (int)wakeupReason);
+    }
 
     lastActivityTime = millis();
-    Serial.println("[BLE] Advertising started as CYBER_KEYCHAIN (0xFFE0)");
+    Serial.println("[SYSTEM] Setup completed! Entering main loop.");
 }
 
 // =========================================================================
