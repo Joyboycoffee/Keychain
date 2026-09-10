@@ -16,10 +16,16 @@ enum MemeEmotion {
 
 class MemePet {
 public:
+    MemeEmotion defaultEmotion = EMOTION_LUFFY;
     MemeEmotion currentEmotion = EMOTION_LUFFY;
     uint32_t emotionStartTime = 0;
     int animTick = 0;
     uint32_t lastAnimTime = 0;
+
+    void setDefaultEmotion(MemeEmotion emo) {
+        defaultEmotion = emo;
+        currentEmotion = emo;
+    }
 
     void setEmotion(MemeEmotion emo) {
         currentEmotion = emo;
@@ -29,9 +35,9 @@ public:
     void update() {
         uint32_t now = millis();
 
-        // Auto-return to default Luffy after 4 seconds of idle
-        if (currentEmotion != EMOTION_LUFFY && (now - emotionStartTime > 4000)) {
-            setEmotion(EMOTION_LUFFY);
+        // Auto-return to default emotion after 4 seconds of idle reaction
+        if (currentEmotion != defaultEmotion && (now - emotionStartTime > 4000)) {
+            currentEmotion = defaultEmotion;
         }
 
         if (now - lastAnimTime > 50) {
@@ -39,7 +45,7 @@ public:
             animTick = (animTick + 1) % 120;
         }
 
-        // 1. Draw the selected Meme Emotion JPEG
+        // 1. Draw selected Meme Emotion JPEG
         switch (currentEmotion) {
             case EMOTION_LUFFY:
                 canvas.drawJpg(EMO_LUFFY_JPG, EMO_LUFFY_LEN, 0, 0);
@@ -70,7 +76,7 @@ public:
                 break;
         }
 
-        // 2. Sleek Aesthetic Outer Border
+        // 2. Sleek Outer Border
         drawBorder();
     }
 
