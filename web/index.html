@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CYBER_KEYCHAIN // NEURAL LINK</title>
+    <title>DIGI_KEYCHAIN // NEURAL LINK</title>
     <style>
         :root {
             --bg: #090c10;
@@ -259,7 +259,7 @@
 <body>
 
     <header>
-        <h1>⚡ CYBER_KEYCHAIN</h1>
+        <h1>⚡ DIGI_KEYCHAIN</h1>
         <div id="statusBadge" class="status-badge offline">DISCONNECTED</div>
     </header>
 
@@ -267,7 +267,7 @@
         <!-- Bluetooth Connect Card -->
         <div class="card card-full">
             <button id="btnConnect" class="btn-connect" onclick="connectBLE()">
-                <span>📡 CONNECT KEYCHAIN</span>
+                <span>📡 CONNECT DIGI KEYCHAIN</span>
             </button>
             <div id="logBox">Ready. Click Connect to pair with ESP32 Keychain over Web-BLE.</div>
         </div>
@@ -407,11 +407,12 @@
 
         async function connectBLE() {
             try {
-                log("Scanning for CYBER_KEYCHAIN...");
+                log("Scanning for DIGI_KEYCHAIN...");
                 document.getElementById('statusBadge').innerText = "CONNECTING...";
                 
                 bleDevice = await navigator.bluetooth.requestDevice({
                     filters: [
+                        { name: 'DIGI_KEYCHAIN' },
                         { name: 'CYBER_KEYCHAIN' },
                         { services: [SERVICE_UUID] }
                     ],
@@ -423,7 +424,7 @@
                     });
                 });
 
-                log(`Connecting to: ${bleDevice.name || 'CYBER_KEYCHAIN'}`);
+                log(`Connecting to: ${bleDevice.name || 'DIGI_KEYCHAIN'}`);
                 bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
                 
                 gattServer = await bleDevice.gatt.connect();
@@ -454,7 +455,7 @@
             log("Device disconnected.");
             document.getElementById('statusBadge').innerText = "DISCONNECTED";
             document.getElementById('statusBadge').className = "status-badge offline";
-            document.getElementById('btnConnect').innerHTML = "<span>📡 CONNECT KEYCHAIN</span>";
+            document.getElementById('btnConnect').innerHTML = "<span>📡 CONNECT DIGI KEYCHAIN</span>";
         }
 
         async function setMode(modeNum) {

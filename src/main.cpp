@@ -355,7 +355,7 @@ void setup() {
     Serial.begin(115200);
     delay(300);
     Serial.println("\n\n========================================");
-    Serial.println("  ESP32-C3 MEME KEYCHAIN v3.7 BOOT");
+    Serial.println("  ESP32-C3 DIGI KEYCHAIN v3.7 BOOT");
     Serial.println("========================================");
 
     // Release any GPIO hold from deep sleep
@@ -369,7 +369,7 @@ void setup() {
 
     // 2. Initialize NimBLE Bluetooth FIRST
     Serial.println("[BLE] Initializing NimBLE stack...");
-    NimBLEDevice::init("CYBER_KEYCHAIN");
+    NimBLEDevice::init("DIGI_KEYCHAIN");
     NimBLEServer* pServer = NimBLEDevice::createServer();
     pServer->setCallbacks(new ServerCallbacks());
 
@@ -398,7 +398,7 @@ void setup() {
     NimBLEAdvertising* pAdv = NimBLEDevice::getAdvertising();
     pAdv->addServiceUUID(SERVICE_UUID);
     pAdv->start();
-    Serial.println("[BLE] Advertising started as CYBER_KEYCHAIN (0xFFE0)");
+    Serial.println("[BLE] Advertising started as DIGI_KEYCHAIN (0xFFE0)");
 
     // 3. Initialize Display
     Serial.println("[DISPLAY] Initializing ST7789 display...");
@@ -422,7 +422,7 @@ void setup() {
         
         canvas.setTextColor(0x07FF, TFT_BLACK);
         canvas.setTextSize(2);
-        canvas.drawCenterString("KEYCHAIN", 120, 85);
+        canvas.drawCenterString("DIGI KEYCHAIN", 120, 85);
         
         canvas.setTextColor(0x07E0, TFT_BLACK);
         canvas.setTextSize(2);

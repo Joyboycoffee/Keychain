@@ -1,4 +1,4 @@
-# ⚡ ESP32-C3 Cyber Meme Keychain Badge
+# ⚡ ESP32-C3 Digi Meme Keychain Badge
 
 An open-source interactive cyberpunk smart keychain and digital badge powered by the **ESP32-C3 SuperMini**, a **1.3" 240×240 IPS ST7789 display**, capacitive touch interaction, Web Bluetooth (Web-BLE) controls, and an intelligent low-power management system.
 
@@ -82,7 +82,7 @@ pio run --target upload
 Open [`index.html`](index.html) directly in any Web-BLE compatible browser (Chrome / Edge) or host it via GitHub Pages:
 
 1. Click **"📡 Connect Keychain"**.
-2. Pair with **`CYBER_KEYCHAIN`**.
+2. Pair with **`DIGI_KEYCHAIN`**.
 3. Enjoy full wireless control over meme emotions, marquee text, brightness, time sync, custom images, and 30 FPS video playback!
 
 ---
