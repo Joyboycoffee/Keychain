@@ -30,9 +30,10 @@ uint32_t sleepTimeoutMs = 30000; // 30 seconds auto-sleep on inactivity
 uint32_t lastActivityTime = 0;
 bool bleConnected = false;
 
-// Touch Gesture Tracker
+// Touch Gesture Tracker (Intentional Double-Tap / Hold, No Single-Tap Shuffle)
 uint32_t touchStartTime = 0;
 uint32_t touchReleaseTime = 0;
+int tapCount = 0;
 bool isTouching = false;
 
 // Media & 30 FPS Video Buffers
@@ -247,45 +248,69 @@ class StreamCallback : public NimBLECharacteristicCallbacks {
 };
 
 // =========================================================================
-// TOUCH GESTURES (INSTANT 0MS RESPONSE ON TOUCH DOWN)
+// TOUCH GESTURES (INTENTIONAL DOUBLE-TAP & HOLD, NO ACCIDENTAL SINGLE-TAP SWITCH)
 // =========================================================================
 void processTouch() {
     bool rawTouch = digitalRead(PIN_TOUCH) == HIGH;
     uint32_t now = millis();
 
-    // 1. Instant Rising Edge (Finger Touches Sensor) -> Zero Latency Switch!
     if (rawTouch && !isTouching) {
         isTouching = true;
         touchStartTime = now;
         lastActivityTime = now;
-
-        if (currentMode == MODE_CYBERPET) {
-            MemeEmotion nextEmo = (MemeEmotion)((memePet.currentEmotion + 1) % 7);
-            if (memePet.currentEmotion == EMOTION_LUFFY) nextEmo = EMOTION_SHY;
-            memePet.setEmotion(nextEmo);
-            Serial.printf("[TOUCH] Instant 0ms Tap -> Avatar: %d\n", (int)nextEmo);
-        } else if (currentMode == MODE_ROBOT_EYES) {
-            currentMode = MODE_CYBER_HUD;
-        } else if (currentMode == MODE_CYBER_HUD) {
-            currentMode = MODE_MATRIX_RAIN;
-        } else if (currentMode == MODE_MATRIX_RAIN) {
-            currentMode = MODE_TEXT_SCROLL;
-        } else {
-            currentMode = MODE_CYBERPET;
-        }
     } else if (!rawTouch && isTouching) {
         isTouching = false;
         touchReleaseTime = now;
+        uint32_t duration = touchReleaseTime - touchStartTime;
+
+        if (duration < 350) {
+            tapCount++;
+        }
     }
 
-    // 2. Long Hold (> 0.5s) -> Trigger Shy Love
+    // 1. Long Hold (> 0.5s) -> Shy Love Emoji
     if (isTouching && (now - touchStartTime > 500)) {
         if (currentMode == MODE_CYBERPET && memePet.currentEmotion != EMOTION_SHY) {
             memePet.setEmotion(EMOTION_SHY);
-            Serial.println("[TOUCH] Hold -> Shy Love");
+            Serial.println("[TOUCH] Hold Triggered -> Shy Love 👉👈");
         } else if (currentMode == MODE_ROBOT_EYES) {
             robotEyes.setMood(MOOD_LOVE);
         }
+        tapCount = 0;
+        lastActivityTime = now;
+    }
+
+    // 2. Multi-Tap Execution Window (280ms)
+    if (!isTouching && tapCount > 0 && (now - touchReleaseTime > 280)) {
+        if (tapCount >= 3) {
+            // Triple Tap -> Grumpy Cat / Anger
+            if (currentMode == MODE_CYBERPET) {
+                memePet.setEmotion(EMOTION_ANGRY_CAT);
+                Serial.println("[TOUCH] Triple Tap -> Grumpy Cat 😾");
+            } else {
+                robotEyes.setMood(MOOD_ANGRY);
+            }
+        } else if (tapCount == 2) {
+            // Double Tap -> Cycle through interactive meme emotions
+            if (currentMode == MODE_CYBERPET) {
+                MemeEmotion nextEmo = (MemeEmotion)((memePet.currentEmotion + 1) % 7);
+                if (nextEmo == EMOTION_LUFFY) nextEmo = EMOTION_SHY;
+                memePet.setEmotion(nextEmo);
+                Serial.printf("[TOUCH] Double Tap -> Emotion: %d\n", (int)nextEmo);
+            } else if (currentMode == MODE_ROBOT_EYES) {
+                currentMode = MODE_CYBER_HUD;
+            } else if (currentMode == MODE_CYBER_HUD) {
+                currentMode = MODE_MATRIX_RAIN;
+            } else if (currentMode == MODE_MATRIX_RAIN) {
+                currentMode = MODE_TEXT_SCROLL;
+            } else {
+                currentMode = MODE_CYBERPET;
+            }
+        } else if (tapCount == 1) {
+            // Single Tap -> Gentle Poke / Keep Avatar steady (no accidental shuffle!)
+            Serial.println("[TOUCH] Single Tap -> Interaction (no avatar shuffle)");
+        }
+        tapCount = 0;
         lastActivityTime = now;
     }
 }
@@ -294,9 +319,9 @@ void processTouch() {
 // DEEP SLEEP ROUTINE (100% PITCH BLACK BACKLIGHT SHUTOFF)
 // =========================================================================
 void enterDeepSleep() {
-    Serial.println("[POWER] 30s inactivity. Entering Deep Sleep (100% Backlight OFF)...");
+    Serial.println("[POWER] 30s inactivity reached. Entering Deep Sleep (100% Backlight OFF)...");
     
-    // 1. Fade out backlight
+    // 1. Fade out backlight smoothly
     for (int b = screenBrightness; b >= 0; b -= 30) {
         tft.setBrightness(b);
         delay(10);
@@ -308,9 +333,11 @@ void enterDeepSleep() {
     tft.writeCommand(0x10); // Sleep IN
     delay(20);
 
-    // 3. Force Backlight Pin (GPIO 2) LOW & Lock with GPIO Hold in Deep Sleep
+    // 3. Force Backlight Pin (GPIO 2) strongly LOW and lock with GPIO Hold in deep sleep
     pinMode(PIN_TFT_BL, OUTPUT);
     digitalWrite(PIN_TFT_BL, LOW);
+    gpio_set_direction((gpio_num_t)PIN_TFT_BL, GPIO_MODE_OUTPUT);
+    gpio_set_level((gpio_num_t)PIN_TFT_BL, 0);
     gpio_hold_en((gpio_num_t)PIN_TFT_BL);
     gpio_deep_sleep_hold_en();
 
@@ -328,11 +355,12 @@ void setup() {
     Serial.begin(115200);
     delay(300);
     Serial.println("\n\n========================================");
-    Serial.println("  ESP32-C3 MEME KEYCHAIN v3.6 BOOT");
+    Serial.println("  ESP32-C3 MEME KEYCHAIN v3.7 BOOT");
     Serial.println("========================================");
 
-    // Release any GPIO hold from previous deep sleep
+    // Release any GPIO hold from deep sleep
     gpio_hold_dis((gpio_num_t)PIN_TFT_BL);
+    gpio_deep_sleep_hold_dis();
 
     // 1. Hardware Pins
     pinMode(PIN_DEBUG_LED, OUTPUT);
@@ -414,7 +442,7 @@ void setup() {
 // MAIN LOOP
 // =========================================================================
 void loop() {
-    // 1. Process Touch Gestures (Instant 0ms)
+    // 1. Process Touch Gestures
     processTouch();
 
     // 2. Render Active Mode to Double Buffer Sprite
