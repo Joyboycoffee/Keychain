@@ -7,9 +7,11 @@
 enum MemeEmotion {
     EMOTION_LUFFY = 0,       // Default / Star-Eyes / Excited
     EMOTION_SHY = 1,         // Shy Love `????` (Rub / Hold)
-    EMOTION_SAD_BANANA = 2,  // Sad / Crying Banana Cat
-    EMOTION_ANGRY_CAT = 3,   // Angry / Grumpy Kitten
-    EMOTION_BUNNY = 4        // Pouting Bunny "Hum!"
+    EMOTION_GIGGLE_CAT = 2,  // Giggling Kitten with Pink Bows
+    EMOTION_SAD_BANANA = 3,  // Sad / Crying Banana Cat
+    EMOTION_UMARU_CRY = 4,   // Whining Dramatic Umaru
+    EMOTION_ANGRY_CAT = 5,   // Angry / Grumpy Kitten
+    EMOTION_BUNNY = 6        // Pouting Bunny "Hum!"
 };
 
 class MemePet {
@@ -27,7 +29,7 @@ public:
     void update() {
         uint32_t now = millis();
 
-        // If in temporary emotion (shy, angry, sad), return to Luffy after 6 seconds of inactivity
+        // If in temporary emotion, return to Luffy after 6 seconds of idle
         if (currentEmotion != EMOTION_LUFFY && (now - emotionStartTime > 6000)) {
             currentEmotion = EMOTION_LUFFY;
         }
@@ -46,9 +48,17 @@ public:
                 canvas.drawJpg(EMO_SHY_JPG, EMO_SHY_LEN, 0, 0, 240, 240);
                 drawFloatingHearts();
                 break;
+            case EMOTION_GIGGLE_CAT:
+                canvas.drawJpg(EMO_GIGGLE_CAT_JPG, EMO_GIGGLE_CAT_LEN, 0, 0, 240, 240);
+                drawGiggleStars();
+                break;
             case EMOTION_SAD_BANANA:
                 canvas.drawJpg(EMO_SAD_BANANA_JPG, EMO_SAD_BANANA_LEN, 0, 0, 240, 240);
                 drawTears();
+                break;
+            case EMOTION_UMARU_CRY:
+                canvas.drawJpg(EMO_UMARU_JPG, EMO_UMARU_LEN, 0, 0, 240, 240);
+                drawWhineEffects();
                 break;
             case EMOTION_ANGRY_CAT:
                 canvas.drawJpg(EMO_ANGRY_CAT_JPG, EMO_ANGRY_CAT_LEN, 0, 0, 240, 240);
@@ -67,9 +77,9 @@ public:
 private:
     void drawBorder() {
         uint16_t borderCol = 0x07FF; // Cyan
-        if (currentEmotion == EMOTION_SHY) borderCol = 0xF81F; // Pink
+        if (currentEmotion == EMOTION_SHY || currentEmotion == EMOTION_GIGGLE_CAT) borderCol = 0xF81F; // Pink
         else if (currentEmotion == EMOTION_ANGRY_CAT || currentEmotion == EMOTION_BUNNY) borderCol = 0xF800; // Red
-        else if (currentEmotion == EMOTION_SAD_BANANA) borderCol = 0x001F; // Blue
+        else if (currentEmotion == EMOTION_SAD_BANANA || currentEmotion == EMOTION_UMARU_CRY) borderCol = 0x001F; // Blue
 
         canvas.drawRoundRect(0, 0, 240, 240, 6, borderCol);
         canvas.drawRoundRect(1, 1, 238, 238, 5, borderCol);
@@ -85,17 +95,34 @@ private:
         }
     }
 
+    void drawGiggleStars() {
+        for (int i = 0; i < 2; i++) {
+            int sx = (i == 0) ? 35 : 205;
+            int sy = 35 + (int)(sin((animTick + i * 30) * 0.2f) * 8);
+            canvas.fillCircle(sx, sy, 3, 0xFFE0);
+            canvas.drawFastHLine(sx - 6, sy, 13, 0xFFE0);
+            canvas.drawFastVLine(sx, sy - 6, 13, 0xFFE0);
+        }
+    }
+
     void drawAngerSparks() {
         int sx = 200 + (int)(sin(animTick * 0.3f) * 4);
         int sy = 35 + (int)(cos(animTick * 0.3f) * 4);
-        canvas.setTextColor(0xF800, TFT_WHITE);
-        canvas.setTextSize(2);
-        canvas.drawString("??", sx, sy);
+        canvas.drawFastHLine(sx - 8, sy - 3, 16, 0xF800);
+        canvas.drawFastHLine(sx - 8, sy + 3, 16, 0xF800);
+        canvas.drawFastVLine(sx - 3, sy - 8, 16, 0xF800);
+        canvas.drawFastVLine(sx + 3, sy - 8, 16, 0xF800);
     }
 
     void drawTears() {
         int ty = 140 + (animTick % 30) * 2;
         canvas.fillCircle(85, ty, 3, 0x07FF);
         canvas.fillCircle(155, ty, 3, 0x07FF);
+    }
+
+    void drawWhineEffects() {
+        int ty = 110 + (animTick % 25) * 3;
+        canvas.fillCircle(70, ty, 4, 0x07FF);
+        canvas.fillCircle(170, ty, 4, 0x07FF);
     }
 };

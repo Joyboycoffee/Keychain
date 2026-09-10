@@ -24,7 +24,7 @@ int scrollX = 240;
 
 // Power & Settings
 uint8_t screenBrightness = 220; // 0-255 PWM
-uint32_t sleepTimeoutMs = 300000; // 5 min auto-sleep
+uint32_t sleepTimeoutMs = 30000; // 30 seconds auto-sleep on inactivity
 uint32_t lastActivityTime = 0;
 bool bleConnected = false;
 
@@ -34,12 +34,31 @@ uint32_t touchReleaseTime = 0;
 int tapCount = 0;
 bool isTouching = false;
 
-// Media Stream Buffer (for live custom images & video streaming over BLE)
+// Media & 30 FPS Video Buffers
 #define STREAM_BUFFER_SIZE 32768
 uint8_t streamBuffer[STREAM_BUFFER_SIZE];
 size_t streamBytesReceived = 0;
 size_t expectedStreamBytes = 0;
 bool newMediaFrameReady = false;
+
+// Multi-Frame Video Loop Buffer (Hardware 30 FPS DMA Playback)
+#define MAX_VIDEO_FRAMES 40
+#define VIDEO_POOL_SIZE 98304
+uint8_t videoPool[VIDEO_POOL_SIZE];
+size_t videoPoolWriteOffset = 0;
+uint32_t frameOffsets[MAX_VIDEO_FRAMES];
+uint16_t frameLengths[MAX_VIDEO_FRAMES];
+int totalVideoFrames = 0;
+int currentVideoFrame = 0;
+int videoTargetFps = 30;
+uint32_t lastVideoFrameTime = 0;
+bool isVideoPlaying = false;
+
+// Incoming frame assembly
+int incomingFrameIdx = -1;
+size_t incomingFrameExpected = 0;
+size_t incomingFrameReceived = 0;
+size_t incomingFrameStartOffset = 0;
 
 // =========================================================================
 // BLE CALLBACKS
@@ -65,6 +84,9 @@ class ModeCallback : public NimBLECharacteristicCallbacks {
             int m = val[0] - '0';
             if (m >= 0 && m <= 5) {
                 currentMode = (SystemMode)m;
+                if (currentMode != MODE_STREAM_MEDIA) {
+                    isVideoPlaying = false;
+                }
                 lastActivityTime = millis();
                 Serial.printf("[BLE] Mode switched to: %d\n", m);
             }
@@ -77,9 +99,10 @@ class PetCallback : public NimBLECharacteristicCallbacks {
         std::string val = pChar->getValue();
         if (val.length() > 0) {
             int a = val[0] - '0';
-            if (a >= 0 && a <= 4) {
+            if (a >= 0 && a <= 6) {
                 memePet.setEmotion((MemeEmotion)a);
                 currentMode = MODE_CYBERPET;
+                isVideoPlaying = false;
                 lastActivityTime = millis();
                 Serial.printf("[BLE] Emotion switched to: %d\n", a);
             }
@@ -94,6 +117,7 @@ class TextCallback : public NimBLECharacteristicCallbacks {
             customMessage = String(val.c_str());
             scrollX = 240;
             currentMode = MODE_TEXT_SCROLL;
+            isVideoPlaying = false;
             lastActivityTime = millis();
             Serial.printf("[BLE] Custom message received: %s\n", customMessage.c_str());
         }
@@ -103,7 +127,6 @@ class TextCallback : public NimBLECharacteristicCallbacks {
 class TimeCallback : public NimBLECharacteristicCallbacks {
     void onWrite(NimBLECharacteristic* pChar) {
         std::string val = pChar->getValue();
-        // Format expected: "HH:MM:SS|TEMP" e.g. "21:45:00|27.5"
         if (val.length() >= 8) {
             int h = atoi(val.substr(0, 2).c_str());
             int m = atoi(val.substr(3, 2).c_str());
@@ -113,7 +136,7 @@ class TimeCallback : public NimBLECharacteristicCallbacks {
             size_t barIdx = val.find('|');
             if (barIdx != std::string::npos) {
                 float temp = atof(val.substr(barIdx + 1).c_str());
-                cyberHUD.setWeather(temp, "PHONE_SYNC");
+                cyberHUD.setWeather(temp, "SYNC");
             }
             lastActivityTime = millis();
             Serial.printf("[BLE] Synced Time: %02d:%02d:%02d\n", h, m, s);
@@ -144,10 +167,12 @@ class StreamCallback : public NimBLECharacteristicCallbacks {
         const uint8_t* bytes = (const uint8_t*)data.data();
         size_t len = data.length();
 
-        // Header Packet: 0xAA 0x55 [size_high] [size_low]
+        // 1. Single Image Header: 0xAA 0x55 [len_hi] [len_lo]
         if (len >= 4 && bytes[0] == 0xAA && bytes[1] == 0x55) {
             expectedStreamBytes = (bytes[2] << 8) | bytes[3];
             streamBytesReceived = 0;
+            isVideoPlaying = false;
+            totalVideoFrames = 0;
             if (len > 4) {
                 size_t payload = len - 4;
                 if (payload <= STREAM_BUFFER_SIZE) {
@@ -155,18 +180,80 @@ class StreamCallback : public NimBLECharacteristicCallbacks {
                     streamBytesReceived = payload;
                 }
             }
-        } else {
-            // Append payload chunk
+            return;
+        }
+
+        // 2. Video Init Header: 0xBB 0x66 [total_frames] [fps]
+        if (len >= 4 && bytes[0] == 0xBB && bytes[1] == 0x66) {
+            totalVideoFrames = bytes[2];
+            if (totalVideoFrames > MAX_VIDEO_FRAMES) totalVideoFrames = MAX_VIDEO_FRAMES;
+            videoTargetFps = bytes[3] > 0 ? bytes[3] : 30;
+            videoPoolWriteOffset = 0;
+            currentVideoFrame = 0;
+            isVideoPlaying = false;
+            incomingFrameIdx = -1;
+            Serial.printf("[BLE-VIDEO] Initialized buffer for %d frames @ %d FPS\n", totalVideoFrames, videoTargetFps);
+            return;
+        }
+
+        // 3. Video Frame Header: 0xCC 0x77 [frame_idx] [len_hi] [len_lo]
+        if (len >= 5 && bytes[0] == 0xCC && bytes[1] == 0x77) {
+            incomingFrameIdx = bytes[2];
+            incomingFrameExpected = (bytes[3] << 8) | bytes[4];
+            incomingFrameReceived = 0;
+            incomingFrameStartOffset = videoPoolWriteOffset;
+
+            if (incomingFrameIdx < MAX_VIDEO_FRAMES && (videoPoolWriteOffset + incomingFrameExpected) <= VIDEO_POOL_SIZE) {
+                frameOffsets[incomingFrameIdx] = videoPoolWriteOffset;
+                frameLengths[incomingFrameIdx] = 0;
+                size_t payload = len - 5;
+                if (payload > 0) {
+                    memcpy(videoPool + videoPoolWriteOffset, bytes + 5, payload);
+                    videoPoolWriteOffset += payload;
+                    incomingFrameReceived += payload;
+                }
+            }
+            return;
+        }
+
+        // 4. Video Play Header: 0xDD 0x88
+        if (len >= 2 && bytes[0] == 0xDD && bytes[1] == 0x88) {
+            isVideoPlaying = true;
+            currentVideoFrame = 0;
+            currentMode = MODE_STREAM_MEDIA;
+            lastVideoFrameTime = millis();
+            lastActivityTime = millis();
+            Serial.printf("[BLE-VIDEO] Playback STARTED at %d FPS!\n", videoTargetFps);
+            return;
+        }
+
+        // 5. Append Frame Chunk
+        if (incomingFrameIdx >= 0 && incomingFrameReceived < incomingFrameExpected) {
+            if (videoPoolWriteOffset + len <= VIDEO_POOL_SIZE) {
+                memcpy(videoPool + videoPoolWriteOffset, bytes, len);
+                videoPoolWriteOffset += len;
+                incomingFrameReceived += len;
+                if (incomingFrameReceived >= incomingFrameExpected) {
+                    frameLengths[incomingFrameIdx] = incomingFrameExpected;
+                    Serial.printf("[BLE-VIDEO] Frame #%d ready (%d bytes)\n", incomingFrameIdx, incomingFrameExpected);
+                    incomingFrameIdx = -1;
+                }
+            }
+            return;
+        }
+
+        // 6. Single Image Chunk Append Fallback
+        if (expectedStreamBytes > 0 && streamBytesReceived < expectedStreamBytes) {
             if (streamBytesReceived + len <= STREAM_BUFFER_SIZE) {
                 memcpy(streamBuffer + streamBytesReceived, bytes, len);
                 streamBytesReceived += len;
             }
-        }
-
-        if (streamBytesReceived >= expectedStreamBytes && expectedStreamBytes > 0) {
-            newMediaFrameReady = true;
-            currentMode = MODE_STREAM_MEDIA;
-            lastActivityTime = millis();
+            if (streamBytesReceived >= expectedStreamBytes) {
+                newMediaFrameReady = true;
+                isVideoPlaying = false;
+                currentMode = MODE_STREAM_MEDIA;
+                lastActivityTime = millis();
+            }
         }
     }
 };
@@ -194,7 +281,7 @@ void processTouch() {
         }
     }
 
-    // Continuous Rub / Long Hold (> 0.7s) -> Trigger Shy Love Emoji 👉👈
+    // Continuous Rub / Long Hold (> 0.7s) -> Trigger Shy Love Emoji
     if (isTouching && (now - touchStartTime > 700)) {
         if (currentMode == MODE_CYBERPET) {
             memePet.setEmotion(EMOTION_SHY);
@@ -207,7 +294,7 @@ void processTouch() {
     // Multi-tap timeout window (250ms)
     if (!isTouching && tapCount > 0 && (now - touchReleaseTime > 250)) {
         if (tapCount >= 3) {
-            // Rage Spam Tapped -> ANGRY GRUMPY KITTEN!
+            // Triple Tap -> Grumpy Cat / Anger
             if (currentMode == MODE_CYBERPET) {
                 memePet.setEmotion(EMOTION_ANGRY_CAT);
             } else {
@@ -221,7 +308,7 @@ void processTouch() {
         } else if (tapCount == 1) {
             // Single Tap -> Cycle through Meme Avatars or Modes
             if (currentMode == MODE_CYBERPET) {
-                memePet.setEmotion((MemeEmotion)((memePet.currentEmotion + 1) % 5));
+                memePet.setEmotion((MemeEmotion)((memePet.currentEmotion + 1) % 7));
             } else if (currentMode == MODE_ROBOT_EYES) {
                 currentMode = MODE_CYBER_HUD;
             } else if (currentMode == MODE_CYBER_HUD) {
@@ -238,14 +325,15 @@ void processTouch() {
 }
 
 // =========================================================================
-// DEEP SLEEP ROUTINE
+// DEEP SLEEP ROUTINE (30 SECONDS INACTIVITY)
 // =========================================================================
 void enterDeepSleep() {
-    Serial.println("[POWER] Entering Deep Sleep. Wakeup on Touch GPIO 1...");
+    Serial.println("[POWER] 30s inactivity reached. Entering Deep Sleep. Wakeup on Touch GPIO 1 or RST...");
     for (int b = screenBrightness; b >= 0; b -= 20) {
         tft.setBrightness(b);
         delay(15);
     }
+    tft.setBrightness(0);
     tft.writeCommand(0x10); // ST7789 Sleep In command
 
     gpio_wakeup_enable((gpio_num_t)PIN_TOUCH, GPIO_INTR_HIGH_LEVEL);
@@ -261,11 +349,14 @@ void setup() {
     Serial.begin(115200);
     delay(500);
     Serial.println("\n\n========================================");
-    Serial.println("  ESP32-C3 MEME KEYCHAIN v3.0 READY");
+    Serial.println("  ESP32-C3 MEME KEYCHAIN v3.1 READY");
     Serial.println("========================================");
 
     // Hardware Pins
+    // Turn off Blue Debug LED permanently (active LOW on SuperMini -> HIGH is OFF)
     pinMode(PIN_DEBUG_LED, OUTPUT);
+    digitalWrite(PIN_DEBUG_LED, HIGH);
+
     pinMode(PIN_TOUCH, INPUT);
 
     // Display init (Rotated 270 deg / Landscape Left)
@@ -320,16 +411,7 @@ void loop() {
     // 1. Process Touch Gestures
     processTouch();
 
-    // 2. Heartbeat LED
-    static uint32_t lastBlink = 0;
-    static bool ledState = false;
-    if (millis() - lastBlink > 500) {
-        lastBlink = millis();
-        ledState = !ledState;
-        digitalWrite(PIN_DEBUG_LED, ledState ? HIGH : LOW);
-    }
-
-    // 3. Render Active Mode to Double Buffer Sprite
+    // 2. Render Active Mode to Double Buffer Sprite
     switch (currentMode) {
         case MODE_CYBERPET:
             memePet.update();
@@ -364,7 +446,17 @@ void loop() {
             break;
 
         case MODE_STREAM_MEDIA:
-            if (newMediaFrameReady && streamBytesReceived > 0) {
+            if (isVideoPlaying && totalVideoFrames > 0) {
+                // High performance 30 FPS DMA hardware playback
+                uint32_t frameInterval = 1000 / videoTargetFps;
+                if (millis() - lastVideoFrameTime >= frameInterval) {
+                    lastVideoFrameTime = millis();
+                    if (frameLengths[currentVideoFrame] > 0) {
+                        canvas.drawJpg(videoPool + frameOffsets[currentVideoFrame], frameLengths[currentVideoFrame], 0, 0, 240, 240);
+                    }
+                    currentVideoFrame = (currentVideoFrame + 1) % totalVideoFrames;
+                }
+            } else if (newMediaFrameReady && streamBytesReceived > 0) {
                 canvas.fillScreen(TFT_BLACK);
                 canvas.drawJpg(streamBuffer, streamBytesReceived, 0, 0, 240, 240);
                 canvas.drawRoundRect(0, 0, 240, 240, 4, 0x07FF);
@@ -372,15 +464,13 @@ void loop() {
             break;
     }
 
-    // 4. Push Frame to Display (Hardware DMA Transfer)
+    // 3. Push Frame to Display (Hardware DMA Transfer)
     canvas.pushSprite(0, 0);
 
-    // 5. Deep Sleep if Unplugged, Idle, and No BLE Connection
+    // 4. Deep Sleep if Unplugged, Idle, and No BLE Connection (30s)
     if (!bleConnected && (millis() - lastActivityTime > sleepTimeoutMs)) {
         enterDeepSleep();
     }
 
     delay(10);
 }
-
-

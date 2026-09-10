@@ -149,8 +149,14 @@
 
         .grid-emotions {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             gap: 8px;
+        }
+
+        @media (max-width: 480px) {
+            .grid-emotions {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
 
         .btn-emo {
@@ -215,6 +221,23 @@
             margin-bottom: 6px;
         }
 
+        .progress-bar-wrap {
+            width: 100%;
+            height: 8px;
+            background: #21262d;
+            border-radius: 4px;
+            margin-top: 8px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--cyan), var(--green));
+            width: 0%;
+            transition: width 0.1s;
+        }
+
         #logBox {
             background: #090d16;
             border: 1px solid #30363d;
@@ -236,7 +259,7 @@
 <body>
 
     <header>
-        <h1>? CYBER_KEYCHAIN</h1>
+        <h1>⚡ CYBER_KEYCHAIN</h1>
         <div id="statusBadge" class="status-badge offline">DISCONNECTED</div>
     </header>
 
@@ -244,33 +267,41 @@
         <!-- Bluetooth Connect Card -->
         <div class="card card-full">
             <button id="btnConnect" class="btn-connect" onclick="connectBLE()">
-                <span>?? CONNECT KEYCHAIN</span>
+                <span>📡 CONNECT KEYCHAIN</span>
             </button>
             <div id="logBox">Ready. Click Connect to pair with ESP32 Keychain over Web-BLE.</div>
         </div>
 
-        <!-- Meme Emotion Selector Card -->
+        <!-- 7 Meme Emotion Selector Card -->
         <div class="card card-full">
-            <h2>?? Meme Emotion Avatars</h2>
+            <h2>🎭 Meme Emotion Avatars (7 Avatars)</h2>
             <div class="grid-emotions">
                 <button class="btn-emo" onclick="setEmotion(0)">
-                    <span style="font-size:22px;">??</span>
+                    <span style="font-size:22px;">✨</span>
                     <span>Luffy Star</span>
                 </button>
                 <button class="btn-emo" onclick="setEmotion(1)">
-                    <span style="font-size:22px;">??</span>
-                    <span>Shy ????</span>
+                    <span style="font-size:22px;">👉👈</span>
+                    <span>Shy Cute</span>
                 </button>
                 <button class="btn-emo" onclick="setEmotion(2)">
-                    <span style="font-size:22px;">??</span>
-                    <span>Banana Cat</span>
+                    <span style="font-size:22px;">🎀</span>
+                    <span>Giggle Cat</span>
                 </button>
                 <button class="btn-emo" onclick="setEmotion(3)">
-                    <span style="font-size:22px;">??</span>
-                    <span>Grumpy Cat</span>
+                    <span style="font-size:22px;">🍌</span>
+                    <span>Banana Cat</span>
                 </button>
                 <button class="btn-emo" onclick="setEmotion(4)">
-                    <span style="font-size:22px;">??</span>
+                    <span style="font-size:22px;">😭</span>
+                    <span>Umaru Whine</span>
+                </button>
+                <button class="btn-emo" onclick="setEmotion(5)">
+                    <span style="font-size:22px;">😾</span>
+                    <span>Grumpy Cat</span>
+                </button>
+                <button class="btn-emo" onclick="setEmotion(6)">
+                    <span style="font-size:22px;">🐰</span>
                     <span>Bunny Hum!</span>
                 </button>
             </div>
@@ -278,22 +309,22 @@
 
         <!-- Mode Selector Card -->
         <div class="card">
-            <h2>?? Display Mode</h2>
+            <h2>📟 Display Mode</h2>
             <div class="grid-modes">
                 <button class="btn-mode active" onclick="setMode(0)">
-                    <span style="font-size:20px;">??</span>
+                    <span style="font-size:20px;">😺</span>
                     <span>Meme Pet</span>
                 </button>
                 <button class="btn-mode" onclick="setMode(1)">
-                    <span style="font-size:20px;">??</span>
+                    <span style="font-size:20px;">👀</span>
                     <span>Robot Eyes</span>
                 </button>
                 <button class="btn-mode" onclick="setMode(2)">
-                    <span style="font-size:20px;">??</span>
+                    <span style="font-size:20px;">📊</span>
                     <span>Cyber HUD</span>
                 </button>
                 <button class="btn-mode" onclick="setMode(3)">
-                    <span style="font-size:20px;">?</span>
+                    <span style="font-size:20px;">🟢</span>
                     <span>Matrix Rain</span>
                 </button>
             </div>
@@ -301,45 +332,45 @@
 
         <!-- Custom Scrolling Text Sender -->
         <div class="card">
-            <h2>?? Max-Font Marquee Text</h2>
+            <h2>📢 Max-Font Marquee Text</h2>
             <div class="input-group">
                 <input type="text" id="txtMessage" placeholder="Type banner message..." value="I AM JOY BOY COFFEE">
                 <button class="btn-send" onclick="sendCustomText()">SEND</button>
             </div>
         </div>
 
-        <!-- Custom Image Upload Card -->
+        <!-- 30 FPS Video / GIF Upload Card -->
         <div class="card">
-            <h2>??? Upload Custom Image</h2>
+            <h2>🎬 30 FPS Video & GIF Player</h2>
+            <label class="btn-file" style="display:flex; padding:12px; border-radius:8px; align-items:center; justify-content:center; cursor:pointer; font-weight:bold; background:#8957e5; border-color:#a371f7;">
+                <span>🎬 UPLOAD VIDEO / GIF (30 FPS)</span>
+                <input type="file" id="videoPicker" accept="video/*,image/gif" onchange="uploadVideoLoop(event)">
+            </label>
+            <div id="videoProgressWrap" class="progress-bar-wrap">
+                <div id="videoProgressBar" class="progress-bar-fill"></div>
+            </div>
+        </div>
+
+        <!-- Custom Single Image Upload Card -->
+        <div class="card">
+            <h2>🖼️ Upload Custom Image</h2>
             <label class="btn-file" style="display:flex; padding:12px; border-radius:8px; align-items:center; justify-content:center; cursor:pointer; font-weight:bold;">
-                <span>?? CHOOSE IMAGE FILE</span>
+                <span>🖼️ CHOOSE IMAGE FILE</span>
                 <input type="file" id="imgPicker" accept="image/*" onchange="uploadImage(event)">
             </label>
         </div>
 
-        <!-- Live Video & GIF Streamer Card -->
-        <div class="card">
-            <h2>?? Stream Custom Video / GIF</h2>
-            <label class="btn-file" style="display:flex; padding:12px; border-radius:8px; align-items:center; justify-content:center; cursor:pointer; font-weight:bold; background:#8957e5; border-color:#a371f7;">
-                <span>?? CHOOSE VIDEO / GIF</span>
-                <input type="file" id="videoPicker" accept="video/*,image/gif" onchange="streamVideo(event)">
-            </label>
-            <button id="btnStopVideo" onclick="stopVideoStream()" style="margin-top:8px; background:#da3633; border-color:#f85149; display:none;">
-                <span>?? STOP VIDEO STREAM</span>
-            </button>
-        </div>
-
         <!-- Live Time Sync -->
         <div class="card">
-            <h2>?? Phone Time Sync</h2>
+            <h2>🕒 Phone Time Sync</h2>
             <button onclick="syncTimeAndWeather()" style="background:#1f6feb; border-color:#388bfd;">
-                <span>?? SYNC TIME NOW</span>
+                <span>🕒 SYNC TIME NOW</span>
             </button>
         </div>
 
         <!-- Brightness & Power -->
         <div class="card">
-            <h2>?? Screen Brightness</h2>
+            <h2>☀️ Screen Brightness</h2>
             <div class="slider-wrap">
                 <div class="slider-label">
                     <span>Dim</span>
@@ -367,7 +398,6 @@
         let bleDevice = null;
         let gattServer = null;
         let charMode, charPet, charText, charTime, charSettings, charStream;
-        let videoStreamInterval = null;
 
         function log(msg) {
             const box = document.getElementById('logBox');
@@ -406,9 +436,9 @@
                 charSettings = await service.getCharacteristic(CHAR_SETTINGS_UUID);
                 charStream   = await service.getCharacteristic(CHAR_STREAM_UUID);
 
-                document.getElementById('statusBadge').innerText = "ONLINE ??";
+                document.getElementById('statusBadge').innerText = "ONLINE ⚡";
                 document.getElementById('statusBadge').className = "status-badge online";
-                document.getElementById('btnConnect').innerHTML = "<span>? CONNECTED</span>";
+                document.getElementById('btnConnect').innerHTML = "<span>✅ CONNECTED</span>";
                 log("Connected! All characteristics ready.");
 
                 syncTimeAndWeather();
@@ -424,8 +454,7 @@
             log("Device disconnected.");
             document.getElementById('statusBadge').innerText = "DISCONNECTED";
             document.getElementById('statusBadge').className = "status-badge offline";
-            document.getElementById('btnConnect').innerHTML = "<span>?? CONNECT KEYCHAIN</span>";
-            stopVideoStream();
+            document.getElementById('btnConnect').innerHTML = "<span>📡 CONNECT KEYCHAIN</span>";
         }
 
         async function setMode(modeNum) {
@@ -470,7 +499,7 @@
         }
 
         // =========================================================================
-        // CUSTOM IMAGE UPLOADER
+        // CUSTOM SINGLE IMAGE UPLOADER
         // =========================================================================
         async function uploadImage(e) {
             const file = e.target.files[0];
@@ -488,62 +517,17 @@
                 canvas.toBlob(async (blob) => {
                     const arrayBuffer = await blob.arrayBuffer();
                     const bytes = new Uint8Array(arrayBuffer);
-                    await sendFramePacket(bytes);
+                    await sendSingleImagePacket(bytes);
                     log(`Image uploaded (${bytes.length} bytes)!`);
-                }, 'image/jpeg', 0.85);
+                }, 'image/jpeg', 0.82);
             };
         }
 
-        // =========================================================================
-        // LIVE VIDEO / GIF STREAMER
-        // =========================================================================
-        async function streamVideo(e) {
-            const file = e.target.files[0];
-            if (!file || !charStream) {
-                log("Connect BLE first before streaming video.");
-                return;
-            }
-            stopVideoStream();
-            log(`Streaming video: ${file.name}...`);
-            document.getElementById('btnStopVideo').style.display = 'flex';
-
-            const video = document.getElementById('procVideo');
-            const canvas = document.getElementById('procCanvas');
-            const ctx = canvas.getContext('2d');
-
-            video.src = URL.createObjectURL(file);
-            video.loop = true;
-            await video.play();
-
-            videoStreamInterval = setInterval(() => {
-                if (video.paused || video.ended) return;
-                ctx.drawImage(video, 0, 0, 240, 240);
-                canvas.toBlob(async (blob) => {
-                    if (!blob) return;
-                    const arrayBuffer = await blob.arrayBuffer();
-                    const bytes = new Uint8Array(arrayBuffer);
-                    await sendFramePacket(bytes);
-                }, 'image/jpeg', 0.65);
-            }, 80); // ~12 FPS
-        }
-
-        function stopVideoStream() {
-            if (videoStreamInterval) {
-                clearInterval(videoStreamInterval);
-                videoStreamInterval = null;
-            }
-            const video = document.getElementById('procVideo');
-            video.pause();
-            document.getElementById('btnStopVideo').style.display = 'none';
-            log("Video stream stopped.");
-        }
-
-        async function sendFramePacket(bytes) {
+        async function sendSingleImagePacket(bytes) {
             if (!charStream) return;
             const totalLen = bytes.length;
-            const CHUNK_SIZE = 500;
+            const CHUNK_SIZE = 450;
 
-            // Send Header: 0xAA 0x55 [len_high] [len_low] + initial chunk
             const firstChunkLen = Math.min(CHUNK_SIZE - 4, totalLen);
             const header = new Uint8Array(4 + firstChunkLen);
             header[0] = 0xAA;
@@ -560,13 +544,100 @@
                     const chunk = bytes.subarray(offset, chunkEnd);
                     await charStream.writeValueWithoutResponse(chunk);
                     offset = chunkEnd;
+                    await new Promise(r => setTimeout(r, 10));
                 }
             } catch (err) {
-                // Fallback to standard write
                 try {
                     await charStream.writeValue(header);
                 } catch(e){}
             }
+        }
+
+        // =========================================================================
+        // 30 FPS VIDEO / GIF MULTI-FRAME BUFFER UPLOADER
+        // =========================================================================
+        async function uploadVideoLoop(e) {
+            const file = e.target.files[0];
+            if (!file || !charStream) {
+                log("Connect BLE first before uploading video.");
+                return;
+            }
+            log(`Sampling frames from video: ${file.name}...`);
+            const progressWrap = document.getElementById('videoProgressWrap');
+            const progressBar = document.getElementById('videoProgressBar');
+            progressWrap.style.display = 'block';
+            progressBar.style.width = '5%';
+
+            const video = document.getElementById('procVideo');
+            const canvas = document.getElementById('procCanvas');
+            const ctx = canvas.getContext('2d');
+
+            video.src = URL.createObjectURL(file);
+            video.muted = true;
+            await new Promise((resolve) => {
+                video.onloadedmetadata = () => resolve();
+            });
+
+            const duration = Math.min(video.duration || 1.0, 1.2); // Up to 1.2 seconds loop
+            const targetFrames = Math.min(Math.floor(duration * 25), 30); // 20-30 frames
+            const frameBlobs = [];
+
+            for (let i = 0; i < targetFrames; i++) {
+                video.currentTime = (i / targetFrames) * duration;
+                await new Promise(r => { video.onseeked = () => r(); });
+                ctx.drawImage(video, 0, 0, 240, 240);
+                
+                const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.45));
+                const arrayBuffer = await blob.arrayBuffer();
+                frameBlobs.push(new Uint8Array(arrayBuffer));
+                progressBar.style.width = `${Math.round(((i + 1) / targetFrames) * 30)}%`;
+            }
+
+            log(`Extracted ${frameBlobs.length} frames. Uploading to Keychain buffer...`);
+
+            // 1. Send Video Init Header: 0xBB 0x66 [total_frames] [fps]
+            const initHeader = new Uint8Array([0xBB, 0x66, frameBlobs.length, 30]);
+            await charStream.writeValueWithoutResponse(initHeader);
+            await new Promise(r => setTimeout(r, 40));
+
+            // 2. Upload Each Frame
+            const CHUNK_SIZE = 450;
+            for (let fIdx = 0; fIdx < frameBlobs.length; fIdx++) {
+                const fBytes = frameBlobs[fIdx];
+                const fLen = fBytes.length;
+                
+                const firstChunkLen = Math.min(CHUNK_SIZE - 5, fLen);
+                const frameHeader = new Uint8Array(5 + firstChunkLen);
+                frameHeader[0] = 0xCC;
+                frameHeader[1] = 0x77;
+                frameHeader[2] = fIdx;
+                frameHeader[3] = (fLen >> 8) & 0xFF;
+                frameHeader[4] = fLen & 0xFF;
+                frameHeader.set(fBytes.subarray(0, firstChunkLen), 5);
+
+                await charStream.writeValueWithoutResponse(frameHeader);
+                await new Promise(r => setTimeout(r, 12));
+
+                let offset = firstChunkLen;
+                while (offset < fLen) {
+                    const chunkEnd = Math.min(offset + CHUNK_SIZE, fLen);
+                    const chunk = fBytes.subarray(offset, chunkEnd);
+                    await charStream.writeValueWithoutResponse(chunk);
+                    offset = chunkEnd;
+                    await new Promise(r => setTimeout(r, 12));
+                }
+
+                const pct = 30 + Math.round(((fIdx + 1) / frameBlobs.length) * 70);
+                progressBar.style.width = `${pct}%`;
+            }
+
+            // 3. Send Play Header: 0xDD 0x88
+            const playHeader = new Uint8Array([0xDD, 0x88]);
+            await charStream.writeValueWithoutResponse(playHeader);
+
+            progressBar.style.width = '100%';
+            setTimeout(() => { progressWrap.style.display = 'none'; }, 1000);
+            log(`✅ Video uploaded! Playing locally on Keychain at 30 FPS!`);
         }
     </script>
 </body>
