@@ -488,7 +488,6 @@ void processTouch() {
         triggerTouchVisual("IDLE", 0x8410, 100, "TOUCH:UP");
 
         if (pressDuration >= 450) {
-            // HOLD GESTURE (>0.45s) -> Shy Love ❤️
             memePet.triggerHold();
             currentMode = MODE_CYBERPET;
             triggerTouchVisual("SHY LOVE ❤️", 0xF81F, 1000, "TOUCH:HOLD");
@@ -499,14 +498,12 @@ void processTouch() {
             }
             tapCount = 0;
         } else {
-            // SHORT TAP
             if (tapCount == 0) {
                 tapCount = 1;
                 lastTapReleaseTime = now;
-                memePet.triggerTap(); // Gentle poke
+                memePet.triggerTap();
                 triggerTouchVisual("POKE 👆", 0x07FF, 600, "TOUCH:POKE");
             } else if (tapCount == 1 && (now - lastTapReleaseTime) <= 350) {
-                // DOUBLE TAP -> Cycle Meme Reactions
                 tapCount = 0;
                 memePet.triggerDoubleTap();
                 currentMode = MODE_CYBERPET;
@@ -587,7 +584,7 @@ void playBootSplash() {
 
             uint32_t endTime = millis() + (bootDurationSec * 1000);
             while (millis() < endTime && f.available() > 2) {
-                f.seek(2); // rewind to first frame
+                f.seek(2);
                 for (int i = 0; i < totalFrames && f.available() > 2; i++) {
                     uint8_t hi = f.read();
                     uint8_t lo = f.read();
@@ -697,7 +694,7 @@ void setup() {
     sleepTimeoutMs = prefs.getUInt("sleep", 60000);
     customMessage = prefs.getString("msg", "I AM JOY BOY COFFEE :coffee: :fire:");
 
-    // 2. Initialize NimBLE Bluetooth FIRST
+    // 2. Initialize NimBLE Bluetooth FIRST with 16-bit SIG UUID
     Serial.println("[BLE] Initializing NimBLE stack...");
     NimBLEDevice::init("DIGI_KEYCHAIN");
     NimBLEDevice::setPower(ESP_PWR_LVL_P9);
@@ -733,7 +730,7 @@ void setup() {
     pAdv->addServiceUUID(SERVICE_UUID);
     pAdv->setScanResponse(true);
     pAdv->start();
-    Serial.println("[BLE] Advertising started as DIGI_KEYCHAIN (0000ffe0-0000-1000-8000-00805f9b34fb)");
+    Serial.println("[BLE] Advertising started as DIGI_KEYCHAIN (0xFFE0)");
 
     // 3. Initialize Display
     Serial.println("[DISPLAY] Initializing ST7789 display...");

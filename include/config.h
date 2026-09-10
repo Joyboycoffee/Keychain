@@ -24,16 +24,16 @@
 #define PIN_BAT_ADC    0    // Center tap of 100k+100k voltage divider
 
 // =========================================================================
-// BLE 128-BIT FULL UUIDs
+// BLE 16-BIT COMPACT UUIDs (Fits perfectly inside 31-byte BLE advertising packet)
 // =========================================================================
-#define SERVICE_UUID           "0000ffe0-0000-1000-8000-00805f9b34fb"
-#define CHAR_MODE_UUID         "0000ffe1-0000-1000-8000-00805f9b34fb"
-#define CHAR_PET_UUID          "0000ffe2-0000-1000-8000-00805f9b34fb"
-#define CHAR_TEXT_UUID         "0000ffe3-0000-1000-8000-00805f9b34fb"
-#define CHAR_TIME_UUID         "0000ffe4-0000-1000-8000-00805f9b34fb"
-#define CHAR_SETTINGS_UUID     "0000ffe5-0000-1000-8000-00805f9b34fb"
-#define CHAR_BATTERY_UUID      "0000ffe6-0000-1000-8000-00805f9b34fb"
-#define CHAR_STREAM_UUID       "0000ffe7-0000-1000-8000-00805f9b34fb"
+#define SERVICE_UUID           "FFE0"
+#define CHAR_MODE_UUID         "FFE1"
+#define CHAR_PET_UUID          "FFE2"
+#define CHAR_TEXT_UUID         "FFE3"
+#define CHAR_TIME_UUID         "FFE4"
+#define CHAR_SETTINGS_UUID     "FFE5"
+#define CHAR_BATTERY_UUID      "FFE6"
+#define CHAR_STREAM_UUID       "FFE7"
 
 // =========================================================================
 // SYSTEM MODES & BOOT SPLASH TYPES

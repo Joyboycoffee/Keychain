@@ -506,14 +506,14 @@
     </main>
 
     <script>
-        const SERVICE_UUID       = "0000ffe0-0000-1000-8000-00805f9b34fb";
-        const CHAR_MODE_UUID     = "0000ffe1-0000-1000-8000-00805f9b34fb";
-        const CHAR_PET_UUID      = "0000ffe2-0000-1000-8000-00805f9b34fb";
-        const CHAR_TEXT_UUID     = "0000ffe3-0000-1000-8000-00805f9b34fb";
-        const CHAR_TIME_UUID     = "0000ffe4-0000-1000-8000-00805f9b34fb";
-        const CHAR_SETTINGS_UUID = "0000ffe5-0000-1000-8000-00805f9b34fb";
-        const CHAR_BATTERY_UUID  = "0000ffe6-0000-1000-8000-00805f9b34fb";
-        const CHAR_STREAM_UUID   = "0000ffe7-0000-1000-8000-00805f9b34fb";
+        const SERVICE_UUID       = 0xffe0;
+        const CHAR_MODE_UUID     = 0xffe1;
+        const CHAR_PET_UUID      = 0xffe2;
+        const CHAR_TEXT_UUID     = 0xffe3;
+        const CHAR_TIME_UUID     = 0xffe4;
+        const CHAR_SETTINGS_UUID = 0xffe5;
+        const CHAR_BATTERY_UUID  = 0xffe6;
+        const CHAR_STREAM_UUID   = 0xffe7;
 
         let bleDevice = null;
         let gattServer = null;
@@ -545,49 +545,30 @@
                     filters: [
                         { name: 'DIGI_KEYCHAIN' },
                         { name: 'CYBER_KEYCHAIN' },
-                        { namePrefix: 'DIGI' }
+                        { namePrefix: 'DIGI' },
+                        { services: [0xffe0] }
                     ],
-                    optionalServices: [
-                        SERVICE_UUID,
-                        0xffe0
-                    ]
+                    optionalServices: [0xffe0]
                 });
 
                 log(`Connecting to: ${bleDevice.name || 'DIGI_KEYCHAIN'}...`);
                 bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
                 
                 gattServer = await bleDevice.gatt.connect();
-                log("GATT connected! Getting service...");
-                await new Promise(r => setTimeout(r, 200));
+                log("GATT connected! Getting primary service 0xFFE0...");
+                
+                const service = await gattServer.getPrimaryService(0xffe0);
+                log("Service found! Getting characteristics...");
 
-                let service = null;
-                try {
-                    service = await gattServer.getPrimaryService(SERVICE_UUID);
-                } catch(e) {
-                    const services = await gattServer.getPrimaryServices();
-                    if (services && services.length > 0) {
-                        service = services[0];
-                    }
-                }
+                charMode     = await service.getCharacteristic(0xffe1).catch(()=>null);
+                charPet      = await service.getCharacteristic(0xffe2).catch(()=>null);
+                charText     = await service.getCharacteristic(0xffe3).catch(()=>null);
+                charTime     = await service.getCharacteristic(0xffe4).catch(()=>null);
+                charSettings = await service.getCharacteristic(0xffe5).catch(()=>null);
+                charBattery  = await service.getCharacteristic(0xffe6).catch(()=>null);
+                charStream   = await service.getCharacteristic(0xffe7).catch(()=>null);
 
-                if (!service) {
-                    throw new Error("Could not find DIGI_KEYCHAIN service.");
-                }
-
-                log("Discovering characteristics...");
-                const chars = await service.getCharacteristics();
-                log(`Found ${chars.length} characteristics!`);
-
-                for (const c of chars) {
-                    const u = c.uuid.toLowerCase();
-                    if (u.includes('ffe1')) charMode = c;
-                    else if (u.includes('ffe2')) charPet = c;
-                    else if (u.includes('ffe3')) charText = c;
-                    else if (u.includes('ffe4')) charTime = c;
-                    else if (u.includes('ffe5')) charSettings = c;
-                    else if (u.includes('ffe6')) charBattery = c;
-                    else if (u.includes('ffe7')) charStream = c;
-                }
+                log("Characteristics ready! Starting telemetry...");
 
                 if (charMode) {
                     await charMode.startNotifications().catch(()=>{});
