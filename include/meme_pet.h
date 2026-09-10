@@ -43,6 +43,7 @@ public:
     void triggerDoubleTap() {
         int next = ((int)currentEmotion + 1) % 7;
         setEmotion((MemeEmotion)next);
+        defaultEmotion = (MemeEmotion)next; // Persist cycled mascot!
     }
 
     void update() {

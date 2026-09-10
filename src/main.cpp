@@ -542,11 +542,12 @@ void processTouch() {
         lastActivityTime = now;
         triggerTouchVisual("IDLE", 0x8410, 100, "TOUCH:UP");
 
-        if (pressDuration >= 450) {
+        // 1. Long Press Hold (>= 1000ms / 1.0s) -> Triggers SHY LOVE
+        if (pressDuration >= 1000) {
             memePet.triggerHold();
             currentMode = MODE_CYBERPET;
             isVideoPlaying = false;
-            triggerTouchVisual("SHY LOVE ❤️", 0xF81F, 1000, "TOUCH:HOLD");
+            triggerTouchVisual("SHY LOVE ❤️", 0xF81F, 1200, "TOUCH:HOLD");
             if (bleConnected && pCharPet) {
                 char emoChar[2] = { (char)('0' + (int)EMOTION_SHY), '\0' };
                 pCharPet->setValue(std::string(emoChar));
@@ -554,17 +555,19 @@ void processTouch() {
             }
             tapCount = 0;
         } else {
+            // 2. Short Taps (< 1000ms)
             if (tapCount == 0) {
                 tapCount = 1;
                 lastTapReleaseTime = now;
                 memePet.triggerTap();
-                triggerTouchVisual("POKE 👆", 0x07FF, 600, "TOUCH:POKE");
-            } else if (tapCount == 1 && (now - lastTapReleaseTime) <= 350) {
+                triggerTouchVisual("POKE 👆", 0x07FF, 400, "TOUCH:POKE");
+            } else if (tapCount == 1 && (now - lastTapReleaseTime) <= 500) {
+                // Double Tap (within 500ms) -> Cycles Mascot Sequence
                 tapCount = 0;
                 memePet.triggerDoubleTap();
                 currentMode = MODE_CYBERPET;
                 isVideoPlaying = false;
-                triggerTouchVisual("REACT ⚡", 0xFFE0, 800, "TOUCH:DOUBLE");
+                triggerTouchVisual("CYCLE MASCOT ⚡", 0xFFE0, 900, "TOUCH:DOUBLE");
                 if (bleConnected && pCharPet) {
                     char emoChar[2] = { (char)('0' + (int)memePet.currentEmotion), '\0' };
                     pCharPet->setValue(std::string(emoChar));
@@ -574,7 +577,7 @@ void processTouch() {
         }
     }
 
-    if (tapCount == 1 && (now - lastTapReleaseTime) > 350) {
+    if (tapCount == 1 && (now - lastTapReleaseTime) > 500) {
         tapCount = 0;
     }
 }
