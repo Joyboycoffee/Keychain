@@ -33,7 +33,7 @@ BootSplashType bootSplashType   = BOOT_JOYBOY_INTRO;
 uint8_t        bootDurationSec  = 2;
 uint8_t        screenBrightness = 240;
 uint8_t        screenRotation   = 3;
-uint32_t       sleepTimeoutMs   = 30000;
+uint32_t       sleepTimeoutMs   = 60000;
 
 bool bleConnected = false;
 
@@ -694,7 +694,7 @@ void setup() {
     bootDurationSec = prefs.getUChar("boot_dur", 2);
     screenBrightness = prefs.getUChar("br", 240);
     screenRotation = prefs.getUChar("rot", 3);
-    sleepTimeoutMs = prefs.getUInt("sleep", 30000);
+    sleepTimeoutMs = prefs.getUInt("sleep", 60000);
     customMessage = prefs.getString("msg", "I AM JOY BOY COFFEE :coffee: :fire:");
 
     // 2. Initialize NimBLE Bluetooth FIRST
@@ -761,8 +761,8 @@ void setup() {
 void loop() {
     processTouch();
 
-    // Auto Sleep Check
-    if (sleepTimeoutMs > 0 && (millis() - lastActivityTime) > sleepTimeoutMs) {
+    // Auto Sleep Check (Only when NOT connected over BLE)
+    if (!bleConnected && sleepTimeoutMs > 0 && (millis() - lastActivityTime) > sleepTimeoutMs) {
         enterDeepSleep();
     }
 
