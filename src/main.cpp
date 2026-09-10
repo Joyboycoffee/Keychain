@@ -13,7 +13,7 @@
 #include "matrix_rain.h"
 #include "emoji_renderer.h"
 
-// Define Global Display Objects declared in display_setup.h
+// Global Display Objects
 LGFX_ST7789 tft;
 LGFX_Sprite canvas(&tft);
 
@@ -104,15 +104,16 @@ void triggerTouchVisual(const String& label, uint16_t color, uint32_t durationMs
 // BLE CALLBACKS
 // =========================================================================
 class ServerCallbacks : public NimBLEServerCallbacks {
-    void onConnect(NimBLEServer* pServer) {
+    void onConnect(NimBLEServer* pServer, ble_gap_conn_desc* desc) {
         bleConnected = true;
         lastActivityTime = millis();
-        Serial.println("[BLE] Phone Connected!");
+        pServer->updateConnParams(desc->conn_handle, 12, 24, 0, 400);
+        Serial.printf("[BLE] Client Connected (handle=%d)!\n", desc->conn_handle);
     }
     void onDisconnect(NimBLEServer* pServer) {
         bleConnected = false;
         lastActivityTime = millis();
-        Serial.println("[BLE] Phone Disconnected. Advertising restarted.");
+        Serial.println("[BLE] Client Disconnected. Advertising restarted.");
         NimBLEDevice::startAdvertising();
     }
 };
@@ -647,7 +648,7 @@ void playBootSplash() {
 
         canvas.setTextColor(0x07E0, 0x0000);
         canvas.setTextSize(1);
-        canvas.drawCenterString("DIGI KEYCHAIN v4.1", 120, 168);
+        canvas.drawCenterString("DIGI KEYCHAIN v4.2", 120, 168);
 
         // Cyber Progress Bar
         float pct = (float)(millis() - startIntro) / (float)(bootDurationSec * 1000);
@@ -666,7 +667,7 @@ void playBootSplash() {
 void setup() {
     Serial.begin(115200);
     delay(100);
-    Serial.println("\n=== DIGI KEYCHAIN ENGINE v4.1 STARTUP ===");
+    Serial.println("\n=== DIGI KEYCHAIN ENGINE v4.2 STARTUP ===");
 
     // 1. Release Deep Sleep GPIO Hold
     gpio_hold_dis((gpio_num_t)PIN_TFT_BL);
@@ -697,9 +698,12 @@ void setup() {
     sleepTimeoutMs = prefs.getUInt("sleep", 60000);
     customMessage = prefs.getString("msg", "I AM JOY BOY COFFEE :coffee: :fire:");
 
-    // 2. Initialize NimBLE Bluetooth FIRST
+    // 2. Initialize NimBLE Bluetooth FIRST with High Power & Optimal Parameters
     Serial.println("[BLE] Initializing NimBLE stack...");
     NimBLEDevice::init("DIGI_KEYCHAIN");
+    NimBLEDevice::setPower(ESP_PWR_LVL_P9); // Maximum +9dBm BLE TX Power
+    NimBLEDevice::setSecurityAuth(false, false, false);
+
     NimBLEServer* pServer = NimBLEDevice::createServer();
     pServer->setCallbacks(new ServerCallbacks());
 
@@ -729,6 +733,9 @@ void setup() {
 
     NimBLEAdvertising* pAdv = NimBLEDevice::getAdvertising();
     pAdv->addServiceUUID(SERVICE_UUID);
+    pAdv->setScanResponse(true);
+    pAdv->setMinPreferred(0x06); // 7.5 ms min interval
+    pAdv->setMaxPreferred(0x12); // 22.5 ms max interval
     pAdv->start();
     Serial.println("[BLE] Advertising started as DIGI_KEYCHAIN (0xFFE0)");
 
