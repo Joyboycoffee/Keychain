@@ -721,19 +721,15 @@
         }
 
         function handleSettingsNotification(msg) {
-            // 1. Touch notifications
-            if (msg === "TOUCH:DOWN") {
-                setTouchBanner("⚡ TOUCH ACTIVE", "var(--cyan)", 0);
-            } else if (msg === "TOUCH:POKE") {
-                setTouchBanner("👆 POKE TRIGGERED", "var(--cyan)", 1200);
+            // 1. Touch gesture notifications
+            if (msg === "TOUCH:POKE") {
+                setTouchBanner("👆 POKE TRIGGERED", "var(--cyan)", 1500);
             } else if (msg === "TOUCH:DOUBLE") {
-                setTouchBanner("⚡ MASCOT CYCLED", "var(--amber)", 1200);
+                setTouchBanner("⚡ NEXT MASCOT (DOUBLE-TAP)", "var(--amber)", 1500);
             } else if (msg === "TOUCH:HOLD") {
-                setTouchBanner("❤️ SHY LOVE (HOLD 2s)", "var(--magenta)", 3000);
+                setTouchBanner("❤️ SHY LOVE (2s HOLD)", "var(--magenta)", 3000);
             } else if (msg === "TOUCH:REVERT") {
-                setTouchBanner("🔄 RETURNED TO MASCOT", "var(--green)", 1200);
-            } else if (msg === "TOUCH:UP") {
-                setTouchBanner("⚡ TOUCH RELEASED", "var(--text-muted)", 250);
+                setTouchBanner("🔄 RETURNED TO MASCOT", "var(--green)", 1500);
             }
             // 2. Battery Log format: "BAT_LOG|last_sec|last_start_mv|last_end_mv|cur_sec|cur_mv|usb|cycles"
             else if (msg.startsWith("BAT_LOG|")) {
