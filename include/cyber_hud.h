@@ -8,8 +8,6 @@ public:
     int hours = 21;
     int minutes = 35;
     int seconds = 40;
-    float batteryPct = 88.0f;
-    float batteryVolts = 3.85f;
     float weatherTemp = 28.0f;
     String weatherDesc = "CLEAR";
     uint32_t lastSecTick = 0;
@@ -22,11 +20,6 @@ public:
     void setWeather(float temp, const String& desc) {
         weatherTemp = temp;
         weatherDesc = desc;
-    }
-
-    void setBattery(float pct, float volts) {
-        batteryPct = pct;
-        batteryVolts = volts;
     }
 
     void update() {
@@ -59,9 +52,9 @@ public:
         canvas.setTextSize(2);
         canvas.drawCenterString(timeStr, 120, 48);
 
-        // 3. Telemetry Middle Grid (Temp + Battery)
-        canvas.drawRoundRect(20, 80, 95, 50, 6, 0x18C3);
-        canvas.drawRoundRect(125, 80, 95, 50, 6, 0x18C3);
+        // 3. Telemetry Middle Grid (Temp + Status)
+        canvas.drawRoundRect(20, 80, 95, 52, 6, 0x18C3);
+        canvas.drawRoundRect(125, 80, 95, 52, 6, 0x18C3);
 
         // Temp box
         canvas.setTextColor(0xFDA0, TFT_BLACK); // Amber
@@ -70,34 +63,27 @@ public:
         char tempStr[16];
         snprintf(tempStr, sizeof(tempStr), "%.1f C", weatherTemp);
         canvas.setTextSize(2);
-        canvas.drawString(tempStr, 30, 104);
+        canvas.drawString(tempStr, 30, 106);
 
-        // Battery box
+        // Status box
         canvas.setTextColor(0x07FF, TFT_BLACK);
         canvas.setTextSize(1);
-        canvas.drawString("BATTERY", 135, 88);
-        char batStr[16];
-        if (batteryVolts < 2.5f) {
-            snprintf(batStr, sizeof(batStr), "USB-C");
-        } else {
-            snprintf(batStr, sizeof(batStr), "%d%%", (int)batteryPct);
-        }
+        canvas.drawString("STATUS", 135, 88);
         canvas.setTextSize(2);
-        canvas.drawString(batStr, 135, 104);
+        canvas.drawString("ACTIVE", 135, 106);
 
         // 4. Animated Sine-Wave Audio / Signal Monitor
-        canvas.drawFastHLine(20, 142, 200, 0x10A2);
+        canvas.drawFastHLine(20, 150, 200, 0x10A2);
         for (int x = 20; x < 220; x += 2) {
-            float y1 = 175 + sin((x + wavePhase) * 0.08f) * 16.0f;
-            float y2 = 175 + sin((x - wavePhase * 1.5f) * 0.05f) * 10.0f;
+            float y1 = 188 + sin((x + wavePhase) * 0.08f) * 20.0f;
+            float y2 = 188 + sin((x - wavePhase * 1.5f) * 0.05f) * 14.0f;
             canvas.drawPixel(x, (int)y1, 0x07E0);
             canvas.drawPixel(x, (int)y2, 0x07FF);
         }
 
-        // 5. Battery Gauge Bar at Bottom
-        canvas.drawRoundRect(20, 206, 200, 14, 4, 0x07FF);
-        int barW = (batteryVolts < 2.5f) ? 192 : (int)((batteryPct / 100.0f) * 192.0f);
-        canvas.fillRoundRect(24, 209, barW, 8, 2, (batteryVolts < 2.5f || batteryPct > 20) ? 0x07E0 : 0xF800);
+        // 5. Aesthetic Bottom Status Frame
+        canvas.drawRoundRect(20, 220, 200, 8, 3, 0x07FF);
+        canvas.fillRoundRect(22, 222, 196, 4, 2, 0x07E0);
     }
 
 private:

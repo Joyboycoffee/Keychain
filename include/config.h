@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <Arduino.h>
 
 // =========================================================================
@@ -32,16 +32,18 @@
 #define CHAR_TIME_UUID         "FFE4" // Time & Weather Sync
 #define CHAR_SETTINGS_UUID     "FFE5" // Brightness
 #define CHAR_BATTERY_UUID      "FFE6" // Live Battery Voltage & Telemetry
+#define CHAR_STREAM_UUID       "FFE7" // Live Custom Image & Video Stream Chunks
 
 // =========================================================================
 // SYSTEM MODES
 // =========================================================================
 enum SystemMode {
-    MODE_CYBERPET = 0,   // Interactive Tamagotchi mascot
+    MODE_CYBERPET = 0,   // Interactive Meme Emotion Mascot (Luffy, Shy, Cat, etc.)
     MODE_ROBOT_EYES = 1, // Animated procedural robot eyes
-    MODE_CYBER_HUD = 2,  // Sci-Fi Clock, Temperature & Telemetry
+    MODE_CYBER_HUD = 2,  // Sci-Fi Clock & Temperature
     MODE_MATRIX_RAIN = 3,// Matrix Digital Rain
-    MODE_TEXT_SCROLL = 4 // Scrolling custom message
+    MODE_TEXT_SCROLL = 4,// Screen-filling Max-Font Scrolling Message
+    MODE_STREAM_MEDIA = 5// Live Web-BLE Custom Image / Video Stream
 };
 
 enum PetMood {

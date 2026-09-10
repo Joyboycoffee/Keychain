@@ -2,8 +2,8 @@
 #include <NimBLEDevice.h>
 #include "config.h"
 #include "display_setup.h"
+#include "meme_pet.h"
 #include "robot_eyes.h"
-#include "pet_engine.h"
 #include "cyber_hud.h"
 #include "matrix_rain.h"
 
@@ -13,8 +13,8 @@ LGFX_Sprite canvas(&tft);
 
 // Mode Engines
 SystemMode currentMode = MODE_CYBERPET;
+MemePet memePet;
 RobotEyes robotEyes;
-CyberPet cyberPet;
 CyberHUD cyberHUD;
 MatrixRain matrixRain;
 
@@ -24,15 +24,9 @@ int scrollX = 240;
 
 // Power & Settings
 uint8_t screenBrightness = 220; // 0-255 PWM
-uint32_t sleepTimeoutMs = 300000; // 5 min auto-sleep (prevents USB disconnection during dev)
+uint32_t sleepTimeoutMs = 300000; // 5 min auto-sleep
 uint32_t lastActivityTime = 0;
 bool bleConnected = false;
-
-// Battery Telemetry
-float currentBatVoltage = 0.0f;
-int currentBatPercent = 0;
-uint32_t currentRawMv = 0;
-uint32_t lastBatteryReadTime = 0;
 
 // Touch Gesture Tracker
 uint32_t touchStartTime = 0;
@@ -40,57 +34,12 @@ uint32_t touchReleaseTime = 0;
 int tapCount = 0;
 bool isTouching = false;
 
-// Characteristic pointers
-NimBLECharacteristic* pCharBattery = nullptr;
-
-// =========================================================================
-// BATTERY SENSING FILTER & DISCHARGE CURVE (64-SAMPLE MOVING AVERAGE)
-// =========================================================================
-int calculateLiPoPercent(float v) {
-    if (v >= 4.20f) return 100;
-    if (v <= 3.30f) return 0;
-    if (v >= 4.05f) return 85 + (int)((v - 4.05f) / 0.15f * 15.0f);
-    if (v >= 3.85f) return 55 + (int)((v - 3.85f) / 0.20f * 30.0f);
-    if (v >= 3.70f) return 20 + (int)((v - 3.70f) / 0.15f * 35.0f);
-    return (int)((v - 3.30f) / 0.40f * 20.0f);
-}
-
-void updateBatteryTelemetry() {
-    uint32_t sumMv = 0;
-    const int SAMPLES = 64;
-    for (int i = 0; i < SAMPLES; i++) {
-        sumMv += analogReadMilliVolts(PIN_BAT_ADC);
-        delayMicroseconds(100);
-    }
-    currentRawMv = sumMv / SAMPLES;
-
-    // 100k + 100k (or 200k + 200k) divider -> Multiply by 2.0
-    currentBatVoltage = (currentRawMv * 2.0f) / 1000.0f;
-
-    // If voltage < 2.5V (e.g. floating / USB diode leak when battery not active)
-    if (currentBatVoltage < 2.5f) {
-        currentBatPercent = 0;
-    } else {
-        currentBatPercent = calculateLiPoPercent(currentBatVoltage);
-    }
-
-    // Update HUD
-    cyberHUD.setBattery((float)currentBatPercent, currentBatVoltage);
-
-    // Update BLE Characteristic string (Format: "VOLTS|PCT|RAWMV" e.g. "3.85|70|1925")
-    if (pCharBattery != nullptr) {
-        char batPayload[32];
-        if (currentBatVoltage < 2.5f) {
-            snprintf(batPayload, sizeof(batPayload), "USB|100|%u", currentRawMv);
-        } else {
-            snprintf(batPayload, sizeof(batPayload), "%.2f|%d|%u", currentBatVoltage, currentBatPercent, currentRawMv);
-        }
-        pCharBattery->setValue(batPayload);
-        if (bleConnected) {
-            pCharBattery->notify();
-        }
-    }
-}
+// Media Stream Buffer (for live custom images & video streaming over BLE)
+#define STREAM_BUFFER_SIZE 32768
+uint8_t streamBuffer[STREAM_BUFFER_SIZE];
+size_t streamBytesReceived = 0;
+size_t expectedStreamBytes = 0;
+bool newMediaFrameReady = false;
 
 // =========================================================================
 // BLE CALLBACKS
@@ -114,7 +63,7 @@ class ModeCallback : public NimBLECharacteristicCallbacks {
         std::string val = pChar->getValue();
         if (val.length() > 0) {
             int m = val[0] - '0';
-            if (m >= 0 && m <= 4) {
+            if (m >= 0 && m <= 5) {
                 currentMode = (SystemMode)m;
                 lastActivityTime = millis();
                 Serial.printf("[BLE] Mode switched to: %d\n", m);
@@ -128,10 +77,11 @@ class PetCallback : public NimBLECharacteristicCallbacks {
         std::string val = pChar->getValue();
         if (val.length() > 0) {
             int a = val[0] - '0';
-            if (a >= 0 && a <= 2) {
-                cyberPet.setAvatar((PetAvatar)a);
+            if (a >= 0 && a <= 4) {
+                memePet.setEmotion((MemeEmotion)a);
+                currentMode = MODE_CYBERPET;
                 lastActivityTime = millis();
-                Serial.printf("[BLE] Avatar switched to: %d\n", a);
+                Serial.printf("[BLE] Emotion switched to: %d\n", a);
             }
         }
     }
@@ -186,8 +136,43 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
     }
 };
 
+class StreamCallback : public NimBLECharacteristicCallbacks {
+    void onWrite(NimBLECharacteristic* pChar) {
+        std::string data = pChar->getValue();
+        if (data.length() == 0) return;
+
+        const uint8_t* bytes = (const uint8_t*)data.data();
+        size_t len = data.length();
+
+        // Header Packet: 0xAA 0x55 [size_high] [size_low]
+        if (len >= 4 && bytes[0] == 0xAA && bytes[1] == 0x55) {
+            expectedStreamBytes = (bytes[2] << 8) | bytes[3];
+            streamBytesReceived = 0;
+            if (len > 4) {
+                size_t payload = len - 4;
+                if (payload <= STREAM_BUFFER_SIZE) {
+                    memcpy(streamBuffer, bytes + 4, payload);
+                    streamBytesReceived = payload;
+                }
+            }
+        } else {
+            // Append payload chunk
+            if (streamBytesReceived + len <= STREAM_BUFFER_SIZE) {
+                memcpy(streamBuffer + streamBytesReceived, bytes, len);
+                streamBytesReceived += len;
+            }
+        }
+
+        if (streamBytesReceived >= expectedStreamBytes && expectedStreamBytes > 0) {
+            newMediaFrameReady = true;
+            currentMode = MODE_STREAM_MEDIA;
+            lastActivityTime = millis();
+        }
+    }
+};
+
 // =========================================================================
-// TOUCH GESTURES (RUB = HAPPY/LOVE, SPAM = ANGRY, TAP = NEXT MODE)
+// TOUCH GESTURES (SENSITIVE & INTUITIVE)
 // =========================================================================
 void processTouch() {
     bool rawTouch = digitalRead(PIN_TOUCH) == HIGH;
@@ -204,29 +189,39 @@ void processTouch() {
         touchReleaseTime = now;
         uint32_t duration = touchReleaseTime - touchStartTime;
 
-        if (duration < 350) {
+        if (duration < 300) {
             tapCount++;
         }
     }
 
-    // Check for Continuous Rub / Long Press (> 1.0 second)
-    if (isTouching && (now - touchStartTime > 1000)) {
-        cyberPet.setMood(MOOD_LOVE);
-        robotEyes.setMood(MOOD_LOVE);
+    // Continuous Rub / Long Hold (> 0.7s) -> Trigger Shy Love Emoji 👉👈
+    if (isTouching && (now - touchStartTime > 700)) {
+        if (currentMode == MODE_CYBERPET) {
+            memePet.setEmotion(EMOTION_SHY);
+        } else if (currentMode == MODE_ROBOT_EYES) {
+            robotEyes.setMood(MOOD_LOVE);
+        }
         lastActivityTime = now;
     }
 
-    // Check for Multi-tap timeout window
-    if (!isTouching && tapCount > 0 && (now - touchReleaseTime > 350)) {
+    // Multi-tap timeout window (250ms)
+    if (!isTouching && tapCount > 0 && (now - touchReleaseTime > 250)) {
         if (tapCount >= 3) {
-            // Rage Tapped -> ANGRY MODE!
-            cyberPet.setMood(MOOD_ANGRY);
-            robotEyes.setMood(MOOD_ANGRY);
-        } else if (tapCount == 1) {
-            // Single tap -> Cycle mode
+            // Rage Spam Tapped -> ANGRY GRUMPY KITTEN!
             if (currentMode == MODE_CYBERPET) {
-                // Cycle avatar inside pet mode first, or tap to next mode
-                currentMode = MODE_ROBOT_EYES;
+                memePet.setEmotion(EMOTION_ANGRY_CAT);
+            } else {
+                robotEyes.setMood(MOOD_ANGRY);
+            }
+        } else if (tapCount == 2) {
+            // Double Tap -> Banana Cat Sad / Bunny
+            if (currentMode == MODE_CYBERPET) {
+                memePet.setEmotion(EMOTION_SAD_BANANA);
+            }
+        } else if (tapCount == 1) {
+            // Single Tap -> Cycle through Meme Avatars or Modes
+            if (currentMode == MODE_CYBERPET) {
+                memePet.setEmotion((MemeEmotion)((memePet.currentEmotion + 1) % 5));
             } else if (currentMode == MODE_ROBOT_EYES) {
                 currentMode = MODE_CYBER_HUD;
             } else if (currentMode == MODE_CYBER_HUD) {
@@ -235,7 +230,6 @@ void processTouch() {
                 currentMode = MODE_TEXT_SCROLL;
             } else {
                 currentMode = MODE_CYBERPET;
-                cyberPet.setAvatar((PetAvatar)((cyberPet.currentAvatar + 1) % 3));
             }
         }
         tapCount = 0;
@@ -248,14 +242,12 @@ void processTouch() {
 // =========================================================================
 void enterDeepSleep() {
     Serial.println("[POWER] Entering Deep Sleep. Wakeup on Touch GPIO 1...");
-    // Fade screen backlight out smoothly
     for (int b = screenBrightness; b >= 0; b -= 20) {
         tft.setBrightness(b);
         delay(15);
     }
     tft.writeCommand(0x10); // ST7789 Sleep In command
 
-    // Configure ESP32-C3 RTC GPIO Wakeup on Touch Pin (GPIO 1)
     gpio_wakeup_enable((gpio_num_t)PIN_TOUCH, GPIO_INTR_HIGH_LEVEL);
     esp_deep_sleep_enable_gpio_wakeup(1ULL << PIN_TOUCH, ESP_GPIO_WAKEUP_GPIO_HIGH);
 
@@ -269,26 +261,21 @@ void setup() {
     Serial.begin(115200);
     delay(500);
     Serial.println("\n\n========================================");
-    Serial.println("  ESP32-C3 CYBER KEYCHAIN v2.0 READY");
+    Serial.println("  ESP32-C3 MEME KEYCHAIN v3.0 READY");
     Serial.println("========================================");
 
     // Hardware Pins
     pinMode(PIN_DEBUG_LED, OUTPUT);
     pinMode(PIN_TOUCH, INPUT);
-    analogSetPinAttenuation(PIN_BAT_ADC, ADC_11db);
-    pinMode(PIN_BAT_ADC, INPUT);
 
-    // Display init
+    // Display init (Rotated 270 deg / Landscape Left)
     tft.init();
-    tft.setRotation(3); // Rotated 270 degrees (horizontal opposite / landscape left)
+    tft.setRotation(3);
     tft.setBrightness(screenBrightness);
 
-    // Sprite Double Buffer
+    // Double Buffer Sprite
     canvas.setColorDepth(16);
     canvas.createSprite(240, 240);
-
-    // Initial Battery Reading
-    updateBatteryTelemetry();
 
     // Initialize NimBLE Bluetooth Server
     NimBLEDevice::init("CYBER_KEYCHAIN");
@@ -313,7 +300,8 @@ void setup() {
     auto pCharSet = pService->createCharacteristic(CHAR_SETTINGS_UUID, NIMBLE_PROPERTY::WRITE);
     pCharSet->setCallbacks(new SettingsCallback());
 
-    pCharBattery = pService->createCharacteristic(CHAR_BATTERY_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY);
+    auto pCharStream = pService->createCharacteristic(CHAR_STREAM_UUID, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR);
+    pCharStream->setCallbacks(new StreamCallback());
 
     pService->start();
 
@@ -332,13 +320,7 @@ void loop() {
     // 1. Process Touch Gestures
     processTouch();
 
-    // 2. Periodic Battery Sampling (every 2 seconds)
-    if (millis() - lastBatteryReadTime > 2000) {
-        lastBatteryReadTime = millis();
-        updateBatteryTelemetry();
-    }
-
-    // 3. Heartbeat LED (blinks slowly when running)
+    // 2. Heartbeat LED
     static uint32_t lastBlink = 0;
     static bool ledState = false;
     if (millis() - lastBlink > 500) {
@@ -347,10 +329,10 @@ void loop() {
         digitalWrite(PIN_DEBUG_LED, ledState ? HIGH : LOW);
     }
 
-    // 4. Render Active Mode to Double Buffer Sprite
+    // 3. Render Active Mode to Double Buffer Sprite
     switch (currentMode) {
         case MODE_CYBERPET:
-            cyberPet.update();
+            memePet.update();
             break;
 
         case MODE_ROBOT_EYES:
@@ -367,45 +349,38 @@ void loop() {
 
         case MODE_TEXT_SCROLL:
             canvas.fillScreen(TFT_BLACK);
-            // Cyber Frame
-            canvas.drawRoundRect(6, 6, 228, 228, 8, 0x07FF);
-            canvas.setTextColor(0x07FF, TFT_BLACK);
-            canvas.setTextSize(1);
-            canvas.drawString("NEURAL BANNER //", 16, 16);
+            // Sleek single border line around edges
+            canvas.drawRoundRect(2, 2, 236, 236, 6, 0x07FF);
 
-            // Scrolling Marquee
-            canvas.fillRoundRect(8, 90, 224, 60, 6, 0x0821);
-            canvas.drawRoundRect(8, 90, 224, 60, 6, 0x07E0);
-            canvas.setTextColor(0x07E0, 0x0821);
-            canvas.setTextSize(2);
-            canvas.drawString(customMessage, scrollX, 112);
+            // Screen-filling maxed out bold font centered vertically
+            canvas.setTextColor(0x07E0, TFT_BLACK); // Bright Neon Green
+            canvas.setTextSize(4); // Huge bold font
+            canvas.drawString(customMessage, scrollX, 105);
 
-            scrollX -= 4;
-            if (scrollX < -((int)customMessage.length() * 18)) {
+            scrollX -= 5;
+            if (scrollX < -((int)customMessage.length() * 26)) {
                 scrollX = 240;
             }
+            break;
 
-            // Battery footer
-            canvas.setTextColor(0xFFE0, TFT_BLACK);
-            canvas.setTextSize(1);
-            char bStr[36];
-            if (currentBatVoltage < 2.5f) {
-                snprintf(bStr, sizeof(bStr), "PWR: USB-C (5V) | %umV", currentRawMv);
-            } else {
-                snprintf(bStr, sizeof(bStr), "BAT: %.2fV [%d%%]", currentBatVoltage, currentBatPercent);
+        case MODE_STREAM_MEDIA:
+            if (newMediaFrameReady && streamBytesReceived > 0) {
+                canvas.fillScreen(TFT_BLACK);
+                canvas.drawJpg(streamBuffer, streamBytesReceived, 0, 0, 240, 240);
+                canvas.drawRoundRect(0, 0, 240, 240, 4, 0x07FF);
             }
-            canvas.drawCenterString(bStr, 120, 195);
             break;
     }
 
-    // 5. Push Frame to Display (Hardware DMA Transfer)
+    // 4. Push Frame to Display (Hardware DMA Transfer)
     canvas.pushSprite(0, 0);
 
-    // 6. Deep Sleep if Unplugged, Idle, and No BLE Connection
+    // 5. Deep Sleep if Unplugged, Idle, and No BLE Connection
     if (!bleConnected && (millis() - lastActivityTime > sleepTimeoutMs)) {
         enterDeepSleep();
     }
 
     delay(10);
 }
+
 

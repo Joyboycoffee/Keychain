@@ -34,8 +34,8 @@
 
         @media (orientation: landscape) or (min-width: 680px) {
             body {
-                max-width: 900px;
-                padding: 12px 20px;
+                max-width: 950px;
+                padding: 14px 20px;
             }
             .dashboard-grid {
                 display: grid;
@@ -147,10 +147,17 @@
             box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
         }
 
-        .grid-avatars {
+        .grid-emotions {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 8px;
+        }
+
+        .btn-emo {
+            font-size: 13px;
+            padding: 12px 6px;
+            flex-direction: column;
+            gap: 4px;
         }
 
         .input-group {
@@ -182,6 +189,15 @@
             border: none;
         }
 
+        input[type="file"] {
+            display: none;
+        }
+
+        .btn-file {
+            background: #238636;
+            border-color: #2ea043;
+        }
+
         .slider-wrap {
             margin-top: 8px;
         }
@@ -199,27 +215,6 @@
             margin-bottom: 6px;
         }
 
-        .battery-box {
-            background: #0d1117;
-            border: 1px solid #30363d;
-            border-radius: 8px;
-            padding: 12px;
-            margin-top: 10px;
-            text-align: center;
-        }
-
-        .battery-val {
-            font-size: 24px;
-            font-weight: bold;
-            color: var(--green);
-            margin: 4px 0;
-        }
-
-        .battery-sub {
-            font-size: 12px;
-            color: #8b949e;
-        }
-
         #logBox {
             background: #090d16;
             border: 1px solid #30363d;
@@ -232,12 +227,16 @@
             margin-top: 10px;
             font-family: monospace;
         }
+
+        .preview-canvas {
+            display: none;
+        }
     </style>
 </head>
 <body>
 
     <header>
-        <h1>⚡ CYBER_KEYCHAIN</h1>
+        <h1>? CYBER_KEYCHAIN</h1>
         <div id="statusBadge" class="status-badge offline">DISCONNECTED</div>
     </header>
 
@@ -245,76 +244,102 @@
         <!-- Bluetooth Connect Card -->
         <div class="card card-full">
             <button id="btnConnect" class="btn-connect" onclick="connectBLE()">
-                <span>🔗 CONNECT KEYCHAIN</span>
+                <span>?? CONNECT KEYCHAIN</span>
             </button>
             <div id="logBox">Ready. Click Connect to pair with ESP32 Keychain over Web-BLE.</div>
         </div>
 
-        <!-- Battery Telemetry Card -->
-        <div class="card">
-            <h2>🔋 Battery Telemetry (GPIO 0)</h2>
-            <button onclick="readBattery()" style="background: #1f6feb; border-color: #388bfd;">
-                <span>⚡ READ BATTERY STATUS</span>
-            </button>
-            <div class="battery-box">
-                <div id="batPercent" class="battery-val">-- %</div>
-                <div id="batVoltage" class="battery-sub">Voltage: -- V | ADC: -- mV</div>
+        <!-- Meme Emotion Selector Card -->
+        <div class="card card-full">
+            <h2>?? Meme Emotion Avatars</h2>
+            <div class="grid-emotions">
+                <button class="btn-emo" onclick="setEmotion(0)">
+                    <span style="font-size:22px;">??</span>
+                    <span>Luffy Star</span>
+                </button>
+                <button class="btn-emo" onclick="setEmotion(1)">
+                    <span style="font-size:22px;">??</span>
+                    <span>Shy ????</span>
+                </button>
+                <button class="btn-emo" onclick="setEmotion(2)">
+                    <span style="font-size:22px;">??</span>
+                    <span>Banana Cat</span>
+                </button>
+                <button class="btn-emo" onclick="setEmotion(3)">
+                    <span style="font-size:22px;">??</span>
+                    <span>Grumpy Cat</span>
+                </button>
+                <button class="btn-emo" onclick="setEmotion(4)">
+                    <span style="font-size:22px;">??</span>
+                    <span>Bunny Hum!</span>
+                </button>
             </div>
         </div>
 
         <!-- Mode Selector Card -->
         <div class="card">
-            <h2>🎮 Active Mode</h2>
+            <h2>?? Display Mode</h2>
             <div class="grid-modes">
                 <button class="btn-mode active" onclick="setMode(0)">
-                    <span style="font-size:20px;">🐱</span>
-                    <span>CyberPet</span>
+                    <span style="font-size:20px;">??</span>
+                    <span>Meme Pet</span>
                 </button>
                 <button class="btn-mode" onclick="setMode(1)">
-                    <span style="font-size:20px;">👀</span>
+                    <span style="font-size:20px;">??</span>
                     <span>Robot Eyes</span>
                 </button>
                 <button class="btn-mode" onclick="setMode(2)">
-                    <span style="font-size:20px;">⏱️</span>
+                    <span style="font-size:20px;">??</span>
                     <span>Cyber HUD</span>
                 </button>
                 <button class="btn-mode" onclick="setMode(3)">
-                    <span style="font-size:20px;">⚡</span>
+                    <span style="font-size:20px;">?</span>
                     <span>Matrix Rain</span>
                 </button>
             </div>
         </div>
 
-        <!-- Avatar Picker Card -->
+        <!-- Custom Scrolling Text Sender -->
         <div class="card">
-            <h2>🐾 Select Avatar</h2>
-            <div class="grid-avatars">
-                <button onclick="setAvatar(0)">🐱 CyberCat</button>
-                <button onclick="setAvatar(1)">🤖 MechBot</button>
-                <button onclick="setAvatar(2)">🐲 Dragon</button>
-            </div>
-        </div>
-
-        <!-- Live Telemetry & Time Sync -->
-        <div class="card">
-            <h2>⏱️ Phone Time & Weather Sync</h2>
-            <button onclick="syncTimeAndWeather()" style="background:#238636; border-color:#2ea043;">
-                <span>🔄 SYNC TIME NOW</span>
-            </button>
-        </div>
-
-        <!-- Marquee Text Sender -->
-        <div class="card">
-            <h2>💬 Send Custom Message</h2>
+            <h2>?? Max-Font Marquee Text</h2>
             <div class="input-group">
-                <input type="text" id="txtMessage" placeholder="Type banner message..." value="HACK THE PLANET //">
+                <input type="text" id="txtMessage" placeholder="Type banner message..." value="I AM JOY BOY COFFEE">
                 <button class="btn-send" onclick="sendCustomText()">SEND</button>
             </div>
         </div>
 
+        <!-- Custom Image Upload Card -->
+        <div class="card">
+            <h2>??? Upload Custom Image</h2>
+            <label class="btn-file" style="display:flex; padding:12px; border-radius:8px; align-items:center; justify-content:center; cursor:pointer; font-weight:bold;">
+                <span>?? CHOOSE IMAGE FILE</span>
+                <input type="file" id="imgPicker" accept="image/*" onchange="uploadImage(event)">
+            </label>
+        </div>
+
+        <!-- Live Video & GIF Streamer Card -->
+        <div class="card">
+            <h2>?? Stream Custom Video / GIF</h2>
+            <label class="btn-file" style="display:flex; padding:12px; border-radius:8px; align-items:center; justify-content:center; cursor:pointer; font-weight:bold; background:#8957e5; border-color:#a371f7;">
+                <span>?? CHOOSE VIDEO / GIF</span>
+                <input type="file" id="videoPicker" accept="video/*,image/gif" onchange="streamVideo(event)">
+            </label>
+            <button id="btnStopVideo" onclick="stopVideoStream()" style="margin-top:8px; background:#da3633; border-color:#f85149; display:none;">
+                <span>?? STOP VIDEO STREAM</span>
+            </button>
+        </div>
+
+        <!-- Live Time Sync -->
+        <div class="card">
+            <h2>?? Phone Time Sync</h2>
+            <button onclick="syncTimeAndWeather()" style="background:#1f6feb; border-color:#388bfd;">
+                <span>?? SYNC TIME NOW</span>
+            </button>
+        </div>
+
         <!-- Brightness & Power -->
         <div class="card">
-            <h2>💡 Screen Brightness</h2>
+            <h2>?? Screen Brightness</h2>
             <div class="slider-wrap">
                 <div class="slider-label">
                     <span>Dim</span>
@@ -326,6 +351,10 @@
         </div>
     </div>
 
+    <!-- Hidden processing elements for Image & Video conversion -->
+    <canvas id="procCanvas" class="preview-canvas" width="240" height="240"></canvas>
+    <video id="procVideo" class="preview-canvas" muted playsinline></video>
+
     <script>
         const SERVICE_UUID       = 0xFFE0;
         const CHAR_MODE_UUID     = 0xFFE1;
@@ -333,11 +362,12 @@
         const CHAR_TEXT_UUID     = 0xFFE3;
         const CHAR_TIME_UUID     = 0xFFE4;
         const CHAR_SETTINGS_UUID = 0xFFE5;
-        const CHAR_BATTERY_UUID  = 0xFFE6;
+        const CHAR_STREAM_UUID   = 0xFFE7;
 
         let bleDevice = null;
         let gattServer = null;
-        let charMode, charPet, charText, charTime, charSettings, charBattery;
+        let charMode, charPet, charText, charTime, charSettings, charStream;
+        let videoStreamInterval = null;
 
         function log(msg) {
             const box = document.getElementById('logBox');
@@ -374,15 +404,14 @@
                 charText     = await service.getCharacteristic(CHAR_TEXT_UUID);
                 charTime     = await service.getCharacteristic(CHAR_TIME_UUID);
                 charSettings = await service.getCharacteristic(CHAR_SETTINGS_UUID);
-                charBattery  = await service.getCharacteristic(CHAR_BATTERY_UUID);
+                charStream   = await service.getCharacteristic(CHAR_STREAM_UUID);
 
-                document.getElementById('statusBadge').innerText = "ONLINE 🟢";
+                document.getElementById('statusBadge').innerText = "ONLINE ??";
                 document.getElementById('statusBadge').className = "status-badge online";
-                document.getElementById('btnConnect').innerHTML = "<span>✅ CONNECTED</span>";
-                log("All characteristics loaded. Ready!");
+                document.getElementById('btnConnect').innerHTML = "<span>? CONNECTED</span>";
+                log("Connected! All characteristics ready.");
 
                 syncTimeAndWeather();
-                readBattery();
             } catch (err) {
                 console.error(err);
                 log(`Error: ${err.message}`);
@@ -395,29 +424,8 @@
             log("Device disconnected.");
             document.getElementById('statusBadge').innerText = "DISCONNECTED";
             document.getElementById('statusBadge').className = "status-badge offline";
-            document.getElementById('btnConnect').innerHTML = "<span>🔗 CONNECT KEYCHAIN</span>";
-        }
-
-        async function readBattery() {
-            if (!charBattery) {
-                log("Connect Bluetooth first to read battery.");
-                return;
-            }
-            try {
-                const val = await charBattery.readValue();
-                const str = new TextDecoder().decode(val);
-                const parts = str.split('|');
-                if (parts.length >= 3) {
-                    const volts = parts[0];
-                    const pct = parts[1];
-                    const mv = parts[2];
-                    document.getElementById('batPercent').innerText = `${pct}%`;
-                    document.getElementById('batVoltage').innerText = `Battery: ${volts}V | Raw ADC: ${mv}mV`;
-                    log(`Battery Read: ${volts}V (${pct}%)`);
-                }
-            } catch (e) {
-                log(`Battery read error: ${e.message}`);
-            }
+            document.getElementById('btnConnect').innerHTML = "<span>?? CONNECT KEYCHAIN</span>";
+            stopVideoStream();
         }
 
         async function setMode(modeNum) {
@@ -427,11 +435,11 @@
             log(`Mode set: ${modeNum}`);
         }
 
-        async function setAvatar(avatarNum) {
+        async function setEmotion(emoNum) {
             if (!charPet) return;
-            const data = new TextEncoder().encode(avatarNum.toString());
+            const data = new TextEncoder().encode(emoNum.toString());
             await charPet.writeValue(data);
-            log(`Avatar set: ${avatarNum}`);
+            log(`Emotion switched to: ${emoNum}`);
         }
 
         async function sendCustomText() {
@@ -439,7 +447,7 @@
             const text = document.getElementById('txtMessage').value;
             const data = new TextEncoder().encode(text);
             await charText.writeValue(data);
-            log(`Message sent: ${text}`);
+            log(`Max-Font message sent: ${text}`);
         }
 
         async function syncTimeAndWeather() {
@@ -459,6 +467,106 @@
             if (!charSettings) return;
             const data = new TextEncoder().encode(val.toString());
             await charSettings.writeValue(data);
+        }
+
+        // =========================================================================
+        // CUSTOM IMAGE UPLOADER
+        // =========================================================================
+        async function uploadImage(e) {
+            const file = e.target.files[0];
+            if (!file || !charStream) {
+                log("Connect BLE first before uploading.");
+                return;
+            }
+            log(`Processing image: ${file.name}...`);
+            const canvas = document.getElementById('procCanvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            img.src = URL.createObjectURL(file);
+            img.onload = async () => {
+                ctx.drawImage(img, 0, 0, 240, 240);
+                canvas.toBlob(async (blob) => {
+                    const arrayBuffer = await blob.arrayBuffer();
+                    const bytes = new Uint8Array(arrayBuffer);
+                    await sendFramePacket(bytes);
+                    log(`Image uploaded (${bytes.length} bytes)!`);
+                }, 'image/jpeg', 0.85);
+            };
+        }
+
+        // =========================================================================
+        // LIVE VIDEO / GIF STREAMER
+        // =========================================================================
+        async function streamVideo(e) {
+            const file = e.target.files[0];
+            if (!file || !charStream) {
+                log("Connect BLE first before streaming video.");
+                return;
+            }
+            stopVideoStream();
+            log(`Streaming video: ${file.name}...`);
+            document.getElementById('btnStopVideo').style.display = 'flex';
+
+            const video = document.getElementById('procVideo');
+            const canvas = document.getElementById('procCanvas');
+            const ctx = canvas.getContext('2d');
+
+            video.src = URL.createObjectURL(file);
+            video.loop = true;
+            await video.play();
+
+            videoStreamInterval = setInterval(() => {
+                if (video.paused || video.ended) return;
+                ctx.drawImage(video, 0, 0, 240, 240);
+                canvas.toBlob(async (blob) => {
+                    if (!blob) return;
+                    const arrayBuffer = await blob.arrayBuffer();
+                    const bytes = new Uint8Array(arrayBuffer);
+                    await sendFramePacket(bytes);
+                }, 'image/jpeg', 0.65);
+            }, 80); // ~12 FPS
+        }
+
+        function stopVideoStream() {
+            if (videoStreamInterval) {
+                clearInterval(videoStreamInterval);
+                videoStreamInterval = null;
+            }
+            const video = document.getElementById('procVideo');
+            video.pause();
+            document.getElementById('btnStopVideo').style.display = 'none';
+            log("Video stream stopped.");
+        }
+
+        async function sendFramePacket(bytes) {
+            if (!charStream) return;
+            const totalLen = bytes.length;
+            const CHUNK_SIZE = 500;
+
+            // Send Header: 0xAA 0x55 [len_high] [len_low] + initial chunk
+            const firstChunkLen = Math.min(CHUNK_SIZE - 4, totalLen);
+            const header = new Uint8Array(4 + firstChunkLen);
+            header[0] = 0xAA;
+            header[1] = 0x55;
+            header[2] = (totalLen >> 8) & 0xFF;
+            header[3] = totalLen & 0xFF;
+            header.set(bytes.subarray(0, firstChunkLen), 4);
+
+            try {
+                await charStream.writeValueWithoutResponse(header);
+                let offset = firstChunkLen;
+                while (offset < totalLen) {
+                    const chunkEnd = Math.min(offset + CHUNK_SIZE, totalLen);
+                    const chunk = bytes.subarray(offset, chunkEnd);
+                    await charStream.writeValueWithoutResponse(chunk);
+                    offset = chunkEnd;
+                }
+            } catch (err) {
+                // Fallback to standard write
+                try {
+                    await charStream.writeValue(header);
+                } catch(e){}
+            }
         }
     </script>
 </body>
