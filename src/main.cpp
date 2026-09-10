@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <NimBLEDevice.h>
 #include "esp_sleep.h"
+#include "driver/gpio.h"
 #include "config.h"
 #include "display_setup.h"
 #include "meme_pet.h"
@@ -32,7 +33,6 @@ bool bleConnected = false;
 // Touch Gesture Tracker
 uint32_t touchStartTime = 0;
 uint32_t touchReleaseTime = 0;
-int tapCount = 0;
 bool isTouching = false;
 
 // Media & 30 FPS Video Buffers
@@ -247,30 +247,39 @@ class StreamCallback : public NimBLECharacteristicCallbacks {
 };
 
 // =========================================================================
-// TOUCH GESTURES (RESPONSIVE & IMMEDIATE)
+// TOUCH GESTURES (INSTANT 0MS RESPONSE ON TOUCH DOWN)
 // =========================================================================
 void processTouch() {
     bool rawTouch = digitalRead(PIN_TOUCH) == HIGH;
     uint32_t now = millis();
 
+    // 1. Instant Rising Edge (Finger Touches Sensor) -> Zero Latency Switch!
     if (rawTouch && !isTouching) {
         isTouching = true;
         touchStartTime = now;
         lastActivityTime = now;
-        Serial.println("[TOUCH] Touch Pressed!");
+
+        if (currentMode == MODE_CYBERPET) {
+            MemeEmotion nextEmo = (MemeEmotion)((memePet.currentEmotion + 1) % 7);
+            if (memePet.currentEmotion == EMOTION_LUFFY) nextEmo = EMOTION_SHY;
+            memePet.setEmotion(nextEmo);
+            Serial.printf("[TOUCH] Instant 0ms Tap -> Avatar: %d\n", (int)nextEmo);
+        } else if (currentMode == MODE_ROBOT_EYES) {
+            currentMode = MODE_CYBER_HUD;
+        } else if (currentMode == MODE_CYBER_HUD) {
+            currentMode = MODE_MATRIX_RAIN;
+        } else if (currentMode == MODE_MATRIX_RAIN) {
+            currentMode = MODE_TEXT_SCROLL;
+        } else {
+            currentMode = MODE_CYBERPET;
+        }
     } else if (!rawTouch && isTouching) {
         isTouching = false;
         touchReleaseTime = now;
-        uint32_t duration = touchReleaseTime - touchStartTime;
-        Serial.printf("[TOUCH] Released (duration=%ums)\n", (unsigned int)duration);
-
-        if (duration < 450) {
-            tapCount++;
-        }
     }
 
-    // Long Hold (> 0.55s) -> Trigger Shy Love Emoji 👉👈
-    if (isTouching && (now - touchStartTime > 550)) {
+    // 2. Long Hold (> 0.5s) -> Trigger Shy Love
+    if (isTouching && (now - touchStartTime > 500)) {
         if (currentMode == MODE_CYBERPET && memePet.currentEmotion != EMOTION_SHY) {
             memePet.setEmotion(EMOTION_SHY);
             Serial.println("[TOUCH] Hold -> Shy Love");
@@ -279,47 +288,33 @@ void processTouch() {
         }
         lastActivityTime = now;
     }
-
-    // Process Taps (180ms window)
-    if (!isTouching && tapCount > 0 && (now - touchReleaseTime > 180)) {
-        if (tapCount >= 3) {
-            if (currentMode == MODE_CYBERPET) memePet.setEmotion(EMOTION_ANGRY_CAT);
-            else robotEyes.setMood(MOOD_ANGRY);
-            Serial.println("[TOUCH] 3x -> Grumpy Cat");
-        } else if (tapCount == 2) {
-            if (currentMode == MODE_CYBERPET) memePet.setEmotion(EMOTION_SAD_BANANA);
-            Serial.println("[TOUCH] 2x -> Sad Banana");
-        } else if (tapCount == 1) {
-            if (currentMode == MODE_CYBERPET) {
-                memePet.setEmotion((MemeEmotion)((memePet.currentEmotion + 1) % 7));
-                Serial.printf("[TOUCH] 1x -> Switched to Avatar: %d\n", memePet.currentEmotion);
-            } else if (currentMode == MODE_ROBOT_EYES) {
-                currentMode = MODE_CYBER_HUD;
-            } else if (currentMode == MODE_CYBER_HUD) {
-                currentMode = MODE_MATRIX_RAIN;
-            } else if (currentMode == MODE_MATRIX_RAIN) {
-                currentMode = MODE_TEXT_SCROLL;
-            } else {
-                currentMode = MODE_CYBERPET;
-            }
-        }
-        tapCount = 0;
-        lastActivityTime = now;
-    }
 }
 
 // =========================================================================
-// DEEP SLEEP ROUTINE (30 SECONDS INACTIVITY)
+// DEEP SLEEP ROUTINE (100% PITCH BLACK BACKLIGHT SHUTOFF)
 // =========================================================================
 void enterDeepSleep() {
-    Serial.println("[POWER] 30s inactivity reached. Entering Deep Sleep. Wakeup on Touch GPIO 1 or RST...");
-    for (int b = screenBrightness; b >= 0; b -= 20) {
+    Serial.println("[POWER] 30s inactivity. Entering Deep Sleep (100% Backlight OFF)...");
+    
+    // 1. Fade out backlight
+    for (int b = screenBrightness; b >= 0; b -= 30) {
         tft.setBrightness(b);
-        delay(15);
+        delay(10);
     }
     tft.setBrightness(0);
-    tft.writeCommand(0x10); // ST7789 Sleep In command
+    
+    // 2. ST7789 Display OFF and Sleep IN
+    tft.writeCommand(0x28); // Display OFF
+    tft.writeCommand(0x10); // Sleep IN
+    delay(20);
 
+    // 3. Force Backlight Pin (GPIO 2) LOW & Lock with GPIO Hold in Deep Sleep
+    pinMode(PIN_TFT_BL, OUTPUT);
+    digitalWrite(PIN_TFT_BL, LOW);
+    gpio_hold_en((gpio_num_t)PIN_TFT_BL);
+    gpio_deep_sleep_hold_en();
+
+    // 4. Wakeup on Touch Pin (GPIO 1)
     gpio_wakeup_enable((gpio_num_t)PIN_TOUCH, GPIO_INTR_HIGH_LEVEL);
     esp_deep_sleep_enable_gpio_wakeup(1ULL << PIN_TOUCH, ESP_GPIO_WAKEUP_GPIO_HIGH);
 
@@ -333,15 +328,18 @@ void setup() {
     Serial.begin(115200);
     delay(300);
     Serial.println("\n\n========================================");
-    Serial.println("  ESP32-C3 MEME KEYCHAIN v3.5 BOOT");
+    Serial.println("  ESP32-C3 MEME KEYCHAIN v3.6 BOOT");
     Serial.println("========================================");
+
+    // Release any GPIO hold from previous deep sleep
+    gpio_hold_dis((gpio_num_t)PIN_TFT_BL);
 
     // 1. Hardware Pins
     pinMode(PIN_DEBUG_LED, OUTPUT);
     digitalWrite(PIN_DEBUG_LED, HIGH); // Permanently OFF
     pinMode(PIN_TOUCH, INPUT);
 
-    // 2. Initialize NimBLE Bluetooth FIRST (guarantees contiguous BT memory)
+    // 2. Initialize NimBLE Bluetooth FIRST
     Serial.println("[BLE] Initializing NimBLE stack...");
     NimBLEDevice::init("CYBER_KEYCHAIN");
     NimBLEServer* pServer = NimBLEDevice::createServer();
@@ -416,7 +414,7 @@ void setup() {
 // MAIN LOOP
 // =========================================================================
 void loop() {
-    // 1. Process Touch Gestures
+    // 1. Process Touch Gestures (Instant 0ms)
     processTouch();
 
     // 2. Render Active Mode to Double Buffer Sprite

@@ -29,6 +29,11 @@ public:
     void update() {
         uint32_t now = millis();
 
+        // Auto-return to default Luffy after 4 seconds of idle
+        if (currentEmotion != EMOTION_LUFFY && (now - emotionStartTime > 4000)) {
+            setEmotion(EMOTION_LUFFY);
+        }
+
         if (now - lastAnimTime > 50) {
             lastAnimTime = now;
             animTick = (animTick + 1) % 120;
