@@ -23,8 +23,8 @@ String customMessage = "I am Joy Boy Coffee";
 int scrollX = 240;
 
 // Power & Settings
-uint8_t screenBrightness = 220; // 0-255 PWM
-uint32_t sleepTimeoutMs = 30000; // 30 seconds auto-sleep on inactivity
+uint8_t screenBrightness = 240; // 0-255 PWM
+uint32_t sleepTimeoutMs = 60000; // 60s for safety while debugging
 uint32_t lastActivityTime = 0;
 bool bleConnected = false;
 
@@ -34,16 +34,16 @@ uint32_t touchReleaseTime = 0;
 int tapCount = 0;
 bool isTouching = false;
 
-// Media & 30 FPS Video Buffers
+// Media & 30 FPS Video Buffers (Dynamically sized in RAM)
 #define STREAM_BUFFER_SIZE 32768
 uint8_t streamBuffer[STREAM_BUFFER_SIZE];
 size_t streamBytesReceived = 0;
 size_t expectedStreamBytes = 0;
 bool newMediaFrameReady = false;
 
-// Multi-Frame Video Loop Buffer (Hardware 30 FPS DMA Playback)
-#define MAX_VIDEO_FRAMES 40
-#define VIDEO_POOL_SIZE 98304
+// Multi-Frame Video Loop Buffer (64 KB dynamic pool for 30 FPS playback)
+#define MAX_VIDEO_FRAMES 35
+#define VIDEO_POOL_SIZE 65536
 uint8_t videoPool[VIDEO_POOL_SIZE];
 size_t videoPoolWriteOffset = 0;
 uint32_t frameOffsets[MAX_VIDEO_FRAMES];
@@ -54,11 +54,9 @@ int videoTargetFps = 30;
 uint32_t lastVideoFrameTime = 0;
 bool isVideoPlaying = false;
 
-// Incoming frame assembly
 int incomingFrameIdx = -1;
 size_t incomingFrameExpected = 0;
 size_t incomingFrameReceived = 0;
-size_t incomingFrameStartOffset = 0;
 
 // =========================================================================
 // BLE CALLBACKS
@@ -84,9 +82,7 @@ class ModeCallback : public NimBLECharacteristicCallbacks {
             int m = val[0] - '0';
             if (m >= 0 && m <= 5) {
                 currentMode = (SystemMode)m;
-                if (currentMode != MODE_STREAM_MEDIA) {
-                    isVideoPlaying = false;
-                }
+                if (currentMode != MODE_STREAM_MEDIA) isVideoPlaying = false;
                 lastActivityTime = millis();
                 Serial.printf("[BLE] Mode switched to: %d\n", m);
             }
@@ -192,7 +188,7 @@ class StreamCallback : public NimBLECharacteristicCallbacks {
             currentVideoFrame = 0;
             isVideoPlaying = false;
             incomingFrameIdx = -1;
-            Serial.printf("[BLE-VIDEO] Initialized buffer for %d frames @ %d FPS\n", totalVideoFrames, videoTargetFps);
+            Serial.printf("[BLE-VIDEO] Init for %d frames @ %d FPS\n", totalVideoFrames, videoTargetFps);
             return;
         }
 
@@ -201,7 +197,6 @@ class StreamCallback : public NimBLECharacteristicCallbacks {
             incomingFrameIdx = bytes[2];
             incomingFrameExpected = (bytes[3] << 8) | bytes[4];
             incomingFrameReceived = 0;
-            incomingFrameStartOffset = videoPoolWriteOffset;
 
             if (incomingFrameIdx < MAX_VIDEO_FRAMES && (videoPoolWriteOffset + incomingFrameExpected) <= VIDEO_POOL_SIZE) {
                 frameOffsets[incomingFrameIdx] = videoPoolWriteOffset;
@@ -235,7 +230,6 @@ class StreamCallback : public NimBLECharacteristicCallbacks {
                 incomingFrameReceived += len;
                 if (incomingFrameReceived >= incomingFrameExpected) {
                     frameLengths[incomingFrameIdx] = incomingFrameExpected;
-                    Serial.printf("[BLE-VIDEO] Frame #%d ready (%d bytes)\n", incomingFrameIdx, incomingFrameExpected);
                     incomingFrameIdx = -1;
                 }
             }
@@ -266,12 +260,10 @@ void processTouch() {
     uint32_t now = millis();
 
     if (rawTouch && !isTouching) {
-        // Touch pressed
         isTouching = true;
         touchStartTime = now;
         lastActivityTime = now;
     } else if (!rawTouch && isTouching) {
-        // Touch released
         isTouching = false;
         touchReleaseTime = now;
         uint32_t duration = touchReleaseTime - touchStartTime;
@@ -294,19 +286,16 @@ void processTouch() {
     // Multi-tap timeout window (250ms)
     if (!isTouching && tapCount > 0 && (now - touchReleaseTime > 250)) {
         if (tapCount >= 3) {
-            // Triple Tap -> Grumpy Cat / Anger
             if (currentMode == MODE_CYBERPET) {
                 memePet.setEmotion(EMOTION_ANGRY_CAT);
             } else {
                 robotEyes.setMood(MOOD_ANGRY);
             }
         } else if (tapCount == 2) {
-            // Double Tap -> Banana Cat Sad / Bunny
             if (currentMode == MODE_CYBERPET) {
                 memePet.setEmotion(EMOTION_SAD_BANANA);
             }
         } else if (tapCount == 1) {
-            // Single Tap -> Cycle through Meme Avatars or Modes
             if (currentMode == MODE_CYBERPET) {
                 memePet.setEmotion((MemeEmotion)((memePet.currentEmotion + 1) % 7));
             } else if (currentMode == MODE_ROBOT_EYES) {
@@ -328,7 +317,7 @@ void processTouch() {
 // DEEP SLEEP ROUTINE (30 SECONDS INACTIVITY)
 // =========================================================================
 void enterDeepSleep() {
-    Serial.println("[POWER] 30s inactivity reached. Entering Deep Sleep. Wakeup on Touch GPIO 1 or RST...");
+    Serial.println("[POWER] Inactivity reached. Entering Deep Sleep. Wakeup on Touch GPIO 1 or RST...");
     for (int b = screenBrightness; b >= 0; b -= 20) {
         tft.setBrightness(b);
         delay(15);
@@ -347,30 +336,55 @@ void enterDeepSleep() {
 // =========================================================================
 void setup() {
     Serial.begin(115200);
-    delay(500);
+    delay(600);
     Serial.println("\n\n========================================");
-    Serial.println("  ESP32-C3 MEME KEYCHAIN v3.1 READY");
+    Serial.println("  ESP32-C3 MEME KEYCHAIN v3.2 BOOT");
     Serial.println("========================================");
+    Serial.printf("[HEAP] Free heap at startup: %u bytes\n", (unsigned int)ESP.getFreeHeap());
 
     // Hardware Pins
-    // Turn off Blue Debug LED permanently (active LOW on SuperMini -> HIGH is OFF)
     pinMode(PIN_DEBUG_LED, OUTPUT);
-    digitalWrite(PIN_DEBUG_LED, HIGH);
+    digitalWrite(PIN_DEBUG_LED, HIGH); // OFF
 
     pinMode(PIN_TOUCH, INPUT);
 
-    // Display init (Rotated 270 deg / Landscape Left)
+    // Hardware Reset of ST7789 Display
+    pinMode(PIN_TFT_RES, OUTPUT);
+    digitalWrite(PIN_TFT_RES, LOW);
+    delay(50);
+    digitalWrite(PIN_TFT_RES, HIGH);
+    delay(120);
+
+    // Display init
     tft.init();
+    tft.writeCommand(0x11); // Sleep OUT
+    delay(120);
+    tft.writeCommand(0x29); // Display ON
     tft.setRotation(3);
     tft.setBrightness(screenBrightness);
 
     // Double Buffer Sprite
+    Serial.printf("[HEAP] Free heap before canvas: %u bytes\n", (unsigned int)ESP.getFreeHeap());
     canvas.setColorDepth(16);
-    canvas.createSprite(240, 240);
+    void* ptr = canvas.createSprite(240, 240);
+    Serial.printf("[SPRITE] Canvas buffer = %p, free heap = %u bytes\n", ptr, (unsigned int)ESP.getFreeHeap());
+
+    // Initial Screen Splash to confirm display is ON
+    tft.fillScreen(TFT_BLACK);
+    canvas.fillScreen(TFT_BLACK);
+    canvas.drawRoundRect(2, 2, 236, 236, 6, 0x07FF);
+    canvas.setTextColor(0x07FF, TFT_BLACK);
+    canvas.setTextSize(2);
+    canvas.drawCenterString("CYBER KEYCHAIN", 120, 80);
+    canvas.setTextColor(0x07E0, TFT_BLACK);
+    canvas.setTextSize(2);
+    canvas.drawCenterString("READY!", 120, 130);
+    canvas.pushSprite(0, 0);
+    delay(800);
 
     // Initialize NimBLE Bluetooth Server
     NimBLEDevice::init("CYBER_KEYCHAIN");
-    NimBLEDevice::setPower(ESP_PWR_LVL_P9); // Max TX power
+    NimBLEDevice::setPower(ESP_PWR_LVL_P9);
     NimBLEServer* pServer = NimBLEDevice::createServer();
     pServer->setCallbacks(new ServerCallbacks());
 
@@ -431,12 +445,9 @@ void loop() {
 
         case MODE_TEXT_SCROLL:
             canvas.fillScreen(TFT_BLACK);
-            // Sleek single border line around edges
             canvas.drawRoundRect(2, 2, 236, 236, 6, 0x07FF);
-
-            // Screen-filling maxed out bold font centered vertically
-            canvas.setTextColor(0x07E0, TFT_BLACK); // Bright Neon Green
-            canvas.setTextSize(4); // Huge bold font
+            canvas.setTextColor(0x07E0, TFT_BLACK);
+            canvas.setTextSize(4);
             canvas.drawString(customMessage, scrollX, 105);
 
             scrollX -= 5;
@@ -447,7 +458,6 @@ void loop() {
 
         case MODE_STREAM_MEDIA:
             if (isVideoPlaying && totalVideoFrames > 0) {
-                // High performance 30 FPS DMA hardware playback
                 uint32_t frameInterval = 1000 / videoTargetFps;
                 if (millis() - lastVideoFrameTime >= frameInterval) {
                     lastVideoFrameTime = millis();
@@ -467,7 +477,7 @@ void loop() {
     // 3. Push Frame to Display (Hardware DMA Transfer)
     canvas.pushSprite(0, 0);
 
-    // 4. Deep Sleep if Unplugged, Idle, and No BLE Connection (30s)
+    // 4. Deep Sleep if Unplugged, Idle, and No BLE Connection
     if (!bleConnected && (millis() - lastActivityTime > sleepTimeoutMs)) {
         enterDeepSleep();
     }
