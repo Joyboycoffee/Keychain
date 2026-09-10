@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DIGI_KEYCHAIN // NEURAL LINK</title>
+    <title>DIGI KEYCHAIN // NEURAL LINK</title>
     <style>
         :root {
             --bg: #090c10;
@@ -12,6 +12,7 @@
             --pink: #ff007f;
             --green: #00ff66;
             --yellow: #ffe600;
+            --orange: #ff8800;
             --border: #30363d;
         }
 
@@ -67,8 +68,14 @@
             text-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
         }
 
+        .header-badges {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
         .status-badge {
-            padding: 4px 12px;
+            padding: 5px 12px;
             border-radius: 12px;
             font-size: 12px;
             font-weight: bold;
@@ -78,6 +85,19 @@
 
         .online { color: var(--green); border-color: var(--green); }
         .offline { color: #8b949e; }
+
+        .battery-badge {
+            padding: 5px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            background: #21262d;
+            border: 1px solid #388bfd;
+            color: #58a6ff;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
 
         .card {
             background: var(--card-bg);
@@ -166,6 +186,13 @@
             gap: 4px;
         }
 
+        .btn-emo.active {
+            background: #ff007f22;
+            border-color: var(--pink);
+            color: var(--pink);
+            box-shadow: 0 0 10px rgba(255, 0, 127, 0.3);
+        }
+
         .input-group {
             display: flex;
             gap: 8px;
@@ -195,6 +222,23 @@
             border: none;
         }
 
+        .emoji-bar {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+
+        .btn-mini-emoji {
+            width: auto;
+            padding: 6px 10px;
+            font-size: 16px;
+            background: #21262d;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+        }
+
         input[type="file"] {
             display: none;
         }
@@ -219,6 +263,32 @@
             font-size: 12px;
             color: #8b949e;
             margin-bottom: 6px;
+        }
+
+        .grid-rotations {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+
+        .btn-rot {
+            padding: 8px 4px;
+            font-size: 12px;
+        }
+
+        .btn-rot.active {
+            background: #ffe60022;
+            border-color: var(--yellow);
+            color: var(--yellow);
+        }
+
+        .btn-save-default {
+            background: linear-gradient(135deg, #ff880022, #ffe60022);
+            border-color: var(--orange);
+            color: var(--yellow);
+            margin-top: 8px;
+            padding: 10px;
         }
 
         .progress-bar-wrap {
@@ -259,8 +329,11 @@
 <body>
 
     <header>
-        <h1>⚡ DIGI_KEYCHAIN</h1>
-        <div id="statusBadge" class="status-badge offline">DISCONNECTED</div>
+        <h1>⚡ DIGI KEYCHAIN</h1>
+        <div class="header-badges">
+            <div id="batteryBadge" class="battery-badge">🔋 --V (--%)</div>
+            <div id="statusBadge" class="status-badge offline">DISCONNECTED</div>
+        </div>
     </header>
 
     <div class="dashboard-grid">
@@ -269,73 +342,126 @@
             <button id="btnConnect" class="btn-connect" onclick="connectBLE()">
                 <span>📡 CONNECT DIGI KEYCHAIN</span>
             </button>
-            <div id="logBox">Ready. Click Connect to pair with ESP32 Keychain over Web-BLE.</div>
+            <div id="logBox">Ready. Click Connect to pair with ESP32 Digi Keychain over Web-BLE.</div>
         </div>
 
         <!-- 7 Meme Emotion Selector Card -->
         <div class="card card-full">
-            <h2>🎭 Meme Emotion Avatars (7 Avatars)</h2>
+            <h2>🎭 Meme Emotion Avatars</h2>
             <div class="grid-emotions">
-                <button class="btn-emo" onclick="setEmotion(0)">
+                <button id="emoBtn0" class="btn-emo active" onclick="setEmotion(0)">
                     <span style="font-size:22px;">✨</span>
                     <span>Luffy Star</span>
                 </button>
-                <button class="btn-emo" onclick="setEmotion(1)">
+                <button id="emoBtn1" class="btn-emo" onclick="setEmotion(1)">
                     <span style="font-size:22px;">👉👈</span>
                     <span>Shy Cute</span>
                 </button>
-                <button class="btn-emo" onclick="setEmotion(2)">
+                <button id="emoBtn2" class="btn-emo" onclick="setEmotion(2)">
                     <span style="font-size:22px;">🎀</span>
                     <span>Giggle Cat</span>
                 </button>
-                <button class="btn-emo" onclick="setEmotion(3)">
+                <button id="emoBtn3" class="btn-emo" onclick="setEmotion(3)">
                     <span style="font-size:22px;">🍌</span>
                     <span>Banana Cat</span>
                 </button>
-                <button class="btn-emo" onclick="setEmotion(4)">
+                <button id="emoBtn4" class="btn-emo" onclick="setEmotion(4)">
                     <span style="font-size:22px;">😭</span>
                     <span>Umaru Whine</span>
                 </button>
-                <button class="btn-emo" onclick="setEmotion(5)">
+                <button id="emoBtn5" class="btn-emo" onclick="setEmotion(5)">
                     <span style="font-size:22px;">😾</span>
                     <span>Grumpy Cat</span>
                 </button>
-                <button class="btn-emo" onclick="setEmotion(6)">
+                <button id="emoBtn6" class="btn-emo" onclick="setEmotion(6)">
                     <span style="font-size:22px;">🐰</span>
                     <span>Bunny Hum!</span>
                 </button>
             </div>
+            <button class="btn-save-default" onclick="saveAsDefault()">
+                <span>⭐ SET CURRENT AS DEFAULT BOOT AVATAR</span>
+            </button>
         </div>
 
         <!-- Mode Selector Card -->
         <div class="card">
             <h2>📟 Display Mode</h2>
             <div class="grid-modes">
-                <button class="btn-mode active" onclick="setMode(0)">
+                <button id="modeBtn0" class="btn-mode active" onclick="setMode(0)">
                     <span style="font-size:20px;">😺</span>
                     <span>Meme Pet</span>
                 </button>
-                <button class="btn-mode" onclick="setMode(1)">
+                <button id="modeBtn1" class="btn-mode" onclick="setMode(1)">
                     <span style="font-size:20px;">👀</span>
                     <span>Robot Eyes</span>
                 </button>
-                <button class="btn-mode" onclick="setMode(2)">
+                <button id="modeBtn2" class="btn-mode" onclick="setMode(2)">
                     <span style="font-size:20px;">📊</span>
                     <span>Cyber HUD</span>
                 </button>
-                <button class="btn-mode" onclick="setMode(3)">
+                <button id="modeBtn3" class="btn-mode" onclick="setMode(3)">
                     <span style="font-size:20px;">🟢</span>
                     <span>Matrix Rain</span>
                 </button>
             </div>
         </div>
 
-        <!-- Custom Scrolling Text Sender -->
+        <!-- Custom Scrolling Text Sender with Emojis -->
         <div class="card">
-            <h2>📢 Max-Font Marquee Text</h2>
+            <h2>📢 Marquee Banner & Emojis</h2>
             <div class="input-group">
-                <input type="text" id="txtMessage" placeholder="Type banner message..." value="I AM JOY BOY COFFEE">
+                <input type="text" id="txtMessage" placeholder="Type message..." value="I AM JOY BOY COFFEE :coffee: :fire:">
                 <button class="btn-send" onclick="sendCustomText()">SEND</button>
+            </div>
+            <div class="emoji-bar">
+                <button class="btn-mini-emoji" onclick="insertEmoji(':coffee:')">☕</button>
+                <button class="btn-mini-emoji" onclick="insertEmoji(':heart:')">❤️</button>
+                <button class="btn-mini-emoji" onclick="insertEmoji(':fire:')">🔥</button>
+                <button class="btn-mini-emoji" onclick="insertEmoji(':star:')">⭐</button>
+                <button class="btn-mini-emoji" onclick="insertEmoji(':sparkles:')">✨</button>
+                <button class="btn-mini-emoji" onclick="insertEmoji(':cat:')">🐱</button>
+                <button class="btn-mini-emoji" onclick="insertEmoji(':cry:')">😭</button>
+                <button class="btn-mini-emoji" onclick="insertEmoji(':banana:')">🍌</button>
+                <button class="btn-mini-emoji" onclick="insertEmoji(':skull:')">💀</button>
+                <button class="btn-mini-emoji" onclick="insertEmoji(':rocket:')">🚀</button>
+            </div>
+        </div>
+
+        <!-- Screen Rotation 360 & Quadrants Card -->
+        <div class="card">
+            <h2>🔄 Screen Orientation & 360° Angle</h2>
+            <div class="grid-rotations">
+                <button id="rotBtn0" class="btn-rot" onclick="setRotation(0)">0° Top</button>
+                <button id="rotBtn1" class="btn-rot" onclick="setRotation(1)">90° Right</button>
+                <button id="rotBtn2" class="btn-rot" onclick="setRotation(2)">180° Down</button>
+                <button id="rotBtn3" class="btn-rot active" onclick="setRotation(3)">270° Left</button>
+            </div>
+            <div class="slider-wrap">
+                <div class="slider-label">
+                    <span>Angle</span>
+                    <span id="angleVal">270°</span>
+                </div>
+                <input type="range" min="0" max="360" value="270" id="angleSlider" oninput="updateAngleSlider(this.value)">
+            </div>
+        </div>
+
+        <!-- Sleep Timeout & Power Card -->
+        <div class="card">
+            <h2>⏱️ Auto-Sleep Inactivity Timer</h2>
+            <div class="slider-wrap">
+                <div class="slider-label">
+                    <span>Timer</span>
+                    <span id="sleepVal">30s</span>
+                </div>
+                <input type="range" min="0" max="5" value="1" id="sleepSlider" oninput="updateSleepSlider(this.value)">
+                <div class="slider-label" style="margin-top:4px; font-size:10px;">
+                    <span>Off</span>
+                    <span>15s</span>
+                    <span>30s</span>
+                    <span>1m</span>
+                    <span>2m</span>
+                    <span>5m</span>
+                </div>
             </div>
         </div>
 
@@ -360,25 +486,25 @@
             </label>
         </div>
 
-        <!-- Live Time Sync -->
-        <div class="card">
-            <h2>🕒 Phone Time Sync</h2>
-            <button onclick="syncTimeAndWeather()" style="background:#1f6feb; border-color:#388bfd;">
-                <span>🕒 SYNC TIME NOW</span>
-            </button>
-        </div>
-
-        <!-- Brightness & Power -->
+        <!-- Brightness Control -->
         <div class="card">
             <h2>☀️ Screen Brightness</h2>
             <div class="slider-wrap">
                 <div class="slider-label">
                     <span>Dim</span>
-                    <span id="brVal">85%</span>
+                    <span id="brVal">94%</span>
                     <span>Max</span>
                 </div>
-                <input type="range" min="30" max="255" value="220" id="brSlider" oninput="updateBrightness(this.value)">
+                <input type="range" min="30" max="255" value="240" id="brSlider" oninput="updateBrightness(this.value)">
             </div>
+        </div>
+
+        <!-- Live Phone Time Sync -->
+        <div class="card">
+            <h2>🕒 Phone Time Sync</h2>
+            <button onclick="syncTimeAndWeather()" style="background:#1f6feb; border-color:#388bfd;">
+                <span>🕒 SYNC TIME & WEATHER NOW</span>
+            </button>
         </div>
     </div>
 
@@ -393,11 +519,15 @@
         const CHAR_TEXT_UUID     = 0xFFE3;
         const CHAR_TIME_UUID     = 0xFFE4;
         const CHAR_SETTINGS_UUID = 0xFFE5;
+        const CHAR_BATTERY_UUID  = 0xFFE6;
         const CHAR_STREAM_UUID   = 0xFFE7;
 
         let bleDevice = null;
         let gattServer = null;
-        let charMode, charPet, charText, charTime, charSettings, charStream;
+        let charMode, charPet, charText, charTime, charSettings, charBattery, charStream;
+
+        const sleepValues = [0, 15, 30, 60, 120, 300];
+        const sleepLabels = ["Never (Always On)", "15 seconds", "30 seconds", "1 minute", "2 minutes", "5 minutes"];
 
         function log(msg) {
             const box = document.getElementById('logBox');
@@ -435,12 +565,39 @@
                 charText     = await service.getCharacteristic(CHAR_TEXT_UUID);
                 charTime     = await service.getCharacteristic(CHAR_TIME_UUID);
                 charSettings = await service.getCharacteristic(CHAR_SETTINGS_UUID);
+                charBattery  = await service.getCharacteristic(CHAR_BATTERY_UUID);
                 charStream   = await service.getCharacteristic(CHAR_STREAM_UUID);
+
+                // Enable Live Notifications for Mode, Emotion, and Battery
+                await charMode.startNotifications().catch(()=>{});
+                charMode.addEventListener('characteristicvaluechanged', (e) => {
+                    const m = parseInt(new TextDecoder().decode(e.target.value));
+                    highlightModeUI(m);
+                });
+
+                await charPet.startNotifications().catch(()=>{});
+                charPet.addEventListener('characteristicvaluechanged', (e) => {
+                    const a = parseInt(new TextDecoder().decode(e.target.value));
+                    highlightEmotionUI(a);
+                });
+
+                await charBattery.startNotifications().catch(()=>{});
+                charBattery.addEventListener('characteristicvaluechanged', (e) => {
+                    const str = new TextDecoder().decode(e.target.value);
+                    const parts = str.split('|');
+                    if (parts.length >= 2) {
+                        const v = parts[0];
+                        const pct = parts[1];
+                        const usb = parts[2] === '1';
+                        const badge = document.getElementById('batteryBadge');
+                        badge.innerText = usb ? `⚡ USB (${v}V)` : `🔋 ${v}V (${pct}%)`;
+                    }
+                });
 
                 document.getElementById('statusBadge').innerText = "ONLINE ⚡";
                 document.getElementById('statusBadge').className = "status-badge online";
                 document.getElementById('btnConnect').innerHTML = "<span>✅ CONNECTED</span>";
-                log("Connected! All characteristics ready.");
+                log("Connected! Bidirectional telemetry active.");
 
                 syncTimeAndWeather();
             } catch (err) {
@@ -460,16 +617,81 @@
 
         async function setMode(modeNum) {
             if (!charMode) return;
+            highlightModeUI(modeNum);
             const data = new TextEncoder().encode(modeNum.toString());
             await charMode.writeValue(data);
             log(`Mode set: ${modeNum}`);
         }
 
+        function highlightModeUI(m) {
+            for (let i = 0; i < 4; i++) {
+                const b = document.getElementById(`modeBtn${i}`);
+                if (b) b.className = (i === m) ? "btn-mode active" : "btn-mode";
+            }
+        }
+
         async function setEmotion(emoNum) {
             if (!charPet) return;
+            highlightEmotionUI(emoNum);
             const data = new TextEncoder().encode(emoNum.toString());
             await charPet.writeValue(data);
-            log(`Emotion switched to: ${emoNum}`);
+            log(`Emotion set: ${emoNum}`);
+        }
+
+        function highlightEmotionUI(a) {
+            for (let i = 0; i < 7; i++) {
+                const b = document.getElementById(`emoBtn${i}`);
+                if (b) b.className = (i === a) ? "btn-emo active" : "btn-emo";
+            }
+        }
+
+        async function setRotation(rot) {
+            if (!charSettings) return;
+            for (let i = 0; i < 4; i++) {
+                const b = document.getElementById(`rotBtn${i}`);
+                if (b) b.className = (i === rot) ? "btn-rot active" : "btn-rot";
+            }
+            const deg = rot * 90;
+            document.getElementById('angleSlider').value = deg;
+            document.getElementById('angleVal').innerText = deg + '°';
+            const data = new TextEncoder().encode(`ROT:${rot}`);
+            await charSettings.writeValue(data);
+            log(`Screen rotated to: ${deg}°`);
+        }
+
+        async function updateAngleSlider(deg) {
+            document.getElementById('angleVal').innerText = deg + '°';
+            const rot = Math.round(deg / 90) % 4;
+            for (let i = 0; i < 4; i++) {
+                const b = document.getElementById(`rotBtn${i}`);
+                if (b) b.className = (i === rot) ? "btn-rot active" : "btn-rot";
+            }
+            if (!charSettings) return;
+            const data = new TextEncoder().encode(`ROT:${rot}`);
+            await charSettings.writeValue(data);
+        }
+
+        async function updateSleepSlider(idx) {
+            const sec = sleepValues[idx];
+            document.getElementById('sleepVal').innerText = sleepLabels[idx];
+            if (!charSettings) return;
+            const data = new TextEncoder().encode(`SLEEP:${sec}`);
+            await charSettings.writeValue(data);
+            log(`Sleep timeout: ${sleepLabels[idx]}`);
+        }
+
+        async function saveAsDefault() {
+            if (!charSettings) return;
+            const data = new TextEncoder().encode("DEF:SET");
+            await charSettings.writeValue(data);
+            log("⭐ Saved current mode & avatar as default boot screen!");
+            alert("Saved! This mode & avatar will now be your default boot screen.");
+        }
+
+        function insertEmoji(em) {
+            const input = document.getElementById('txtMessage');
+            input.value += " " + em;
+            input.focus();
         }
 
         async function sendCustomText() {
@@ -477,7 +699,7 @@
             const text = document.getElementById('txtMessage').value;
             const data = new TextEncoder().encode(text);
             await charText.writeValue(data);
-            log(`Max-Font message sent: ${text}`);
+            log(`Marquee text sent: ${text}`);
         }
 
         async function syncTimeAndWeather() {
@@ -500,7 +722,7 @@
         }
 
         // =========================================================================
-        // CUSTOM SINGLE IMAGE UPLOADER
+        // CUSTOM SINGLE IMAGE UPLOADER (BASELINE ENCODING)
         // =========================================================================
         async function uploadImage(e) {
             const file = e.target.files[0];
@@ -520,7 +742,7 @@
                     const bytes = new Uint8Array(arrayBuffer);
                     await sendSingleImagePacket(bytes);
                     log(`Image uploaded (${bytes.length} bytes)!`);
-                }, 'image/jpeg', 0.82);
+                }, 'image/jpeg', 0.80);
             };
         }
 
@@ -537,20 +759,16 @@
             header[3] = totalLen & 0xFF;
             header.set(bytes.subarray(0, firstChunkLen), 4);
 
-            try {
-                await charStream.writeValueWithoutResponse(header);
-                let offset = firstChunkLen;
-                while (offset < totalLen) {
-                    const chunkEnd = Math.min(offset + CHUNK_SIZE, totalLen);
-                    const chunk = bytes.subarray(offset, chunkEnd);
-                    await charStream.writeValueWithoutResponse(chunk);
-                    offset = chunkEnd;
-                    await new Promise(r => setTimeout(r, 10));
-                }
-            } catch (err) {
-                try {
-                    await charStream.writeValue(header);
-                } catch(e){}
+            await charStream.writeValueWithoutResponse(header);
+            await new Promise(r => setTimeout(r, 20));
+
+            let offset = firstChunkLen;
+            while (offset < totalLen) {
+                const chunkEnd = Math.min(offset + CHUNK_SIZE, totalLen);
+                const chunk = bytes.subarray(offset, chunkEnd);
+                await charStream.writeValueWithoutResponse(chunk);
+                offset = chunkEnd;
+                await new Promise(r => setTimeout(r, 12));
             }
         }
 
@@ -563,7 +781,7 @@
                 log("Connect BLE first before uploading video.");
                 return;
             }
-            log(`Sampling frames from video: ${file.name}...`);
+            log(`Extracting frames from: ${file.name}...`);
             const progressWrap = document.getElementById('videoProgressWrap');
             const progressBar = document.getElementById('videoProgressBar');
             progressWrap.style.display = 'block';
@@ -575,12 +793,10 @@
 
             video.src = URL.createObjectURL(file);
             video.muted = true;
-            await new Promise((resolve) => {
-                video.onloadedmetadata = () => resolve();
-            });
+            await new Promise((resolve) => { video.onloadedmetadata = () => resolve(); });
 
-            const duration = Math.min(video.duration || 1.0, 1.2); // Up to 1.2 seconds loop
-            const targetFrames = Math.min(Math.floor(duration * 25), 30); // 20-30 frames
+            const duration = Math.min(video.duration || 1.0, 1.0);
+            const targetFrames = Math.min(Math.floor(duration * 25), 25);
             const frameBlobs = [];
 
             for (let i = 0; i < targetFrames; i++) {
@@ -588,15 +804,15 @@
                 await new Promise(r => { video.onseeked = () => r(); });
                 ctx.drawImage(video, 0, 0, 240, 240);
                 
-                const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.45));
+                const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.40));
                 const arrayBuffer = await blob.arrayBuffer();
                 frameBlobs.push(new Uint8Array(arrayBuffer));
-                progressBar.style.width = `${Math.round(((i + 1) / targetFrames) * 30)}%`;
+                progressBar.style.width = `${Math.round(((i + 1) / targetFrames) * 25)}%`;
             }
 
-            log(`Extracted ${frameBlobs.length} frames. Uploading to Keychain buffer...`);
+            log(`Extracted ${frameBlobs.length} frames. Uploading to buffer...`);
 
-            // 1. Send Video Init Header: 0xBB 0x66 [total_frames] [fps]
+            // 1. Send Video Init: 0xBB 0x66 [frames] [fps]
             const initHeader = new Uint8Array([0xBB, 0x66, frameBlobs.length, 30]);
             await charStream.writeValueWithoutResponse(initHeader);
             await new Promise(r => setTimeout(r, 40));
@@ -628,17 +844,17 @@
                     await new Promise(r => setTimeout(r, 12));
                 }
 
-                const pct = 30 + Math.round(((fIdx + 1) / frameBlobs.length) * 70);
+                const pct = 25 + Math.round(((fIdx + 1) / frameBlobs.length) * 75);
                 progressBar.style.width = `${pct}%`;
             }
 
-            // 3. Send Play Header: 0xDD 0x88
+            // 3. Send Play Command: 0xDD 0x88
             const playHeader = new Uint8Array([0xDD, 0x88]);
             await charStream.writeValueWithoutResponse(playHeader);
 
             progressBar.style.width = '100%';
             setTimeout(() => { progressWrap.style.display = 'none'; }, 1000);
-            log(`✅ Video uploaded! Playing locally on Keychain at 30 FPS!`);
+            log(`✅ Video uploaded! Playing locally at 30 FPS.`);
         }
     </script>
 </body>
