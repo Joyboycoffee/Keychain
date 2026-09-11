@@ -694,50 +694,53 @@ void processTouch() {
         return;
     }
 
-    // 2. CONTINUOUS HOLD (2.0s for Shy Love, 20.0s for BLE Toggle)
+    // 2. CONTINUOUS HOLD (2.0s for Shy Love, 10.0s for BLE Toggle)
     if (isDown && isrTapCount == 0) {
-        if (isrDownTime > 0) {
-            uint32_t holdDuration = now - isrDownTime;
-
-            // 10-Second Long Hold -> TOGGLE BLE ON/OFF!
-            if (holdDuration >= 10000 && !bleToggleFired) {
-                bleToggleFired = true;
-                holdTriggered = true;
-                isrTapCount = 0;
-                lastActivityTime = now;
-
-                if (!bleActive) {
-                    startBLE(true);
-                } else {
-                    stopBLE(true);
-                }
-                return;
-            }
-
-            // 2.0-Second Hold -> Shy Love ❤️
-            if (holdDuration >= 2000 && holdDuration < 9000 && !holdTriggered && !bleToggleFired) {
-                holdTriggered = true;
-                isrTapCount = 0;
-                lastActivityTime = now;
-
-                preHoldEmotion = memePet.currentEmotion;
-                isTemporaryLove = true;
-                loveStartTime = now;
-
-                memePet.setEmotion(EMOTION_SHY);
-                currentMode = MODE_CYBERPET;
-                isVideoPlaying = false;
-                triggerTouchVisual("SHY LOVE ❤️", 0xF81F, 5000, "TOUCH:HOLD");
-
-                if (bleConnected && pCharPet) {
-                    char emoChar[2] = { (char)('0' + (int)EMOTION_SHY), '\0' };
-                    pCharPet->setValue(std::string(emoChar));
-                    pCharPet->notify();
-                }
-                Serial.printf("[TOUCH] 2.0s Hold -> Shy Love! (Reverting to %d in 5s)\n", (int)preHoldEmotion);
-                return;
-            }
+        if (isrDownTime == 0) {
+            isrDownTime = now;
         }
+        uint32_t holdDuration = now - isrDownTime;
+
+        // 10-Second Long Hold -> TOGGLE BLE ON/OFF!
+        if (holdDuration >= 10000 && !bleToggleFired) {
+            bleToggleFired = true;
+            holdTriggered = true;
+            isrTapCount = 0;
+            lastActivityTime = now;
+
+            if (!bleActive) {
+                startBLE(true);
+            } else {
+                stopBLE(true);
+            }
+            return;
+        }
+
+        // 2.0-Second Hold -> Shy Love ❤️
+        if (holdDuration >= 2000 && holdDuration < 9000 && !holdTriggered && !bleToggleFired) {
+            holdTriggered = true;
+            isrTapCount = 0;
+            lastActivityTime = now;
+
+            preHoldEmotion = memePet.currentEmotion;
+            isTemporaryLove = true;
+            loveStartTime = now;
+
+            memePet.setEmotion(EMOTION_SHY);
+            currentMode = MODE_CYBERPET;
+            isVideoPlaying = false;
+            triggerTouchVisual("SHY LOVE ❤️", 0xF81F, 5000, "TOUCH:HOLD");
+
+            if (bleConnected && pCharPet) {
+                char emoChar[2] = { (char)('0' + (int)EMOTION_SHY), '\0' };
+                pCharPet->setValue(std::string(emoChar));
+                pCharPet->notify();
+            }
+            Serial.printf("[TOUCH] 2.0s Hold -> Shy Love! (Reverting to %d in 5s)\n", (int)preHoldEmotion);
+            return;
+        }
+    } else if (!isDown) {
+        isrDownTime = 0;
     }
 
     if (!isDown) {
@@ -937,6 +940,10 @@ void setup() {
 
     pinMode(PIN_TOUCH, INPUT);
     attachInterrupt(digitalPinToInterrupt(PIN_TOUCH), touchISR, CHANGE);
+    if (digitalRead(PIN_TOUCH) == HIGH) {
+        isrTouchDown = true;
+        isrDownTime = millis();
+    }
     analogSetPinAttenuation(PIN_BAT_ADC, ADC_11db);
     pinMode(PIN_BAT_ADC, INPUT);
 
