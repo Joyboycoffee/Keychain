@@ -598,8 +598,8 @@ void startBLE(bool notifyVisual) {
     if (pAdv) pAdv->start();
     bleStartTimeMs = millis();
     lastActivityTime = millis();
-    if (notifyVisual) triggerTouchVisual("BLE ONLINE ⚡", 0x07FF, 2000, "BLE:ONLINE");
-    Serial.println("[BLE] BLE Radio Activated! Advertising started. CPU @ 160MHz.");
+    if (notifyVisual) triggerTouchVisual("BLE ON (35s) ⚡", 0x07FF, 2000, "BLE:ONLINE");
+    Serial.println("[BLE] BLE Radio Activated! 35s pairing window started. CPU @ 160MHz.");
 }
 
 void stopBLE(bool notifyVisual) {
@@ -1000,12 +1000,12 @@ void setup() {
     pAdv->setScanResponse(true);
     pAdv->addServiceUUID(SERVICE_UUID);
 
-    // Initial Startup: Start BLE for initial pairing window (120s) with 2 LED blinks
+    // Initial Startup: Start BLE for initial pairing window (35s) with 2 LED blinks
     bleActive = true;
     pAdv->start();
     bleStartTimeMs = millis();
     blinkDebugLed(2, 120);
-    Serial.printf("[BLE] Initial Advertising started. Free Heap: %u bytes\n", (unsigned int)ESP.getFreeHeap());
+    Serial.printf("[BLE] Initial 35s Advertising started. Free Heap: %u bytes\n", (unsigned int)ESP.getFreeHeap());
 
     // 4. Cold Boot Splash vs Deep Sleep Wakeup
     esp_sleep_wakeup_cause_t wakeupReason = esp_sleep_get_wakeup_cause();
@@ -1025,8 +1025,8 @@ void setup() {
 void loop() {
     processTouch();
 
-    // Auto BLE power-down if no connection after 3 minutes (180s) to save battery
-    if (bleActive && !bleConnected && (millis() - bleStartTimeMs > 180000)) {
+    // Auto BLE power-down if no connection after 35 seconds to save maximum battery
+    if (bleActive && !bleConnected && (millis() - bleStartTimeMs > 35000)) {
         stopBLE(false);
     }
 
