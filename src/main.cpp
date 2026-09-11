@@ -137,7 +137,9 @@ class ServerCallbacks : public NimBLEServerCallbacks {
         bleConnected = false;
         lastActivityTime = millis();
         Serial.printf("\n[BLE] Client Disconnected. Free Heap: %u bytes\n", (unsigned int)ESP.getFreeHeap());
-        NimBLEDevice::startAdvertising();
+        if (bleActive) {
+            NimBLEDevice::startAdvertising();
+        }
     }
 };
 
@@ -679,8 +681,8 @@ void processTouch() {
         if (isrDownTime > 0) {
             uint32_t holdDuration = now - isrDownTime;
 
-            // 20-Second Long Hold -> TOGGLE BLE ON/OFF!
-            if (holdDuration >= 20000 && !bleToggleFired) {
+            // 10-Second Long Hold -> TOGGLE BLE ON/OFF!
+            if (holdDuration >= 10000 && !bleToggleFired) {
                 bleToggleFired = true;
                 holdTriggered = true;
                 isrTapCount = 0;
@@ -695,7 +697,7 @@ void processTouch() {
             }
 
             // 2.0-Second Hold -> Shy Love ❤️
-            if (holdDuration >= 2000 && holdDuration < 18000 && !holdTriggered && !bleToggleFired) {
+            if (holdDuration >= 2000 && holdDuration < 9000 && !holdTriggered && !bleToggleFired) {
                 holdTriggered = true;
                 isrTapCount = 0;
                 lastActivityTime = now;
@@ -761,9 +763,16 @@ void enterDeepSleep() {
 
     saveBatteryDischargeLog();
 
-    if (bleActive) {
+    if (bleActive || bleConnected) {
         stopBLE(false);
     }
+
+    // Wait until touch sensor is completely released before sleeping!
+    uint32_t waitRelease = millis();
+    while (digitalRead(PIN_TOUCH) == HIGH && (millis() - waitRelease < 2500)) {
+        delay(20);
+    }
+    delay(50); // Debounce settling delay
 
     tft.setBrightness(0);
     tft.sleep();
@@ -1000,12 +1009,13 @@ void setup() {
     pAdv->setScanResponse(true);
     pAdv->addServiceUUID(SERVICE_UUID);
 
-    // Initial Startup: Start BLE for initial pairing window (35s) with 2 LED blinks
-    bleActive = true;
-    pAdv->start();
-    bleStartTimeMs = millis();
-    blinkDebugLed(2, 120);
-    Serial.printf("[BLE] Initial 35s Advertising started. Free Heap: %u bytes\n", (unsigned int)ESP.getFreeHeap());
+    // Initial Startup: BLE starts in STANDBY (Radio OFF, CPU @ 80MHz to save max power)
+    // Bluetooth only turns ON when user holds touch button for 10 seconds!
+    bleActive = false;
+    bleConnected = false;
+    setCpuFrequencyMhz(80);
+    digitalWrite(PIN_DEBUG_LED, HIGH); // Ensure LED is OFF
+    Serial.printf("[BLE] Stack initialized in STANDBY (Radio OFF, CPU @ 80MHz). Hold touch for 10s to activate.\n");
 
     // 4. Cold Boot Splash vs Deep Sleep Wakeup
     esp_sleep_wakeup_cause_t wakeupReason = esp_sleep_get_wakeup_cause();

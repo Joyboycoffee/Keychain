@@ -483,7 +483,7 @@
                         🔵 TURN OFF BLE (SAVE POWER - 80MHz)
                     </button>
                     <div style="font-size:0.75rem; color:var(--text-muted); margin-top:-4px; margin-bottom:4px;">
-                        💡 Turns off Bluetooth radio and scales CPU to 80MHz. Hold touch sensor for 20s to turn back on!
+                        💡 Turns off Bluetooth radio and scales CPU to 80MHz. Hold touch sensor for 10s to turn back on!
                     </div>
 
                     <button class="btn-opt" style="background:#21262d; border-color:#8957e5; color:var(--magenta); font-weight:700; padding:10px;" onclick="enterDeepSleepNow()">
@@ -590,7 +590,13 @@
             </div>
         </section>
 
-        <div class="terminal" id="terminal">> Digi Keychain ready. Tap Pair.</div>
+        <div class="card" style="padding:10px;">
+            <div class="card-title" style="font-size:0.78rem;">
+                <span>📟 LIVE CONSOLE / TERMINAL</span>
+                <button class="btn-opt" style="padding:2px 8px; font-size:0.7rem;" onclick="clearTerminal()">Clear</button>
+            </div>
+            <div class="terminal" id="terminal">> Digi Keychain ready. Hold touch 10s to turn on Bluetooth, then tap Pair.</div>
+        </div>
     </main>
 
     <script>
@@ -632,9 +638,15 @@
 
         function log(msg) {
             const term = document.getElementById('terminal');
+            if (!term) return;
             const d = new Date().toLocaleTimeString();
             term.innerHTML += `<br>[${d}] ${msg}`;
             term.scrollTop = term.scrollHeight;
+        }
+
+        function clearTerminal() {
+            const term = document.getElementById('terminal');
+            if (term) term.innerHTML = `> Console cleared.`;
         }
 
         async function connectBLE() {
@@ -730,9 +742,20 @@
             document.getElementById('btnConnect').innerText = "PAIR";
             const tb = document.getElementById('touchBanner');
             const tt = document.getElementById('touchText');
-            tb.className = "";
-            tt.innerText = "[ IDLE ]";
-            tt.style.color = "var(--text-muted)";
+            if (tb) tb.className = "";
+            if (tt) {
+                tt.innerText = "[ IDLE ]";
+                tt.style.color = "var(--text-muted)";
+            }
+            charMode = null;
+            charPet = null;
+            charText = null;
+            charTime = null;
+            charSettings = null;
+            charBattery = null;
+            charStream = null;
+            gattServer = null;
+            bleDevice = null;
         }
 
         let touchResetTimer = null;
@@ -831,20 +854,36 @@
         }
 
         async function turnOffBLE() {
-            if (!charSettings) return;
-            if (!confirm("Turn off Bluetooth on the ESP32 to save power?\n\n(To turn it back on, hold the Touch Sensor for 20 seconds until the blue LED blinks twice)")) return;
-            const data = new TextEncoder().encode("BLE:OFF");
-            await charSettings.writeValue(data);
+            if (!charSettings) {
+                log("Not connected over BLE.");
+                return;
+            }
+            if (!confirm("Turn off Bluetooth on the ESP32 to save power?\n\n(To turn it back on, hold the Touch Sensor for 10 seconds until the blue LED blinks twice)")) return;
+            try {
+                const data = new TextEncoder().encode("BLE:OFF");
+                await charSettings.writeValue(data);
+            } catch(e) {}
             log("💤 Bluetooth turned OFF on ESP32. CPU scaled down to 80MHz.");
+            if (gattServer && gattServer.connected) {
+                try { gattServer.disconnect(); } catch(e) {}
+            }
             onDisconnected();
         }
 
         async function enterDeepSleepNow() {
-            if (!charSettings) return;
+            if (!charSettings) {
+                log("Not connected over BLE.");
+                return;
+            }
             if (!confirm("Put DIGI KEYCHAIN into Deep Sleep now?\n\n(Tap the Touch Sensor to wake it back up)")) return;
-            const data = new TextEncoder().encode("SYS:SLEEP");
-            await charSettings.writeValue(data);
+            try {
+                const data = new TextEncoder().encode("SYS:SLEEP");
+                await charSettings.writeValue(data);
+            } catch(e) {}
             log("🌙 Deep Sleep initiated. Tap touch sensor to wake up.");
+            if (gattServer && gattServer.connected) {
+                try { gattServer.disconnect(); } catch(e) {}
+            }
             onDisconnected();
         }
 
