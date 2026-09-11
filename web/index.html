@@ -440,12 +440,16 @@
                 
                 <div class="stats-box">
                     <div class="stats-row">
-                        <span style="color:var(--text-muted)">LAST DISCHARGE RUN:</span>
+                        <span style="color:var(--text-muted)">LAST RUN DURATION:</span>
                         <strong id="logLastRun" style="color:var(--cyan)">--</strong>
                     </div>
                     <div class="stats-row">
                         <span style="color:var(--text-muted)">LAST VOLTAGE DROP:</span>
                         <strong id="logLastVolt" style="color:var(--amber)">--</strong>
+                    </div>
+                    <div class="stats-row">
+                        <span style="color:var(--text-muted)">EST. DISCHARGE RATE:</span>
+                        <strong id="logDischargeRate" style="color:#ff7b72">--</strong>
                     </div>
                     <div class="stats-row">
                         <span style="color:var(--text-muted)">CURRENT SESSION UPTIME:</span>
@@ -456,7 +460,11 @@
                         <strong id="logCurVolt">--</strong>
                     </div>
                     <div class="stats-row">
-                        <span style="color:var(--text-muted)">RECORDED CYCLES:</span>
+                        <span style="color:var(--text-muted)">ALL-TIME LIFETIME UPTIME:</span>
+                        <strong id="logAllTime" style="color:var(--magenta)">--</strong>
+                    </div>
+                    <div class="stats-row">
+                        <span style="color:var(--text-muted)">TOTAL RECORDED CYCLES:</span>
                         <strong id="logCycles">--</strong>
                     </div>
                 </div>
@@ -464,6 +472,33 @@
                 <div style="display:flex; gap:8px;">
                     <button class="btn-opt" style="flex:1;" onclick="fetchBatteryLog()">📖 Read ESP Flash Log</button>
                     <button class="btn-opt" style="flex:1; background:#3b1219; color:#f85149; border-color:#da3633;" onclick="resetBatteryLog()">🗑️ Reset Log</button>
+                </div>
+            </div>
+
+            <!-- POWER & HARDWARE CONTROLS -->
+            <div class="card">
+                <div class="card-title"><span>⚡ POWER MANAGEMENT & MEMORY</span></div>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                    <button class="btn-opt" style="background:#161b22; border-color:#388bfd; color:var(--cyan); font-weight:700; padding:10px;" onclick="turnOffBLE()">
+                        🔵 TURN OFF BLE (SAVE POWER - 80MHz)
+                    </button>
+                    <div style="font-size:0.75rem; color:var(--text-muted); margin-top:-4px; margin-bottom:4px;">
+                        💡 Turns off Bluetooth radio and scales CPU to 80MHz. Hold touch sensor for 20s to turn back on!
+                    </div>
+
+                    <button class="btn-opt" style="background:#21262d; border-color:#8957e5; color:var(--magenta); font-weight:700; padding:10px;" onclick="enterDeepSleepNow()">
+                        🌙 DEEP SLEEP NOW (MICROAMP MODE)
+                    </button>
+                    <div style="font-size:0.75rem; color:var(--text-muted); margin-top:-4px; margin-bottom:4px;">
+                        💡 Shuts down screen & chips to microamp sleep. Single tap on sensor wakes it back up!
+                    </div>
+
+                    <button class="btn-primary" style="margin-top:6px; font-weight:700; padding:12px;" onclick="saveChangesToFlash()">
+                        💾 SAVE CHANGES TO FLASH MEMORY
+                    </button>
+                    <div style="font-size:0.75rem; color:var(--green); text-align:center;">
+                        Flashes Brightness, Sleep Timer, Mascot, and Settings as permanent defaults.
+                    </div>
                 </div>
             </div>
 
@@ -730,8 +765,14 @@
                 setTouchBanner("❤️ SHY LOVE (2s HOLD)", "var(--magenta)", 3000);
             } else if (msg === "TOUCH:REVERT") {
                 setTouchBanner("🔄 RETURNED TO MASCOT", "var(--green)", 1500);
+            } else if (msg === "BLE:OFFLINE") {
+                setTouchBanner("💤 BLE RADIO OFF (80MHz)", "var(--text-muted)", 3000);
+            } else if (msg === "BLE:ONLINE") {
+                setTouchBanner("⚡ BLE RADIO ONLINE", "var(--cyan)", 3000);
+            } else if (msg === "SAVED:OK") {
+                setTouchBanner("💾 SAVED AS DEFAULT", "var(--green)", 2000);
             }
-            // 2. Battery Log format: "BAT_LOG|last_sec|last_start_mv|last_end_mv|cur_sec|cur_mv|usb|cycles"
+            // 2. Battery Log format: "BAT_LOG|last_sec|last_start_mv|last_end_mv|cur_sec|cur_mv|usb|cycles|all_time_sec"
             else if (msg.startsWith("BAT_LOG|")) {
                 const parts = msg.split('|');
                 if (parts.length >= 8) {
@@ -742,12 +783,23 @@
                     const curVolt   = (parseInt(parts[5]) / 1000).toFixed(2);
                     const isUsb     = parts[6] === '1';
                     const cycles    = parts[7];
+                    const allSec    = parts.length >= 9 ? parseInt(parts[8]) : 0;
 
                     document.getElementById('logLastRun').innerText = lastSec > 0 ? formatDuration(lastSec) : "No Previous Run Saved";
                     document.getElementById('logLastVolt').innerText = lastSec > 0 ? `${lastStart}V ➔ ${lastEnd}V` : "--";
+                    
+                    let dropMv = (parseInt(parts[2]) - parseInt(parts[3]));
+                    let rateStr = (lastSec > 60 && dropMv > 0) ? `${Math.round((dropMv / lastSec) * 3600)} mV/hr` : "--";
+                    const rateElem = document.getElementById('logDischargeRate');
+                    if (rateElem) rateElem.innerText = rateStr;
+
                     document.getElementById('logCurRun').innerText = formatDuration(curSec);
                     document.getElementById('logCurVolt').innerText = isUsb ? `5.0V (USB Powered)` : `${curVolt}V`;
                     document.getElementById('logCycles').innerText = `Cycle #${cycles}`;
+                    
+                    const allElem = document.getElementById('logAllTime');
+                    if (allElem) allElem.innerText = allSec > 0 ? formatDuration(allSec) : formatDuration(curSec);
+
                     log(`🔋 Battery Log Read: Last Run was ${formatDuration(lastSec)} (${lastStart}V ➔ ${lastEnd}V)`);
                 }
             }
@@ -765,6 +817,35 @@
             const data = new TextEncoder().encode("BAT:RESET_LOG");
             await charSettings.writeValue(data);
             log("Battery discharge log cleared.");
+        }
+
+        async function saveChangesToFlash() {
+            if (!charSettings) {
+                alert("Please pair with DIGI_KEYCHAIN over Bluetooth first!");
+                return;
+            }
+            const data = new TextEncoder().encode("SAVE_CONFIG");
+            await charSettings.writeValue(data);
+            log("💾 Flashed current settings to ESP32 NVS memory as permanent default!");
+            alert("✅ Settings Flashed to Memory!\n\nBrightness, Sleep Timeout, Screen Rotation, Mascot, and Splash settings are now saved permanently in ESP32 memory.");
+        }
+
+        async function turnOffBLE() {
+            if (!charSettings) return;
+            if (!confirm("Turn off Bluetooth on the ESP32 to save power?\n\n(To turn it back on, hold the Touch Sensor for 20 seconds until the blue LED blinks twice)")) return;
+            const data = new TextEncoder().encode("BLE:OFF");
+            await charSettings.writeValue(data);
+            log("💤 Bluetooth turned OFF on ESP32. CPU scaled down to 80MHz.");
+            onDisconnected();
+        }
+
+        async function enterDeepSleepNow() {
+            if (!charSettings) return;
+            if (!confirm("Put DIGI KEYCHAIN into Deep Sleep now?\n\n(Tap the Touch Sensor to wake it back up)")) return;
+            const data = new TextEncoder().encode("SYS:SLEEP");
+            await charSettings.writeValue(data);
+            log("🌙 Deep Sleep initiated. Tap touch sensor to wake up.");
+            onDisconnected();
         }
 
         async function setMode(modeNum) {

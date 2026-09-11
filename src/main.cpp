@@ -35,8 +35,6 @@ uint8_t        screenBrightness = 240;
 uint8_t        screenRotation   = 3;
 uint32_t       sleepTimeoutMs   = 0; // Default to NEVER sleep for battery discharge runs!
 
-bool bleConnected = false;
-
 // Scrolling Marquee Message State
 String customMessage = "I AM JOY BOY COFFEE :coffee: :fire:";
 int scrollX = 240;
@@ -52,6 +50,13 @@ uint16_t lastSavedStartMv    = 4200;
 uint16_t lastSavedEndMv      = 4200;
 bool     lastSavedWasUsb     = false;
 uint32_t totalRunCycles      = 1;
+uint32_t allTimeRunSec       = 0;
+
+// Power & BLE State Management
+bool     bleActive           = false;
+bool     bleConnected        = false;
+uint32_t bleStartTimeMs      = 0;
+bool     bleToggleFired      = false;
 
 // Touch Interrupt & State Engine (Zero-Latency Hardware ISR)
 volatile bool     isrTouchDown       = false;
@@ -114,6 +119,10 @@ void updateBatteryTelemetry();
 void saveBatteryDischargeLog();
 void playBootSplash();
 void triggerTouchVisual(const String& label, uint16_t color, uint32_t durationMs, const char* bleState);
+void blinkDebugLed(int count, int delayMs = 150);
+void startBLE(bool notifyVisual = true);
+void stopBLE(bool notifyVisual = true);
+void enterDeepSleep();
 
 // =========================================================================
 // BLE CALLBACKS
@@ -259,12 +268,12 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
         // 7. Get Battery Discharge Log: "BAT:GET_LOG"
         else if (cmd == "BAT:GET_LOG") {
             uint32_t curRunSec = (millis() - sessionStartTimeMs) / 1000;
-            char logMsg[96];
-            // Format: "BAT_LOG|last_sec|last_start_mv|last_end_mv|cur_sec|cur_mv|usb|cycles"
-            snprintf(logMsg, sizeof(logMsg), "BAT_LOG|%u|%u|%u|%u|%u|%d|%u",
+            char logMsg[128];
+            // Format: "BAT_LOG|last_sec|last_start_mv|last_end_mv|cur_sec|cur_mv|usb|cycles|all_time_sec"
+            snprintf(logMsg, sizeof(logMsg), "BAT_LOG|%u|%u|%u|%u|%u|%d|%u|%u",
                      lastSavedRunSec, lastSavedStartMv, lastSavedEndMv,
                      curRunSec, (uint16_t)(currentBatVoltage * 1000),
-                     isUsbPower ? 1 : 0, totalRunCycles);
+                     isUsbPower ? 1 : 0, totalRunCycles, allTimeRunSec + curRunSec);
             if (pCharSet) {
                 pCharSet->setValue(std::string(logMsg));
                 pCharSet->notify();
@@ -277,17 +286,53 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
             lastSavedStartMv = (uint16_t)(currentBatVoltage * 1000);
             lastSavedEndMv = lastSavedStartMv;
             totalRunCycles = 1;
+            allTimeRunSec = 0;
             prefs.putUInt("l_run", 0);
             prefs.putUShort("l_start", lastSavedStartMv);
             prefs.putUShort("l_end", lastSavedEndMv);
             prefs.putUInt("t_cycles", 1);
+            prefs.putUInt("all_sec", 0);
             if (pCharSet) {
-                pCharSet->setValue(std::string("BAT_LOG|0|0|0|0|0|0|1"));
+                pCharSet->setValue(std::string("BAT_LOG|0|0|0|0|0|0|1|0"));
                 pCharSet->notify();
             }
             Serial.println("[BATTERY] Battery log reset.");
         }
-        // 9. Brightness Value: "10".."255"
+        // 9. Save All Changes to Flash Memory: "SAVE_CONFIG" or "SAVE_CHANGES"
+        else if (cmd == "SAVE_CONFIG" || cmd == "SAVE_CHANGES") {
+            defaultMode = currentMode;
+            memePet.defaultEmotion = memePet.currentEmotion;
+            prefs.putUChar("def_mode", (uint8_t)defaultMode);
+            prefs.putUChar("def_emo", (uint8_t)memePet.defaultEmotion);
+            prefs.putUChar("br", screenBrightness);
+            prefs.putUChar("rot", screenRotation);
+            prefs.putUInt("sleep", sleepTimeoutMs);
+            prefs.putUChar("boot_type", (uint8_t)bootSplashType);
+            prefs.putUChar("boot_dur", bootDurationSec);
+            prefs.putString("msg", customMessage);
+            if (pCharSet) {
+                pCharSet->setValue(std::string("SAVED:OK"));
+                pCharSet->notify();
+            }
+            triggerTouchVisual("SAVED DEFAULTS 💾", 0x07E0, 1500, "SAVED:OK");
+            Serial.println("[SETTINGS] Settings flashed to NVS memory as permanent default!");
+        }
+        // 10. Turn Off BLE Radio (Save Power): "BLE:OFF"
+        else if (cmd == "BLE:OFF") {
+            Serial.println("[SETTINGS] Web requested BLE power down.");
+            if (pCharSet) {
+                pCharSet->setValue(std::string("BLE:OFFLINE"));
+                pCharSet->notify();
+            }
+            delay(150);
+            stopBLE(true);
+        }
+        // 11. Enter Deep Sleep Immediately: "SYS:SLEEP"
+        else if (cmd == "SYS:SLEEP") {
+            Serial.println("[SETTINGS] Web requested immediate deep sleep.");
+            enterDeepSleep();
+        }
+        // 12. Brightness Value: "10".."255"
         else {
             int br = cmd.toInt();
             if (br >= 10 && br <= 255) {
@@ -531,6 +576,48 @@ void triggerTouchVisual(const String& label, uint16_t color, uint32_t durationMs
 }
 
 // =========================================================================
+// POWER & BLE MANAGEMENT HELPERS
+// =========================================================================
+void blinkDebugLed(int count, int delayMs) {
+    pinMode(PIN_DEBUG_LED, OUTPUT);
+    for (int i = 0; i < count; i++) {
+        digitalWrite(PIN_DEBUG_LED, LOW);  // Turn ON (Active LOW on SuperMini)
+        delay(delayMs);
+        digitalWrite(PIN_DEBUG_LED, HIGH); // Turn OFF
+        delay(delayMs);
+    }
+    digitalWrite(PIN_DEBUG_LED, HIGH);     // Keep OFF
+}
+
+void startBLE(bool notifyVisual) {
+    if (bleActive) return;
+    bleActive = true;
+    setCpuFrequencyMhz(160);
+    blinkDebugLed(2, 180); // Blink twice and stay OFF
+    NimBLEAdvertising* pAdv = NimBLEDevice::getAdvertising();
+    if (pAdv) pAdv->start();
+    bleStartTimeMs = millis();
+    lastActivityTime = millis();
+    if (notifyVisual) triggerTouchVisual("BLE ONLINE ⚡", 0x07FF, 2000, "BLE:ONLINE");
+    Serial.println("[BLE] BLE Radio Activated! Advertising started. CPU @ 160MHz.");
+}
+
+void stopBLE(bool notifyVisual) {
+    if (!bleActive && !bleConnected) return;
+    bleActive = false;
+    NimBLEAdvertising* pAdv = NimBLEDevice::getAdvertising();
+    if (pAdv) pAdv->stop();
+    if (bleConnected) {
+        NimBLEDevice::getServer()->disconnect(0);
+        bleConnected = false;
+    }
+    blinkDebugLed(1, 150); // Blink once
+    setCpuFrequencyMhz(80); // Scale CPU clock down to 80 MHz to save power
+    if (notifyVisual) triggerTouchVisual("BLE OFF 💤", 0x8410, 1500, "BLE:OFFLINE");
+    Serial.println("[BLE] BLE Radio Deactivated! Standby mode. CPU @ 80MHz.");
+}
+
+// =========================================================================
 // ZERO-LATENCY HARDWARE TOUCH ISR & GESTURE ENGINE
 // =========================================================================
 void IRAM_ATTR touchISR() {
@@ -566,6 +653,7 @@ void processTouch() {
         isrTapCount = 0;
         lastActivityTime = now;
         holdTriggered = false;
+        bleToggleFired = false;
         isTemporaryLove = false;
 
         int next = ((int)memePet.currentEmotion + 1) % 7;
@@ -586,36 +674,58 @@ void processTouch() {
         return;
     }
 
-    // 2. CONTINUOUS 2.0s HOLD (Shy Love ❤️)
-    if (isDown && !holdTriggered && isrTapCount == 0) {
-        if (isrDownTime > 0 && (now - isrDownTime >= 2000)) {
-            holdTriggered = true;
-            isrTapCount = 0;
-            lastActivityTime = now;
+    // 2. CONTINUOUS HOLD (2.0s for Shy Love, 20.0s for BLE Toggle)
+    if (isDown && isrTapCount == 0) {
+        if (isrDownTime > 0) {
+            uint32_t holdDuration = now - isrDownTime;
 
-            // Save original photo that was there before love triggered
-            preHoldEmotion = memePet.currentEmotion;
-            isTemporaryLove = true;
-            loveStartTime = now;
+            // 20-Second Long Hold -> TOGGLE BLE ON/OFF!
+            if (holdDuration >= 20000 && !bleToggleFired) {
+                bleToggleFired = true;
+                holdTriggered = true;
+                isrTapCount = 0;
+                lastActivityTime = now;
 
-            memePet.setEmotion(EMOTION_SHY);
-            currentMode = MODE_CYBERPET;
-            isVideoPlaying = false;
-            triggerTouchVisual("SHY LOVE ❤️", 0xF81F, 5000, "TOUCH:HOLD");
-
-            if (bleConnected && pCharPet) {
-                char emoChar[2] = { (char)('0' + (int)EMOTION_SHY), '\0' };
-                pCharPet->setValue(std::string(emoChar));
-                pCharPet->notify();
+                if (!bleActive) {
+                    startBLE(true);
+                } else {
+                    stopBLE(true);
+                }
+                return;
             }
-            Serial.printf("[TOUCH] 2.0s Hold -> Shy Love! (Reverting to %d in 5s)\n", (int)preHoldEmotion);
-            return;
+
+            // 2.0-Second Hold -> Shy Love ❤️
+            if (holdDuration >= 2000 && holdDuration < 18000 && !holdTriggered && !bleToggleFired) {
+                holdTriggered = true;
+                isrTapCount = 0;
+                lastActivityTime = now;
+
+                preHoldEmotion = memePet.currentEmotion;
+                isTemporaryLove = true;
+                loveStartTime = now;
+
+                memePet.setEmotion(EMOTION_SHY);
+                currentMode = MODE_CYBERPET;
+                isVideoPlaying = false;
+                triggerTouchVisual("SHY LOVE ❤️", 0xF81F, 5000, "TOUCH:HOLD");
+
+                if (bleConnected && pCharPet) {
+                    char emoChar[2] = { (char)('0' + (int)EMOTION_SHY), '\0' };
+                    pCharPet->setValue(std::string(emoChar));
+                    pCharPet->notify();
+                }
+                Serial.printf("[TOUCH] 2.0s Hold -> Shy Love! (Reverting to %d in 5s)\n", (int)preHoldEmotion);
+                return;
+            }
         }
     }
 
-    if (!isDown && holdTriggered) {
-        holdTriggered = false;
-        isrTapCount = 0;
+    if (!isDown) {
+        if (holdTriggered || bleToggleFired) {
+            holdTriggered = false;
+            bleToggleFired = false;
+            isrTapCount = 0;
+        }
     }
 
     // 3. SINGLE TAP TIMEOUT (Poke Triggered)
@@ -623,7 +733,7 @@ void processTouch() {
     if (isrTapCount == 1 && !isDown && (now - isrLastTapEndTime > 450)) {
         isrTapCount = 0;
         lastActivityTime = now;
-        if (!holdTriggered) {
+        if (!holdTriggered && !bleToggleFired) {
             memePet.triggerTap();
             triggerTouchVisual("POKE 👆", 0x07FF, 700, "TOUCH:POKE");
             Serial.println("[TOUCH] Single Tap Confirmed -> POKE 👆");
@@ -650,6 +760,10 @@ void enterDeepSleep() {
     Serial.println("[POWER] Entering Deep Sleep...");
 
     saveBatteryDischargeLog();
+
+    if (bleActive) {
+        stopBLE(false);
+    }
 
     tft.setBrightness(0);
     tft.sleep();
@@ -885,8 +999,13 @@ void setup() {
     NimBLEAdvertising* pAdv = NimBLEDevice::getAdvertising();
     pAdv->setScanResponse(true);
     pAdv->addServiceUUID(SERVICE_UUID);
+
+    // Initial Startup: Start BLE for initial pairing window (120s) with 2 LED blinks
+    bleActive = true;
     pAdv->start();
-    Serial.printf("[BLE] Advertising started. Free Heap: %u bytes\n", (unsigned int)ESP.getFreeHeap());
+    bleStartTimeMs = millis();
+    blinkDebugLed(2, 120);
+    Serial.printf("[BLE] Initial Advertising started. Free Heap: %u bytes\n", (unsigned int)ESP.getFreeHeap());
 
     // 4. Cold Boot Splash vs Deep Sleep Wakeup
     esp_sleep_wakeup_cause_t wakeupReason = esp_sleep_get_wakeup_cause();
@@ -905,6 +1024,11 @@ void setup() {
 // =========================================================================
 void loop() {
     processTouch();
+
+    // Auto BLE power-down if no connection after 3 minutes (180s) to save battery
+    if (bleActive && !bleConnected && (millis() - bleStartTimeMs > 180000)) {
+        stopBLE(false);
+    }
 
     // Auto Sleep Check (Only when NOT connected over BLE)
     if (!bleConnected && sleepTimeoutMs > 0 && (millis() - lastActivityTime) > sleepTimeoutMs) {
