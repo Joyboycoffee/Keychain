@@ -613,7 +613,7 @@ void startBLE(bool notifyVisual) {
     if (bleActive) return;
     bleActive = true;
     setCpuFrequencyMhz(160);
-    blinkDebugLed(2, 180); // Blink twice and stay OFF
+    blinkDebugLed(1, 60); // Crisp single 60ms pulse (virtually 0 power), then stay OFF
     NimBLEAdvertising* pAdv = NimBLEDevice::getAdvertising();
     if (pAdv) pAdv->start();
     bleStartTimeMs = millis();
@@ -631,7 +631,7 @@ void stopBLE(bool notifyVisual) {
         NimBLEDevice::getServer()->disconnect(0);
         bleConnected = false;
     }
-    blinkDebugLed(1, 150); // Blink once
+    blinkDebugLed(1, 40); // Quick 40ms pulse
     setCpuFrequencyMhz(80); // Scale CPU clock down to 80 MHz to save power
     if (notifyVisual) triggerTouchVisual("BLE OFF 💤", 0x8410, 1500, "BLE:OFFLINE");
     Serial.println("[BLE] BLE Radio Deactivated! Standby mode. CPU @ 80MHz.");

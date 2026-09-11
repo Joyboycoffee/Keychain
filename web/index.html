@@ -858,7 +858,7 @@
                 log("Not connected over BLE.");
                 return;
             }
-            if (!confirm("Turn off Bluetooth on the ESP32 to save power?\n\n(To turn it back on, hold the Touch Sensor for 10 seconds until the blue LED blinks twice)")) return;
+            if (!confirm("Turn off Bluetooth on the ESP32 to save power?\n\n(To turn it back on, hold the Touch Sensor for 10 seconds until the blue LED flashes)")) return;
             try {
                 const data = new TextEncoder().encode("BLE:OFF");
                 await charSettings.writeValue(data);
