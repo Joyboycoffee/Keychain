@@ -138,6 +138,7 @@ class ServerCallbacks : public NimBLEServerCallbacks {
         lastActivityTime = millis();
         Serial.printf("\n[BLE] Client Disconnected. Free Heap: %u bytes\n", (unsigned int)ESP.getFreeHeap());
         if (bleActive) {
+            bleStartTimeMs = millis(); // Refresh pairing window so user can refresh web page and reconnect!
             NimBLEDevice::startAdvertising();
         }
     }
@@ -537,8 +538,16 @@ void saveBatteryDischargeLog() {
 }
 
 void updateBatteryTelemetry() {
-    uint32_t rawMv = analogReadMilliVolts(PIN_BAT_ADC);
-    float vbat = (rawMv * 2.0f) / 1000.0f;
+    // 16-sample oversampled average to eliminate noise and spikes
+    uint32_t rawSum = 0;
+    for (int i = 0; i < 16; i++) {
+        rawSum += analogReadMilliVolts(PIN_BAT_ADC);
+        delayMicroseconds(50);
+    }
+    float rawMv = (float)rawSum / 16.0f;
+    
+    // Calibrated divider multiplier: 2.16f accounts for 100k+100k resistor loading & ADC attenuation
+    float vbat = (rawMv * 2.16f) / 1000.0f;
     
     if (vbat < 2.5f) {
         currentBatVoltage = 5.0f;
@@ -547,9 +556,18 @@ void updateBatteryTelemetry() {
     } else {
         currentBatVoltage = vbat;
         isUsbPower = false;
+        
+        // Realistic multi-point LiPo discharge curve
         if (vbat >= 4.15f) currentBatPercent = 100;
-        else if (vbat <= 3.20f) currentBatPercent = 0;
-        else currentBatPercent = (int)((vbat - 3.20f) / (4.15f - 3.20f) * 100.0f);
+        else if (vbat >= 4.00f) currentBatPercent = 85 + (int)((vbat - 4.00f) / 0.15f * 15.0f);
+        else if (vbat >= 3.85f) currentBatPercent = 65 + (int)((vbat - 3.85f) / 0.15f * 20.0f);
+        else if (vbat >= 3.75f) currentBatPercent = 45 + (int)((vbat - 3.75f) / 0.10f * 20.0f);
+        else if (vbat >= 3.60f) currentBatPercent = 20 + (int)((vbat - 3.60f) / 0.15f * 25.0f);
+        else if (vbat >= 3.40f) currentBatPercent = 5 + (int)((vbat - 3.40f) / 0.20f * 15.0f);
+        else currentBatPercent = (int)((vbat - 3.00f) / 0.40f * 5.0f);
+        
+        if (currentBatPercent > 100) currentBatPercent = 100;
+        if (currentBatPercent < 0) currentBatPercent = 0;
     }
 
     cyberHUD.setBattery(currentBatVoltage, currentBatPercent, isUsbPower);
@@ -1040,8 +1058,13 @@ void loop() {
         stopBLE(false);
     }
 
-    // Auto Sleep Check (Only when NOT connected over BLE)
-    if (!bleConnected && sleepTimeoutMs > 0 && (millis() - lastActivityTime) > sleepTimeoutMs) {
+    // Keep resetting activity timer while connected so sleep timer only starts AFTER disconnect
+    if (bleConnected) {
+        lastActivityTime = millis();
+    }
+
+    // Auto Sleep Check (Only when BLE radio is completely OFF, disconnected, and user has been idle)
+    if (!bleActive && !bleConnected && sleepTimeoutMs > 0 && (millis() - lastActivityTime > sleepTimeoutMs)) {
         enterDeepSleep();
     }
 
