@@ -10,7 +10,7 @@
 #define PIN_TFT_RES    5    // Display Reset (RES / RST) - GPIO 5
 #define PIN_TFT_DC     3    // Data / Command (DC) - GPIO 3
 #define PIN_TFT_CS     -1   // No CS pin on 7-pin display
-#define PIN_TFT_BL     2    // Backlight Control (BLK) - GPIO 2
+#define PIN_TFT_BL     4    // Backlight Control (BLK) - GPIO 4
 
 // TTP223 Touch Sensor (RTC GPIO 1)
 #define PIN_TOUCH      1    // Touch signal pin
