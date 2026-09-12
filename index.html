@@ -480,17 +480,17 @@
                 <div class="card-title"><span>⚡ POWER MANAGEMENT & MEMORY</span></div>
                 <div style="display:flex; flex-direction:column; gap:8px;">
                     <button class="btn-opt" style="background:#161b22; border-color:#388bfd; color:var(--cyan); font-weight:700; padding:10px;" onclick="turnOffBLE()">
-                        🔵 TURN OFF BLE (SAVE POWER - 80MHz)
+                        🔵 TURN OFF BLE & SLEEP (MICROAMP MODE)
                     </button>
                     <div style="font-size:0.75rem; color:var(--text-muted); margin-top:-4px; margin-bottom:4px;">
-                        💡 Turns off Bluetooth radio and scales CPU to 80MHz. Hold touch sensor for 10s to turn back on!
+                        💡 Powers down Bluetooth & enters deep sleep with a single 200ms LED flash. Hold touch for 10s to wake and turn BLE on!
                     </div>
 
                     <button class="btn-opt" style="background:#21262d; border-color:#8957e5; color:var(--magenta); font-weight:700; padding:10px;" onclick="enterDeepSleepNow()">
                         🌙 DEEP SLEEP NOW (MICROAMP MODE)
                     </button>
                     <div style="font-size:0.75rem; color:var(--text-muted); margin-top:-4px; margin-bottom:4px;">
-                        💡 Shuts down screen & chips to microamp sleep. Single tap on sensor wakes it back up!
+                        💡 Shuts down screen & chips to microamp sleep (200ms flash). Single tap on sensor wakes it back up!
                     </div>
 
                     <button class="btn-primary" style="margin-top:6px; font-weight:700; padding:12px;" onclick="saveChangesToFlash()">

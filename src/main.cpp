@@ -320,15 +320,15 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
             triggerTouchVisual("SAVED DEFAULTS 💾", 0x07E0, 1500, "SAVED:OK");
             Serial.println("[SETTINGS] Settings flashed to NVS memory as permanent default!");
         }
-        // 10. Turn Off BLE Radio (Save Power): "BLE:OFF"
+        // 10. Turn Off BLE Radio / Save Power / Sleep: "BLE:OFF"
         else if (cmd == "BLE:OFF") {
-            Serial.println("[SETTINGS] Web requested BLE power down.");
+            Serial.println("[SETTINGS] Web requested BLE power down & deep sleep.");
             if (pCharSet) {
                 pCharSet->setValue(std::string("BLE:OFFLINE"));
                 pCharSet->notify();
             }
             delay(150);
-            stopBLE(true);
+            enterDeepSleep();
         }
         // 11. Enter Deep Sleep Immediately: "SYS:SLEEP"
         else if (cmd == "SYS:SLEEP") {
@@ -701,7 +701,7 @@ void processTouch() {
         }
         uint32_t holdDuration = now - isrDownTime;
 
-        // 10-Second Long Hold -> TOGGLE BLE ON/OFF!
+        // 10-Second Long Hold -> Turn BLE ON (if off) or enter Deep Sleep (if on)
         if (holdDuration >= 10000 && !bleToggleFired) {
             bleToggleFired = true;
             holdTriggered = true;
@@ -709,9 +709,12 @@ void processTouch() {
             lastActivityTime = now;
 
             if (!bleActive) {
+                // If BLE is OFF: Turn ON with quick 60ms flash
                 startBLE(true);
             } else {
-                stopBLE(true);
+                // If BLE is ON: Turn OFF and enter Deep Sleep with longer 200ms flash
+                triggerTouchVisual("POWER OFF 🌙", 0x8410, 1000, "SYS:SLEEP");
+                enterDeepSleep();
             }
             return;
         }
@@ -787,6 +790,9 @@ void enterDeepSleep() {
     if (bleActive || bleConnected) {
         stopBLE(false);
     }
+
+    // Distinct longer 200ms single flash to signal power-down before sleeping
+    blinkDebugLed(1, 200);
 
     // Wait until touch sensor is completely released before sleeping!
     uint32_t waitRelease = millis();
