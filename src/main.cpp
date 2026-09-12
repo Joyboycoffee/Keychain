@@ -642,7 +642,7 @@ void stopBLE(bool notifyVisual) {
 // =========================================================================
 void IRAM_ATTR touchISR() {
     uint32_t now = millis();
-    if (now - isrLastEdgeTime < 10) return; // 10ms spike rejection
+    if (now - isrLastEdgeTime < 15) return; // 15ms debounce
     isrLastEdgeTime = now;
 
     bool pinHigh = (digitalRead(PIN_TOUCH) == HIGH);
@@ -655,8 +655,9 @@ void IRAM_ATTR touchISR() {
         if (isrTouchDown) {
             isrTouchDown = false;
             isrUpTime = now;
-            uint32_t dur = isrUpTime - isrDownTime;
-            if (dur >= 15 && dur < 1200) {
+            uint32_t dur = (isrDownTime > 0) ? (isrUpTime - isrDownTime) : 0;
+            isrDownTime = 0; // Clear hold timestamp on release!
+            if (dur >= 20 && dur < 1200) {
                 isrTapCount++;
                 isrLastTapEndTime = now;
             }
@@ -666,10 +667,19 @@ void IRAM_ATTR touchISR() {
 
 void processTouch() {
     uint32_t now = millis();
-    bool isDown = isrTouchDown || (digitalRead(PIN_TOUCH) == HIGH);
+    bool isDown = (digitalRead(PIN_TOUCH) == HIGH);
+
+    // Sync isrTouchDown with actual pin state
+    if (!isDown) {
+        isrTouchDown = false;
+        isrDownTime = 0;
+    } else if (isrDownTime == 0) {
+        isrDownTime = now;
+        isrTouchDown = true;
+    }
 
     // 1. DOUBLE TAP DETECTION (Instant switch on 2nd tap down OR 2 taps completed)
-    if (isrTapCount >= 2 || (isrTapCount == 1 && isDown && (now - isrLastTapEndTime <= 650) && (now - isrLastTapEndTime >= 15))) {
+    if (isrTapCount >= 2 || (isrTapCount == 1 && isDown && (now - isrLastTapEndTime <= 650) && (now - isrLastTapEndTime >= 20))) {
         isrTapCount = 0;
         lastActivityTime = now;
         holdTriggered = false;
@@ -695,13 +705,11 @@ void processTouch() {
     }
 
     // 2. CONTINUOUS HOLD (2.0s for Shy Love, 10.0s for BLE Toggle)
-    if (isDown && isrTapCount == 0) {
-        if (isrDownTime == 0) {
-            isrDownTime = now;
-        }
+    // MUST be held continuously with NO pending taps!
+    if (isDown && isrTapCount == 0 && isrDownTime > 0) {
         uint32_t holdDuration = now - isrDownTime;
 
-        // 10-Second Long Hold -> Turn BLE ON (if off) or enter Deep Sleep (if on)
+        // 10-Second Continuous Hold -> Turn BLE ON (if off) or enter Deep Sleep (if on)
         if (holdDuration >= 10000 && !bleToggleFired) {
             bleToggleFired = true;
             holdTriggered = true;
@@ -742,8 +750,6 @@ void processTouch() {
             Serial.printf("[TOUCH] 2.0s Hold -> Shy Love! (Reverting to %d in 5s)\n", (int)preHoldEmotion);
             return;
         }
-    } else if (!isDown) {
-        isrDownTime = 0;
     }
 
     if (!isDown) {
@@ -944,7 +950,7 @@ void setup() {
     pinMode(PIN_TFT_BL, OUTPUT);
     digitalWrite(PIN_TFT_BL, HIGH);
 
-    pinMode(PIN_TOUCH, INPUT);
+    pinMode(PIN_TOUCH, INPUT_PULLDOWN);
     attachInterrupt(digitalPinToInterrupt(PIN_TOUCH), touchISR, CHANGE);
     if (digitalRead(PIN_TOUCH) == HIGH) {
         isrTouchDown = true;
