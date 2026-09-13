@@ -673,7 +673,9 @@ void processTouch() {
     uint32_t now = millis();
     bool isDown = (digitalRead(PIN_TOUCH) == HIGH);
 
-    // Sync isrTouchDown and track clean LOW state
+    // ---------------------------------------------------------
+    // 1. PIN RELEASE & STABILIZATION TRACKING
+    // ---------------------------------------------------------
     if (!isDown) {
         if (isrTouchDown) {
             isrTouchDown = false;
@@ -682,37 +684,48 @@ void processTouch() {
         if (touchLowStartTime == 0) {
             touchLowStartTime = now;
         }
-        // If pin has been cleanly LOW for > 150ms, unlock from any stuck lockout & reset flags
-        if (now - touchLowStartTime >= 150) {
-            if (touchStuckLockout) {
+        
+        // Pin must stay continuously LOW for at least 250ms to fully clear lockout and hold states
+        if (now - touchLowStartTime >= 250) {
+            if (touchStuckLockout || hold14sCancelled) {
                 touchStuckLockout = false;
-                Serial.println("[TOUCH] Sensor released & stabilized. Lockout cleared.");
+                hold14sCancelled = false;
+                Serial.println("[TOUCH] Sensor confirmed clear and released. Ready.");
             }
-            hold14sCancelled = false;
+            hold10sReady = false;
+            hold10sPrompted = false;
             shyLoveTriggered = false;
+            isrDownTime = 0;
         }
     } else {
         touchLowStartTime = 0;
-        if (!isrTouchDown || isrDownTime == 0) {
-            isrTouchDown = true;
-            isrDownTime = now;
+        // Only start a new hold timer if not currently locked out!
+        if (!touchStuckLockout && !hold14sCancelled) {
+            if (!isrTouchDown || isrDownTime == 0) {
+                isrTouchDown = true;
+                isrDownTime = now;
+            }
         }
     }
 
-    // If currently locked out due to stuck sensor / surface placement, ignore input while held
-    if (touchStuckLockout && isDown) {
+    // ---------------------------------------------------------
+    // 2. STUCK LOCKOUT SHIELD
+    // If the sensor was held past 14s or was HIGH at boot, ignore ALL processing while down!
+    // ---------------------------------------------------------
+    if (touchStuckLockout || hold14sCancelled) {
         return;
     }
 
-    // =========================================================================
-    // 1. DOUBLE-TAP (2 Quick Taps) -> SWITCH MASCOT 🔄
-    // =========================================================================
+    // ---------------------------------------------------------
+    // 3. DOUBLE-TAP DETECTION (Instant Switch Mascot 🔄)
+    // ---------------------------------------------------------
     if (isrTapCount >= 2) {
         isrTapCount = 0;
         lastActivityTime = now;
         isTemporaryLove = false;
         hold10sReady = false;
         hold10sPrompted = false;
+        isrDownTime = 0;
 
         int next = ((int)memePet.currentEmotion + 1) % 7;
         memePet.setEmotion((MemeEmotion)next);
@@ -732,27 +745,26 @@ void processTouch() {
         return;
     }
 
-    // =========================================================================
-    // 2. CONTINUOUS DIRECT HOLD (Finger is DOWN, isrTapCount == 0)
-    // =========================================================================
+    // ---------------------------------------------------------
+    // 4. CONTINUOUS DIRECT HOLD (Finger is DOWN)
+    // ---------------------------------------------------------
     if (isDown && isrTapCount == 0 && isrDownTime > 0) {
         uint32_t holdDuration = now - isrDownTime;
 
         // --- 14+ SECONDS: STUCK SENSOR / TABLE DETECTION -> CANCEL WITH LONG BLINK (450ms) ---
         if (holdDuration >= 14000) {
-            if (!hold14sCancelled) {
-                hold14sCancelled = true;
-                touchStuckLockout = true;
-                hold10sReady = false;
-                hold10sPrompted = false;
-                shyLoveTriggered = false;
-                isrDownTime = 0;
+            hold14sCancelled = true;
+            touchStuckLockout = true;
+            hold10sReady = false;
+            hold10sPrompted = false;
+            shyLoveTriggered = false;
+            isrDownTime = 0;
+            isrTapCount = 0;
 
-                // Distinct long 450ms blue LED blink showing BLE did NOT turn on
-                blinkDebugLed(1, 450);
-                triggerTouchVisual("HELD >14s: CANCELLED 🛑", 0xF800, 2000, "TOUCH:CANCEL");
-                Serial.println("[TOUCH] Held for >14s! Action CANCELLED with long blink. Sensor locked out until released.");
-            }
+            // Distinct long 450ms blue LED blink showing BLE did NOT turn on
+            blinkDebugLed(1, 450);
+            triggerTouchVisual("HELD >14s: CANCELLED 🛑", 0xF800, 2000, "TOUCH:CANCEL");
+            Serial.println("[TOUCH] Held >14s! Action CANCELLED with long blink. Locked out until released.");
             return;
         }
 
@@ -799,9 +811,9 @@ void processTouch() {
         }
     }
 
-    // =========================================================================
-    // 3. FINGER RELEASE & CONFIRMATION (Finger is UP / !isDown)
-    // =========================================================================
+    // ---------------------------------------------------------
+    // 5. FINGER RELEASE & HUMAN CONFIRMATION (Finger is UP / !isDown)
+    // ---------------------------------------------------------
     if (!isDown) {
         // If user released between 10.0s and 14.0s -> EXECUTE ACTION!
         if (hold10sReady && !hold14sCancelled) {
@@ -821,20 +833,12 @@ void processTouch() {
             }
             return;
         }
-
-        // Clear hold flags once finger is lifted
-        if (shyLoveTriggered || hold10sPrompted || hold10sReady) {
-            shyLoveTriggered = false;
-            hold10sPrompted = false;
-            hold10sReady = false;
-            isrDownTime = 0;
-        }
     }
 
-    // =========================================================================
-    // 4. SINGLE TAP TIMEOUT (Poke 👆)
+    // ---------------------------------------------------------
+    // 6. SINGLE TAP TIMEOUT (Poke 👆)
     // 1 tap registered, finger lifted, and 450ms elapsed without a second tap
-    // =========================================================================
+    // ---------------------------------------------------------
     if (isrTapCount == 1 && !isDown && (now - isrLastTapEndTime > 450)) {
         isrTapCount = 0;
         lastActivityTime = now;
@@ -1028,8 +1032,11 @@ void setup() {
     pinMode(PIN_TOUCH, INPUT_PULLDOWN);
     attachInterrupt(digitalPinToInterrupt(PIN_TOUCH), touchISR, CHANGE);
     if (digitalRead(PIN_TOUCH) == HIGH) {
-        isrTouchDown = true;
-        isrDownTime = millis();
+        touchStuckLockout = true;
+        hold14sCancelled = true;
+        isrTouchDown = false;
+        isrDownTime = 0;
+        Serial.println("[TOUCH] Pin HIGH at startup (Surface/USB contact). Locked out until released.");
     }
     analogSetPinAttenuation(PIN_BAT_ADC, ADC_11db);
     pinMode(PIN_BAT_ADC, INPUT);
