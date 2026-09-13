@@ -792,6 +792,10 @@
                 setTouchBanner("💤 BLE RADIO OFF (80MHz)", "var(--text-muted)", 3000);
             } else if (msg === "BLE:ONLINE") {
                 setTouchBanner("⚡ BLE RADIO ONLINE", "var(--cyan)", 3000);
+            } else if (msg === "TOUCH:READY") {
+                setTouchBanner("⚡ RELEASE TO CONFIRM", "var(--cyan)", 2500);
+            } else if (msg === "TOUCH:STUCK") {
+                setTouchBanner("🛑 STUCK SENSOR REJECTED", "var(--red)", 2500);
             } else if (msg === "SAVED:OK") {
                 setTouchBanner("💾 SAVED AS DEFAULT", "var(--green)", 2000);
             }
