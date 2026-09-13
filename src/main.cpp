@@ -57,7 +57,7 @@ bool     bleActive           = false;
 bool     bleConnected        = false;
 uint32_t bleStartTimeMs      = 0;
 
-// Touch Interrupt & State Engine (Zero-Latency Hardware ISR + Option C Anti-Noise Rejection)
+// Touch Interrupt & State Engine (Zero-Latency Hardware ISR + Tap-then-Hold BLE Engine)
 volatile bool     isrTouchDown         = false;
 volatile uint32_t isrDownTime          = 0;
 volatile uint32_t isrUpTime            = 0;
@@ -67,8 +67,7 @@ volatile uint32_t isrLastEdgeTime      = 0;
 
 uint32_t    lastActivityTime    = 0;
 bool        shyLoveTriggered    = false;
-bool        hold10sReady        = false;
-bool        hold10sPrompted     = false;
+bool        tapHoldBleFired     = false;
 bool        touchStuckLockout   = false;
 uint32_t    touchLowStartTime   = 0;
 MemeEmotion preHoldEmotion      = EMOTION_LUFFY;
@@ -659,8 +658,8 @@ void IRAM_ATTR touchISR() {
             isrTouchDown = false;
             isrUpTime = now;
             uint32_t dur = (isrDownTime > 0) ? (isrUpTime - isrDownTime) : 0;
-            isrDownTime = 0; // Clear hold timestamp on release!
-            if (dur >= 20 && dur < 1200) {
+            isrDownTime = 0; // Clear hold timestamp on release
+            if (dur >= 20 && dur < 600) {
                 isrTapCount++;
                 isrLastTapEndTime = now;
             }
@@ -681,10 +680,14 @@ void processTouch() {
         if (touchLowStartTime == 0) {
             touchLowStartTime = now;
         }
-        // If pin has been cleanly LOW for > 150ms, unlock from any stuck lockout
-        if (touchStuckLockout && (now - touchLowStartTime >= 150)) {
-            touchStuckLockout = false;
-            Serial.println("[TOUCH] Sensor released & stabilized. Lockout cleared.");
+        // If pin has been cleanly LOW for > 150ms, unlock from any stuck lockout & reset flags
+        if (now - touchLowStartTime >= 150) {
+            if (touchStuckLockout) {
+                touchStuckLockout = false;
+                Serial.println("[TOUCH] Sensor released & stabilized. Lockout cleared.");
+            }
+            tapHoldBleFired = false;
+            shyLoveTriggered = false;
         }
     } else {
         touchLowStartTime = 0;
@@ -699,13 +702,35 @@ void processTouch() {
         return;
     }
 
-    // 1. DOUBLE TAP DETECTION (Instant switch on 2nd tap down OR 2 taps completed)
-    if (isrTapCount >= 2 || (isrTapCount == 1 && isDown && (now - isrLastTapEndTime <= 650) && (now - isrLastTapEndTime >= 20))) {
+    // =========================================================================
+    // 1. TAP-THEN-HOLD (1 Click + Hold for 3.0s) -> BLUETOOTH ON / OFF TOGGLE ⚡
+    // User tapped once, then pressed down again within 800ms and holds!
+    // =========================================================================
+    if (isrTapCount == 1 && isDown && (now - isrLastTapEndTime <= 800) && isrDownTime > 0) {
+        uint32_t holdDuration = now - isrDownTime;
+
+        if (holdDuration >= 3000 && !tapHoldBleFired) {
+            tapHoldBleFired = true;
+            isrTapCount = 0;
+            lastActivityTime = now;
+
+            if (!bleActive) {
+                Serial.println("[TOUCH] Tap-then-Hold (3s) -> Activating BLE ⚡");
+                startBLE(true);
+            } else {
+                Serial.println("[TOUCH] Tap-then-Hold (3s) -> Deactivating BLE 💤");
+                stopBLE(true);
+            }
+            return;
+        }
+    }
+
+    // =========================================================================
+    // 2. DOUBLE-TAP (2 Quick Taps < 600ms) -> SWITCH MASCOT 🔄
+    // =========================================================================
+    if (isrTapCount >= 2) {
         isrTapCount = 0;
         lastActivityTime = now;
-        shyLoveTriggered = false;
-        hold10sReady = false;
-        hold10sPrompted = false;
         isTemporaryLove = false;
 
         int next = ((int)memePet.currentEmotion + 1) % 7;
@@ -722,45 +747,42 @@ void processTouch() {
             pCharPet->setValue(std::string(emoChar));
             pCharPet->notify();
         }
-        Serial.printf("[TOUCH] Instant Double-Tap! -> Switched Mascot: %d (%s)\n", next, emoNames[next]);
+        Serial.printf("[TOUCH] Double-Tap! -> Switched Mascot: %d (%s)\n", next, emoNames[next]);
         return;
     }
 
-    // 2. CONTINUOUS HOLD PROGRESSION (Finger is DOWN)
+    // =========================================================================
+    // 3. SINGLE TAP CONFIRMATION (Poke 👆)
+    // 1 tap registered, finger lifted, and 450ms elapsed without a 2nd press
+    // =========================================================================
+    if (isrTapCount == 1 && !isDown && (now - isrLastTapEndTime > 450)) {
+        isrTapCount = 0;
+        lastActivityTime = now;
+        if (!tapHoldBleFired) {
+            memePet.triggerTap();
+            triggerTouchVisual("POKE 👆", 0x07FF, 700, "TOUCH:POKE");
+            Serial.println("[TOUCH] Single Tap Confirmed -> POKE 👆");
+        }
+    }
+
+    // =========================================================================
+    // 4. DIRECT HOLD (No prior tap, isrTapCount == 0, isDown)
+    // =========================================================================
     if (isDown && isrTapCount == 0 && isrDownTime > 0) {
         uint32_t holdDuration = now - isrDownTime;
 
-        // Anti-Noise / Stuck Sensor Check (> 12.0s continuous HIGH)
-        if (holdDuration >= 12000) {
+        // Anti-Noise / Stuck Sensor Check (> 8.0s continuous HIGH on static surface)
+        if (holdDuration >= 8000) {
             touchStuckLockout = true;
-            hold10sReady = false;
-            hold10sPrompted = false;
             shyLoveTriggered = false;
             isrDownTime = 0;
             isrTapCount = 0;
-            triggerTouchVisual("STUCK REJECTED 🛑", 0xF800, 1500, "TOUCH:STUCK");
-            Serial.println("[TOUCH] Surface / Stuck Sensor detected (>12.0s continuous HIGH). Action CANCELLED & sensor locked out!");
+            Serial.println("[TOUCH] Surface / Stuck Sensor detected (>8.0s continuous HIGH). Ignoring.");
             return;
         }
 
-        // 9.5s – 12.0s Human Hold Ready Window: Flash LED & Visual Cue to prompt release
-        if (holdDuration >= 9500 && !hold10sPrompted) {
-            hold10sPrompted = true;
-            hold10sReady = true;
-            lastActivityTime = now;
-            blinkDebugLed(1, 60); // Crisp single 60ms pulse prompt
-            if (!bleActive) {
-                triggerTouchVisual("RELEASE FOR BLE ⚡", 0x07FF, 2500, "TOUCH:READY");
-                Serial.println("[TOUCH] 10s Hold reached. Release finger now to activate BLE!");
-            } else {
-                triggerTouchVisual("RELEASE TO SLEEP 🌙", 0x8410, 2500, "TOUCH:READY");
-                Serial.println("[TOUCH] 10s Hold reached. Release finger now to enter Deep Sleep!");
-            }
-            return;
-        }
-
-        // 2.0s – 9.0s Hold: Shy Love ❤️
-        if (holdDuration >= 2000 && holdDuration < 9000 && !shyLoveTriggered && !hold10sReady) {
+        // 2.0s Hold -> Shy Love ❤️
+        if (holdDuration >= 2000 && holdDuration < 7000 && !shyLoveTriggered && !tapHoldBleFired) {
             shyLoveTriggered = true;
             lastActivityTime = now;
 
@@ -783,50 +805,9 @@ void processTouch() {
         }
     }
 
-    // 3. FINGER RELEASE & HUMAN CONFIRMATION (Finger is UP / !isDown)
-    if (!isDown) {
-        // If human released after holding 9.5s - 12s -> EXECUTE ACTION!
-        if (hold10sReady) {
-            hold10sReady = false;
-            hold10sPrompted = false;
-            shyLoveTriggered = false;
-            isrTapCount = 0;
-            isrDownTime = 0;
-            lastActivityTime = now;
-
-            if (!bleActive) {
-                Serial.println("[TOUCH] Human Release Confirmed -> Starting BLE ⚡");
-                startBLE(true);
-            } else {
-                Serial.println("[TOUCH] Human Release Confirmed -> Entering Deep Sleep 🌙");
-                triggerTouchVisual("POWER OFF 🌙", 0x8410, 1000, "SYS:SLEEP");
-                enterDeepSleep();
-            }
-            return;
-        }
-
-        // Reset hold flags once released
-        if (shyLoveTriggered || hold10sPrompted) {
-            shyLoveTriggered = false;
-            hold10sPrompted = false;
-            hold10sReady = false;
-            isrDownTime = 0;
-        }
-    }
-
-    // 4. SINGLE TAP TIMEOUT (Poke Triggered)
-    // If 1 tap was recorded, finger is lifted, and 450ms have passed without a second tap:
-    if (isrTapCount == 1 && !isDown && (now - isrLastTapEndTime > 450)) {
-        isrTapCount = 0;
-        lastActivityTime = now;
-        if (!shyLoveTriggered && !hold10sReady) {
-            memePet.triggerTap();
-            triggerTouchVisual("POKE 👆", 0x07FF, 700, "TOUCH:POKE");
-            Serial.println("[TOUCH] Single Tap Confirmed -> POKE 👆");
-        }
-    }
-
+    // =========================================================================
     // 5. AUTO-REVERT FROM SHY LOVE AFTER 5 SECONDS BACK TO ORIGINAL PHOTO
+    // =========================================================================
     if (isTemporaryLove && (now - loveStartTime >= 5000)) {
         isTemporaryLove = false;
         memePet.setEmotion(preHoldEmotion);
