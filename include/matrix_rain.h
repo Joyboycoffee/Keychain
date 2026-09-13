@@ -2,6 +2,7 @@
 #include <LovyanGFX.hpp>
 #include "display_setup.h"
 #include "config.h"
+#include "emoji_renderer.h"
 
 #define MATRIX_COLS 16
 
@@ -10,6 +11,7 @@ public:
     int currentTheme = 0; // 0 = Neo Green, 1 = Cyber Cyan, 2 = Synth Magenta, 3 = Fire Amber
     bool isHeartRainActive = false;
     uint32_t heartRainStartTime = 0;
+    String customShyText = "I LOVE YOU :heart: :sparkles:";
 
 private:
     int yPos[MATRIX_COLS];
@@ -33,6 +35,10 @@ public:
     int cycleTheme() {
         currentTheme = (currentTheme + 1) % 4;
         return currentTheme;
+    }
+
+    void setShyText(const String& txt) {
+        if (txt.length() > 0) customShyText = txt;
     }
 
     void triggerHeartRain(uint32_t durMs = 5000) {
@@ -94,11 +100,9 @@ public:
             }
         }
 
-        // Status Header
+        // Status Header / Shy Card Overlay
         if (isHeartRainActive) {
-            canvas.setTextColor(0xF81F, TFT_BLACK);
-            canvas.setTextSize(1);
-            canvas.drawString("CYBER_HEART // LOVE RAIN <3", 10, 10);
+            renderMatrixShyCard();
         } else {
             const char* themeHeaders[] = {
                 "NEO_MATRIX // GREEN",
@@ -115,6 +119,38 @@ public:
     }
 
 private:
+    void renderMatrixShyCard() {
+        // Translucent Cyber Love Card
+        canvas.fillRoundRect(8, 46, 224, 148, 8, 0x0841);
+        canvas.drawRoundRect(8, 46, 224, 148, 8, 0xF81F);
+        canvas.drawRoundRect(10, 48, 220, 144, 6, 0x981F);
+
+        // Cyber Matrix Header
+        canvas.setTextColor(0xF81F, 0x0841);
+        canvas.setTextSize(1);
+        canvas.drawCenterString("CYBER MATRIX // SHY LOVE <3", 120, 58);
+
+        // Render Custom Shy / Secret Message with Emojis
+        int textY = 96;
+        int txtSize = (customShyText.length() > 14) ? 2 : 3;
+        int textW = customShyText.length() * 6 * txtSize;
+        int startX = max(16, 120 - (textW / 2));
+        EmojiRenderer::renderTextWithEmojis(&canvas, customShyText, startX, textY, txtSize, 0xFFFF, 0x0841);
+
+        // Subtitle / Heart Icon
+        canvas.setTextColor(0x07E0, 0x0841);
+        canvas.setTextSize(1);
+        canvas.drawCenterString("<3 SPECIAL SECRET MESSAGE <3", 120, 142);
+
+        // Progress Timeout Bar
+        uint32_t elapsed = millis() - heartRainStartTime;
+        float pct = 1.0f - ((float)elapsed / 5000.0f);
+        if (pct < 0.0f) pct = 0.0f;
+        if (pct > 1.0f) pct = 1.0f;
+        canvas.drawRoundRect(30, 168, 180, 8, 3, 0xF81F);
+        canvas.fillRect(32, 170, (int)(176 * pct), 4, 0xF81F);
+    }
+
     char getRandomChar() {
         if (isHeartRainActive) {
             const char heartChars[] = { 'L', 'O', 'V', 'E', 'U', '!', '7', '9', 'X', '3' };
@@ -125,3 +161,4 @@ private:
         return 'A' + (r - 10);
     }
 };
+

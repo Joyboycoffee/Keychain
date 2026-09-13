@@ -380,12 +380,14 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
             isVideoPlaying = false;
             Serial.printf("[SETTINGS] Matrix Theme: %d\n", matrixRain.currentTheme);
         }
-        // 13. CyberHUD Shy Secret Message: "HUD_SHY:<custom text>"
+        // 13. CyberHUD / Universal Shy Secret Message: "HUD_SHY:<custom text>"
         else if (cmd.startsWith("HUD_SHY:")) {
             String msg = cmd.substring(8);
             cyberHUD.setShyText(msg);
+            robotEyes.setShyText(msg);
+            matrixRain.setShyText(msg);
             prefs.putString("hud_shy", msg);
-            Serial.printf("[SETTINGS] CyberHUD Shy Text: %s\n", msg.c_str());
+            Serial.printf("[SETTINGS] Synced Shy Secret Text: %s\n", msg.c_str());
         }
         // 14. Save All Changes to Flash Memory: "SAVE_CONFIG" or "SAVE_CHANGES"
         else if (cmd == "SAVE_CONFIG" || cmd == "SAVE_CHANGES") {
@@ -1265,7 +1267,10 @@ void setup() {
     cyberHUD.showWaveform = prefs.getBool("hud_wave", true);
     cyberHUD.showCustomText = prefs.getBool("hud_text", true);
     cyberHUD.setCustomText(prefs.getString("hud_msg", "DIGI_HUD // SYS_ONLINE"));
-    cyberHUD.setShyText(prefs.getString("hud_shy", "I LOVE YOU :heart: :sparkles:"));
+    String shyMsg = prefs.getString("hud_shy", "I LOVE YOU :heart: :sparkles:");
+    cyberHUD.setShyText(shyMsg);
+    robotEyes.setShyText(shyMsg);
+    matrixRain.setShyText(shyMsg);
     robotEyes.setStyle(prefs.getUChar("robot_mood", 0));
     matrixRain.setTheme(prefs.getUChar("matrix_thm", 0));
     bootSplashType = (BootSplashType)prefs.getUChar("boot_type", (uint8_t)BOOT_JOYBOY_INTRO);

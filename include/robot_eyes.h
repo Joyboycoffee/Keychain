@@ -2,6 +2,7 @@
 #include <LovyanGFX.hpp>
 #include "display_setup.h"
 #include "config.h"
+#include "emoji_renderer.h"
 
 class RobotEyes {
 public:
@@ -9,6 +10,7 @@ public:
     bool isShyLoveActive = false;
     uint32_t shyLoveStartTime = 0;
     int preShyStyle = 0;
+    String customShyText = "I LOVE YOU :heart: :sparkles:";
 
 private:
     float eyeWidth = 55;
@@ -56,11 +58,16 @@ public:
         return currentStyle;
     }
 
+    void setShyText(const String& txt) {
+        if (txt.length() > 0) customShyText = txt;
+    }
+
     void triggerShyLove(uint32_t durMs = 5000) {
         if (!isShyLoveActive) preShyStyle = currentStyle;
         isShyLoveActive = true;
         shyLoveStartTime = millis();
         setStyle(1); // Switch to Happy Love
+        targetY = 90; // Move eyes slightly up to accommodate love card
     }
 
     void setMood(PetMood mood) {
@@ -83,6 +90,7 @@ public:
 
         if (isShyLoveActive && (now - shyLoveStartTime >= 5000)) {
             isShyLoveActive = false;
+            targetY = 120;
             setStyle(preShyStyle);
         }
 
@@ -90,7 +98,7 @@ public:
         if (now - lastGazeChange > (currentStyle == 3 ? 1400 : 2500) && !isBlinking) {
             lastGazeChange = now;
             targetX = 120 + random(-25, 26);
-            targetY = 120 + random(-15, 16);
+            targetY = isShyLoveActive ? 90 : (120 + random(-15, 16));
         }
 
         // 2. Random Periodic Blinking
@@ -115,11 +123,26 @@ public:
         float rightEyeX = currentX + (eyeWidth / 2) + (eyeSpacing / 2);
         float eyeY = currentY - (currentH / 2);
 
-        if (currentStyle == 1) {
-            // Style 1: Happy Love (Upward Curved Eyes + Floating Hearts)
+        if (isShyLoveActive || currentStyle == 1) {
+            // Style 1 / Shy Love: Upward Curved Eyes + Floating Hearts + Blushing Cheeks
             drawHappyEye(leftEyeX, currentY, eyeWidth, 0xF81F);
             drawHappyEye(rightEyeX, currentY, eyeWidth, 0xF81F);
-            drawFloatingHeart(120 + sin(now * 0.005f) * 40, 60 - ((now / 20) % 50), 0xF81F);
+
+            // Blushing Pink Cheeks
+            canvas.fillRoundRect(22, (int)currentY + 26, 36, 12, 6, 0xF81F);
+            canvas.fillRoundRect(182, (int)currentY + 26, 36, 12, 6, 0xF81F);
+
+            // Floating Animated Hearts
+            for (int i = 0; i < 4; i++) {
+                int hx = 35 + i * 55 + (int)(sin((scanPhase + i * 30) * 0.1f) * 8);
+                int hy = 40 + (int)(cos((scanPhase + i * 25) * 0.12f) * 12);
+                drawFloatingHeart(hx, hy, 0xF81F);
+            }
+
+            // Shy Love Message Overlay Card
+            if (isShyLoveActive) {
+                renderShyLoveCard();
+            }
         } else if (currentStyle == 2) {
             // Style 2: Angry Slant
             drawAngryEye(leftEyeX, currentY, eyeWidth, currentH, true, 0xF800);
@@ -157,6 +180,28 @@ public:
     }
 
 private:
+    void renderShyLoveCard() {
+        canvas.fillRoundRect(8, 150, 224, 82, 6, 0x0841);
+        canvas.drawRoundRect(8, 150, 224, 82, 6, 0xF81F);
+        canvas.drawRoundRect(10, 152, 220, 78, 4, 0x981F);
+
+        canvas.setTextColor(0xF81F, 0x0841);
+        canvas.setTextSize(1);
+        canvas.drawCenterString("ROBOT SHY LOVE // 2s HOLD", 120, 156);
+
+        int txtSize = (customShyText.length() > 14) ? 2 : 3;
+        int textW = customShyText.length() * 6 * txtSize;
+        int startX = max(16, 120 - (textW / 2));
+        EmojiRenderer::renderTextWithEmojis(&canvas, customShyText, startX, 174, txtSize, 0xFFFF, 0x0841);
+
+        uint32_t elapsed = millis() - shyLoveStartTime;
+        float pct = 1.0f - ((float)elapsed / 5000.0f);
+        if (pct < 0.0f) pct = 0.0f;
+        if (pct > 1.0f) pct = 1.0f;
+        canvas.drawRoundRect(28, 220, 184, 6, 2, 0xF81F);
+        canvas.fillRect(30, 221, (int)(180 * pct), 4, 0xF81F);
+    }
+
     void drawHappyEye(float cx, float cy, float w, uint16_t color) {
         for (int r = 0; r < 8; r++) {
             canvas.drawCircle(cx, cy + 10, (w / 2) - r, color);
@@ -184,3 +229,4 @@ private:
         canvas.fillTriangle(x - 10, y - 4, x + 10, y - 4, x, y + 8, color);
     }
 };
+
