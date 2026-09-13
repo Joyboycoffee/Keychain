@@ -777,12 +777,12 @@ void processTouch() {
             // Crisp short 60ms pulse to indicate 10s reached
             blinkDebugLed(1, 60);
 
-            if (!bleActive) {
+            if (!bleActive && !bleConnected) {
                 triggerTouchVisual("RELEASE FOR BLE ⚡", 0x07FF, 3500, "TOUCH:READY");
                 Serial.println("[TOUCH] 10s Hold reached! Short blue blink. Release finger now to turn BLE ON!");
             } else {
-                triggerTouchVisual("RELEASE TO CLOSE 💤", 0x8410, 3500, "TOUCH:READY");
-                Serial.println("[TOUCH] 10s Hold reached! Short blue blink. Release finger now to turn BLE OFF!");
+                triggerTouchVisual("RELEASE TO SLEEP 🌙", 0x8410, 3500, "TOUCH:READY");
+                Serial.println("[TOUCH] 10s Hold reached! Short blue blink. Release finger now to enter Deep Sleep!");
             }
             return;
         }
@@ -824,12 +824,13 @@ void processTouch() {
             isrDownTime = 0;
             lastActivityTime = now;
 
-            if (!bleActive) {
+            if (!bleActive && !bleConnected) {
                 Serial.println("[TOUCH] Human Release Confirmed (10s-14s) -> Turning BLE ON ⚡");
                 startBLE(true);
             } else {
-                Serial.println("[TOUCH] Human Release Confirmed (10s-14s) -> Turning BLE OFF 💤");
-                stopBLE(true);
+                Serial.println("[TOUCH] Human Release Confirmed (10s-14s) -> Entering Deep Sleep 🌙");
+                triggerTouchVisual("POWER OFF 🌙", 0x8410, 1000, "SYS:SLEEP");
+                enterDeepSleep();
             }
             return;
         }
