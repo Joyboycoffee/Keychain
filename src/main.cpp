@@ -646,7 +646,7 @@ void stopBLE(bool notifyVisual) {
 // =========================================================================
 void IRAM_ATTR touchISR() {
     uint32_t now = millis();
-    if (now - isrLastEdgeTime < 15) return; // 15ms debounce
+    if (now - isrLastEdgeTime < 25) return; // 25ms hardware edge debounce
     isrLastEdgeTime = now;
 
     bool pinHigh = (digitalRead(PIN_TOUCH) == HIGH);
@@ -661,7 +661,8 @@ void IRAM_ATTR touchISR() {
             isrUpTime = now;
             uint32_t dur = (isrDownTime > 0) ? (isrUpTime - isrDownTime) : 0;
             isrDownTime = 0; // Clear hold timestamp on release
-            if (dur >= 20 && dur < 600) {
+            // Require at least 55ms of continuous contact to qualify as a deliberate human tap
+            if (dur >= 55 && dur < 600) {
                 isrTapCount++;
                 isrLastTapEndTime = now;
             }
@@ -1029,13 +1030,22 @@ void playBootSplash() {
 // INITIAL SETUP
 // =========================================================================
 void setup() {
-    // 0. False Deep Sleep Wakeup Glitch Filter
+    // 0. Solid Human Touch Wakeup Verification
     esp_sleep_wakeup_cause_t wakeupReason = esp_sleep_get_wakeup_cause();
     if (wakeupReason == ESP_SLEEP_WAKEUP_GPIO) {
         pinMode(PIN_TOUCH, INPUT_PULLDOWN);
-        delay(35); // Filter out electrostatic spikes / TTP223 baseline calibration micro-glitches (<30ms)
-        if (digitalRead(PIN_TOUCH) == LOW) {
-            // False table/noise glitch: Go immediately back to deep sleep in 0.03s!
+        // Human touch verification: must be stable continuous HIGH for at least 75ms
+        uint32_t checkStart = millis();
+        bool isHumanTouch = true;
+        while (millis() - checkStart < 75) {
+            if (digitalRead(PIN_TOUCH) == LOW) {
+                isHumanTouch = false;
+                break;
+            }
+            delay(5);
+        }
+        if (!isHumanTouch) {
+            // Stray table noise / electrostatic glitch: Return to deep sleep immediately in <0.08s!
             esp_deep_sleep_enable_gpio_wakeup(1ULL << PIN_TOUCH, ESP_GPIO_WAKEUP_GPIO_HIGH);
             esp_deep_sleep_start();
         }
