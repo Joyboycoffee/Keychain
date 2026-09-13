@@ -1,9 +1,12 @@
-﻿#pragma once
+#pragma once
 #include <LovyanGFX.hpp>
 #include "display_setup.h"
 #include "config.h"
 
 class RobotEyes {
+public:
+    int currentStyle = 0; // 0 = Cyan Normal, 1 = Happy Love, 2 = Angry Slant, 3 = Cyber Gold Scanner
+
 private:
     float eyeWidth = 55;
     float eyeHeight = 75;
@@ -21,27 +24,55 @@ private:
     uint32_t lastGazeChange = 0;
     uint32_t lastBlinkTime = 0;
     bool isBlinking = false;
+    int scanPhase = 0;
 
     PetMood currentMood = MOOD_IDLE;
     uint16_t eyeColor = 0x07FF; // Default Cyan (RGB565)
 
 public:
+    void setStyle(int style) {
+        currentStyle = (style >= 0 && style < 4) ? style : 0;
+        if (currentStyle == 0) {
+            currentMood = MOOD_IDLE;
+            eyeColor = 0x07FF; // Cyan
+        } else if (currentStyle == 1) {
+            currentMood = MOOD_LOVE;
+            eyeColor = 0xF81F; // Pink / Magenta
+        } else if (currentStyle == 2) {
+            currentMood = MOOD_ANGRY;
+            eyeColor = 0xF800; // Fierce Red
+        } else if (currentStyle == 3) {
+            currentMood = MOOD_HAPPY;
+            eyeColor = 0xFFE0; // Cyber Gold
+        }
+    }
+
+    int cycleStyle() {
+        currentStyle = (currentStyle + 1) % 4;
+        setStyle(currentStyle);
+        return currentStyle;
+    }
+
     void setMood(PetMood mood) {
         currentMood = mood;
         if (mood == MOOD_HAPPY || mood == MOOD_LOVE) {
+            currentStyle = 1;
             eyeColor = 0xF81F; // Pink / Magenta
         } else if (mood == MOOD_ANGRY) {
+            currentStyle = 2;
             eyeColor = 0xF800; // Fierce Red
         } else {
+            currentStyle = 0;
             eyeColor = 0x07FF; // Glowing Cyan
         }
     }
 
     void update() {
         uint32_t now = millis();
+        scanPhase = (scanPhase + 4) % 360;
 
         // 1. Random Gaze Tracking (looks around naturally)
-        if (now - lastGazeChange > 2500 && !isBlinking) {
+        if (now - lastGazeChange > (currentStyle == 3 ? 1400 : 2500) && !isBlinking) {
             lastGazeChange = now;
             targetX = 120 + random(-25, 26);
             targetY = 120 + random(-15, 16);
@@ -69,23 +100,40 @@ public:
         float rightEyeX = currentX + (eyeWidth / 2) + (eyeSpacing / 2);
         float eyeY = currentY - (currentH / 2);
 
-        if (currentMood == MOOD_HAPPY || currentMood == MOOD_LOVE) {
-            // Draw Happy Upward Curved Eyes (Arcs / Rounded shapes)
-            drawHappyEye(leftEyeX, currentY, eyeWidth, eyeColor);
-            drawHappyEye(rightEyeX, currentY, eyeWidth, eyeColor);
-            
-            // Draw cute floating hearts
+        if (currentStyle == 1) {
+            // Style 1: Happy Love (Upward Curved Eyes + Floating Hearts)
+            drawHappyEye(leftEyeX, currentY, eyeWidth, 0xF81F);
+            drawHappyEye(rightEyeX, currentY, eyeWidth, 0xF81F);
             drawFloatingHeart(120 + sin(now * 0.005f) * 40, 60 - ((now / 20) % 50), 0xF81F);
-        } else if (currentMood == MOOD_ANGRY) {
-            // Draw Fierce Slanted Angry Eyes
-            drawAngryEye(leftEyeX, currentY, eyeWidth, currentH, true, eyeColor);
-            drawAngryEye(rightEyeX, currentY, eyeWidth, currentH, false, eyeColor);
-        } else {
-            // Normal Expressive Glowing Eyes with Highlights
-            canvas.fillRoundRect(leftEyeX - (eyeWidth / 2), eyeY, eyeWidth, currentH, eyeRadius, eyeColor);
-            canvas.fillRoundRect(rightEyeX - (eyeWidth / 2), eyeY, eyeWidth, currentH, eyeRadius, eyeColor);
+        } else if (currentStyle == 2) {
+            // Style 2: Angry Slant
+            drawAngryEye(leftEyeX, currentY, eyeWidth, currentH, true, 0xF800);
+            drawAngryEye(rightEyeX, currentY, eyeWidth, currentH, false, 0xF800);
+        } else if (currentStyle == 3) {
+            // Style 3: Cyber Gold Scanner (Gleaming Gold Eyes + Animated Scanning Beam)
+            canvas.fillRoundRect(leftEyeX - (eyeWidth / 2), eyeY, eyeWidth, currentH, eyeRadius, 0xFFE0);
+            canvas.fillRoundRect(rightEyeX - (eyeWidth / 2), eyeY, eyeWidth, currentH, eyeRadius, 0xFFE0);
 
-            // Cute Glossy Pupil Highlights (when eye is open)
+            // Pupil highlights
+            if (currentH > 25) {
+                canvas.fillCircle(leftEyeX, eyeY + (currentH * 0.35f), 7, TFT_WHITE);
+                canvas.fillCircle(rightEyeX, eyeY + (currentH * 0.35f), 7, TFT_WHITE);
+                
+                // Animated Scanning Laser Bar
+                int scanY = eyeY + 4 + (int)((sin(scanPhase * 0.05f) + 1.0f) * 0.5f * (currentH - 12));
+                canvas.drawFastHLine(leftEyeX - (eyeWidth / 2) + 2, scanY, eyeWidth - 4, 0xFD20);
+                canvas.drawFastHLine(rightEyeX - (eyeWidth / 2) + 2, scanY, eyeWidth - 4, 0xFD20);
+            }
+
+            // Outer Target Reticles
+            canvas.drawCircle(currentX, currentY, 100, 0x2945);
+            canvas.drawFastHLine(currentX - 110, currentY, 20, 0xFFE0);
+            canvas.drawFastHLine(currentX + 90, currentY, 20, 0xFFE0);
+        } else {
+            // Style 0: Normal Expressive Glowing Cyan Eyes with Glossy Highlights
+            canvas.fillRoundRect(leftEyeX - (eyeWidth / 2), eyeY, eyeWidth, currentH, eyeRadius, 0x07FF);
+            canvas.fillRoundRect(rightEyeX - (eyeWidth / 2), eyeY, eyeWidth, currentH, eyeRadius, 0x07FF);
+
             if (currentH > 25) {
                 canvas.fillCircle(leftEyeX - (eyeWidth * 0.2f), eyeY + (currentH * 0.3f), 6, TFT_WHITE);
                 canvas.fillCircle(rightEyeX - (eyeWidth * 0.2f), eyeY + (currentH * 0.3f), 6, TFT_WHITE);

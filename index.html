@@ -225,6 +225,39 @@
             text-align: center;
         }
 
+        .checkbox-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+        }
+
+        .custom-check {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+            color: var(--text-main);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .custom-check input {
+            cursor: pointer;
+            accent-color: var(--cyan);
+            width: 16px;
+            height: 16px;
+        }
+
+        .context-panel {
+            display: none;
+        }
+
+        .context-panel.active {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
         .slider-wrap {
             display: flex;
             flex-direction: column;
@@ -360,10 +393,14 @@
     </nav>
 
     <main>
-        <!-- TAB 1: MASCOTS & AVATARS -->
+        <!-- TAB 1: MASCOTS & SYSTEM MODES -->
         <section id="tabMascots" class="tab-content active">
+            <!-- 1. System Mode Switcher -->
             <div class="card">
-                <div class="card-title"><span>SYSTEM MODE</span></div>
+                <div class="card-title">
+                    <span>SYSTEM MODE</span>
+                    <span style="font-size:0.72rem; color:var(--text-muted); font-family:'JetBrains Mono', monospace;">5-Tap Keychain Gesture</span>
+                </div>
                 <div class="btn-grid">
                     <button class="btn-opt active" id="modeBtn0" onclick="setMode(0)">🐱 CyberPet</button>
                     <button class="btn-opt" id="modeBtn1" onclick="setMode(1)">🤖 Robot Eyes</button>
@@ -372,8 +409,12 @@
                 </div>
             </div>
 
-            <div class="card">
-                <div class="card-title"><span>REACTION AVATAR</span></div>
+            <!-- 2. Dynamic Contextual Panel: CyberPet (Mode 0) -->
+            <div class="card context-panel active" id="panelMode0">
+                <div class="card-title">
+                    <span>🐱 CYBERPET REACTION AVATARS</span>
+                    <span style="font-size:0.72rem; color:var(--amber); font-family:'JetBrains Mono', monospace;">Double-Tap: Next</span>
+                </div>
                 <div class="btn-grid">
                     <button class="btn-opt active" id="emoBtn0" onclick="setEmotion(0)">🏴‍☠️ Luffy</button>
                     <button class="btn-opt" id="emoBtn1" onclick="setEmotion(1)">👉👈 Shy Love</button>
@@ -383,10 +424,133 @@
                     <button class="btn-opt" id="emoBtn5" onclick="setEmotion(5)">😾 Angry Cat</button>
                     <button class="btn-opt" id="emoBtn6" onclick="setEmotion(6)">🐰 Bunny</button>
                 </div>
-
-                <button class="btn-primary" style="margin-top:6px;" onclick="saveAsDefault()">
+                <button class="btn-primary" style="margin-top:4px;" onclick="saveAsDefault()">
                     ⭐ SET AS DEFAULT BOOT AVATAR
                 </button>
+            </div>
+
+            <!-- 3. Dynamic Contextual Panel: Robot Eyes (Mode 1) -->
+            <div class="card context-panel" id="panelMode1">
+                <div class="card-title">
+                    <span>🤖 ROBOT EYES MOODS & STYLES</span>
+                    <span style="font-size:0.72rem; color:var(--cyan); font-family:'JetBrains Mono', monospace;">Double-Tap: Next</span>
+                </div>
+                <div class="btn-grid">
+                    <button class="btn-opt active" id="robotMoodBtn0" onclick="setRobotMood(0)">👀 Cyan Normal</button>
+                    <button class="btn-opt" id="robotMoodBtn1" onclick="setRobotMood(1)">❤️ Happy Love</button>
+                    <button class="btn-opt" id="robotMoodBtn2" onclick="setRobotMood(2)">😾 Angry Red</button>
+                    <button class="btn-opt" id="robotMoodBtn3" onclick="setRobotMood(3)">🟡 Cyber Gold</button>
+                </div>
+                <button class="btn-primary" style="margin-top:4px;" onclick="saveAsDefault()">
+                    ⭐ SET AS DEFAULT BOOT SCREEN
+                </button>
+            </div>
+
+            <!-- 4. Dynamic Contextual Panel: Cyber HUD (Mode 2) -->
+            <div class="card context-panel" id="panelMode2">
+                <div class="card-title">
+                    <span>⚡ CYBER HUD CUSTOMIZATION</span>
+                    <span style="font-size:0.72rem; color:var(--green); font-family:'JetBrains Mono', monospace;">Double-Tap: Layout</span>
+                </div>
+                
+                <!-- Layout Selection -->
+                <div style="font-size:0.78rem; color:var(--text-muted); font-weight:700;">HUD LAYOUT STYLE:</div>
+                <div class="btn-grid">
+                    <button class="btn-opt active" id="hudLayBtn0" onclick="setHudLayout(0)">⚡ Full HUD</button>
+                    <button class="btn-opt" id="hudLayBtn1" onclick="setHudLayout(1)">⏰ Big Clock & Date</button>
+                    <button class="btn-opt" id="hudLayBtn2" onclick="setHudLayout(2)">📟 Minimal Dashboard</button>
+                </div>
+
+                <!-- Custom Header / Banner Text -->
+                <div style="font-size:0.78rem; color:var(--text-muted); font-weight:700; margin-top:4px;">CUSTOM HUD BANNER TEXT:</div>
+                <div class="text-input-wrap">
+                    <input type="text" id="txtHudMessage" value="JOYBOY // SYS_ONLINE" maxlength="24" placeholder="Enter HUD banner text...">
+                    <button class="btn-opt" onclick="sendHudCustomText()" style="background:var(--cyan); color:#000; font-weight:700;">📤 SYNC TEXT</button>
+                </div>
+
+                <!-- Element Checkboxes -->
+                <div style="font-size:0.78rem; color:var(--text-muted); font-weight:700; margin-top:4px;">TOGGLE DISPLAY ELEMENTS:</div>
+                <div class="checkbox-grid">
+                    <label class="custom-check">
+                        <input type="checkbox" id="chkHudSec" checked onchange="syncHudConfig()">
+                        <span>Show Seconds (HH:MM:SS)</span>
+                    </label>
+                    <label class="custom-check">
+                        <input type="checkbox" id="chkHudBat" checked onchange="syncHudConfig()">
+                        <span>Show Battery Badge</span>
+                    </label>
+                    <label class="custom-check">
+                        <input type="checkbox" id="chkHudDate" checked onchange="syncHudConfig()">
+                        <span>Show Live Date Banner</span>
+                    </label>
+                    <label class="custom-check">
+                        <input type="checkbox" id="chkHudWave" checked onchange="syncHudConfig()">
+                        <span>Show Waveform Animation</span>
+                    </label>
+                    <label class="custom-check">
+                        <input type="checkbox" id="chkHudText" checked onchange="syncHudConfig()">
+                        <span>Show Custom Banner Text</span>
+                    </label>
+                </div>
+
+                <div style="display:flex; gap:8px; margin-top:4px;">
+                    <button class="btn-opt" onclick="syncTimeAndWeather()" style="flex:1; background:#1f6feb; color:#fff; border-color:#388bfd;">
+                        ⏰ Sync Time & Date Now
+                    </button>
+                    <button class="btn-primary" style="flex:1;" onclick="saveAsDefault()">
+                        ⭐ Set As Default
+                    </button>
+                </div>
+            </div>
+
+            <!-- 5. Dynamic Contextual Panel: Matrix Rain (Mode 3) -->
+            <div class="card context-panel" id="panelMode3">
+                <div class="card-title">
+                    <span>📟 MATRIX RAIN COLOR THEMES</span>
+                    <span style="font-size:0.72rem; color:var(--green); font-family:'JetBrains Mono', monospace;">Double-Tap: Theme</span>
+                </div>
+                <div class="btn-grid">
+                    <button class="btn-opt active" id="matrixThmBtn0" onclick="setMatrixTheme(0)" style="color:#00ff66; border-color:rgba(0,255,102,0.4);">🟢 Neo Green</button>
+                    <button class="btn-opt" id="matrixThmBtn1" onclick="setMatrixTheme(1)" style="color:#00f0ff; border-color:rgba(0,240,255,0.4);">🔵 Cyber Cyan</button>
+                    <button class="btn-opt" id="matrixThmBtn2" onclick="setMatrixTheme(2)" style="color:#ff007f; border-color:rgba(255,0,127,0.4);">🟣 Synth Magenta</button>
+                    <button class="btn-opt" id="matrixThmBtn3" onclick="setMatrixTheme(3)" style="color:#ffaa00; border-color:rgba(255,170,0,0.4);">🟡 Fire Amber</button>
+                </div>
+                <button class="btn-primary" style="margin-top:4px;" onclick="saveAsDefault()">
+                    ⭐ SET AS DEFAULT BOOT SCREEN
+                </button>
+            </div>
+
+            <!-- 6. Touch Gesture Quick Reference Cheat-Sheet -->
+            <div class="card" style="background: rgba(14, 19, 27, 0.6); border-style: dashed;">
+                <div class="card-title" style="font-size:0.8rem; color:var(--text-muted);">
+                    <span>🎮 HARDWARE TOUCH GESTURE GUIDE</span>
+                </div>
+                <div class="stats-box" style="font-size:0.76rem; gap:8px;">
+                    <div class="stats-row">
+                        <strong style="color:var(--cyan);">👆 Single Tap</strong>
+                        <span>Interactive Poke / Glance / Tick</span>
+                    </div>
+                    <div class="stats-row">
+                        <strong style="color:var(--amber);">🔄 Double Tap</strong>
+                        <span>Cycle Sub-Option inside current Mode</span>
+                    </div>
+                    <div class="stats-row">
+                        <strong style="color:var(--green);">⚡ 5 Quick Taps</strong>
+                        <span>Switch System Mode (Pet ➔ Eyes ➔ HUD ➔ Matrix)</span>
+                    </div>
+                    <div class="stats-row">
+                        <strong style="color:var(--magenta);">❤️ 2-Second Hold</strong>
+                        <span>Shy Love Mascot Reaction (reverts in 5s)</span>
+                    </div>
+                    <div class="stats-row">
+                        <strong style="color:#388bfd;">🔋 10s Hold + Release</strong>
+                        <span>Turn BLE ON (when off) / Deep Sleep (when on)</span>
+                    </div>
+                    <div class="stats-row">
+                        <strong style="color:#f85149;">🛑 Hold &gt; 14s</strong>
+                        <span>Noise Rejection / Table Contact Cancel</span>
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -778,12 +942,33 @@
             }
         }
 
+        let currentHudLayout = 0;
+        let currentRobotMood = 0;
+        let currentMatrixTheme = 0;
+
         function handleSettingsNotification(msg) {
-            // 1. Touch gesture notifications
+            // 1. Touch gesture and sub-option notifications
             if (msg === "TOUCH:POKE") {
                 setTouchBanner("👆 POKE TRIGGERED", "var(--cyan)", 1500);
             } else if (msg === "TOUCH:DOUBLE") {
-                setTouchBanner("⚡ NEXT MASCOT (DOUBLE-TAP)", "var(--amber)", 1500);
+                setTouchBanner("⚡ DOUBLE-TAP SUB-OPTION", "var(--amber)", 1500);
+            } else if (msg === "TOUCH:MODE") {
+                setTouchBanner("⚡ 5-TAP MODE SWITCH", "var(--green)", 2000);
+            } else if (msg.startsWith("ROBOT:STYLE") || msg.startsWith("ROBOT_MOOD:")) {
+                const parts = msg.split(':');
+                const idx = parseInt(parts[1]);
+                if (!isNaN(idx)) highlightRobotMoodUI(idx);
+                setTouchBanner("🤖 ROBOT MOOD UPDATED", "var(--cyan)", 1500);
+            } else if (msg.startsWith("HUD:LAYOUT") || msg.startsWith("HUD_LAY:")) {
+                const parts = msg.split(':');
+                const idx = parseInt(parts[1]);
+                if (!isNaN(idx)) highlightHudLayoutUI(idx);
+                setTouchBanner("⚡ HUD LAYOUT UPDATED", "var(--green)", 1500);
+            } else if (msg.startsWith("MATRIX:THEME") || msg.startsWith("MATRIX_THM:")) {
+                const parts = msg.split(':');
+                const idx = parseInt(parts[1]);
+                if (!isNaN(idx)) highlightMatrixThemeUI(idx);
+                setTouchBanner("📟 MATRIX THEME UPDATED", "var(--amber)", 1500);
             } else if (msg === "TOUCH:HOLD") {
                 setTouchBanner("❤️ SHY LOVE (2s HOLD)", "var(--magenta)", 3000);
             } else if (msg === "TOUCH:REVERT") {
@@ -854,7 +1039,7 @@
             const data = new TextEncoder().encode("SAVE_CONFIG");
             await charSettings.writeValue(data);
             log("💾 Flashed current settings to ESP32 NVS memory as permanent default!");
-            alert("✅ Settings Flashed to Memory!\n\nBrightness, Sleep Timeout, Screen Rotation, Mascot, and Splash settings are now saved permanently in ESP32 memory.");
+            alert("✅ Settings Flashed to Memory!\n\nSystem Mode, CyberHUD, Robot Eyes, Matrix Themes, Brightness, Sleep Timeout, Screen Rotation, and Mascots are now saved permanently in ESP32 memory.");
         }
 
         async function turnOffBLE() {
@@ -892,8 +1077,8 @@
         }
 
         async function setMode(modeNum) {
-            if (!charMode) return;
             highlightModeUI(modeNum);
+            if (!charMode) return;
             const data = new TextEncoder().encode(modeNum.toString());
             await charMode.writeValue(data);
             log(`Mode: ${modeNum}`);
@@ -903,12 +1088,17 @@
             for (let i = 0; i < 4; i++) {
                 const b = document.getElementById(`modeBtn${i}`);
                 if (b) b.className = (i === m) ? "btn-opt active" : "btn-opt";
+                const p = document.getElementById(`panelMode${i}`);
+                if (p) {
+                    if (i === m) p.classList.add('active');
+                    else p.classList.remove('active');
+                }
             }
         }
 
         async function setEmotion(emoNum) {
-            if (!charPet) return;
             highlightEmotionUI(emoNum);
+            if (!charPet) return;
             const data = new TextEncoder().encode(emoNum.toString());
             await charPet.writeValue(data);
             log(`Emotion: ${emoNum}`);
@@ -918,6 +1108,73 @@
             for (let i = 0; i < 7; i++) {
                 const b = document.getElementById(`emoBtn${i}`);
                 if (b) b.className = (i === a) ? "btn-opt active" : "btn-opt";
+            }
+        }
+
+        async function setRobotMood(moodNum) {
+            highlightRobotMoodUI(moodNum);
+            if (!charSettings) return;
+            const data = new TextEncoder().encode(`ROBOT_MOOD:${moodNum}`);
+            await charSettings.writeValue(data);
+            log(`Robot Mood: ${moodNum}`);
+        }
+
+        function highlightRobotMoodUI(moodNum) {
+            currentRobotMood = moodNum;
+            for (let i = 0; i < 4; i++) {
+                const b = document.getElementById(`robotMoodBtn${i}`);
+                if (b) b.className = (i === moodNum) ? "btn-opt active" : "btn-opt";
+            }
+        }
+
+        async function setHudLayout(layNum) {
+            highlightHudLayoutUI(layNum);
+            await syncHudConfig(layNum);
+        }
+
+        function highlightHudLayoutUI(layNum) {
+            currentHudLayout = layNum;
+            for (let i = 0; i < 3; i++) {
+                const b = document.getElementById(`hudLayBtn${i}`);
+                if (b) b.className = (i === layNum) ? "btn-opt active" : "btn-opt";
+            }
+        }
+
+        async function syncHudConfig(optLay) {
+            const lay = (typeof optLay === 'number') ? optLay : currentHudLayout;
+            const sec = document.getElementById('chkHudSec')?.checked ? 1 : 0;
+            const bat = document.getElementById('chkHudBat')?.checked ? 1 : 0;
+            const dt  = document.getElementById('chkHudDate')?.checked ? 1 : 0;
+            const wav = document.getElementById('chkHudWave')?.checked ? 1 : 0;
+            const txt = document.getElementById('chkHudText')?.checked ? 1 : 0;
+
+            if (!charSettings) return;
+            const data = new TextEncoder().encode(`HUD_CFG:${lay}:${sec}:${bat}:${dt}:${wav}:${txt}`);
+            await charSettings.writeValue(data);
+            log(`CyberHUD Config: Layout=${lay}, Sec=${sec}, Bat=${bat}, Date=${dt}, Wave=${wav}, Text=${txt}`);
+        }
+
+        async function sendHudCustomText() {
+            if (!charSettings) return;
+            const text = document.getElementById('txtHudMessage').value;
+            const data = new TextEncoder().encode(`HUD_MSG:${text}`);
+            await charSettings.writeValue(data);
+            log(`HUD Banner: ${text}`);
+        }
+
+        async function setMatrixTheme(thmNum) {
+            highlightMatrixThemeUI(thmNum);
+            if (!charSettings) return;
+            const data = new TextEncoder().encode(`MATRIX_THM:${thmNum}`);
+            await charSettings.writeValue(data);
+            log(`Matrix Theme: ${thmNum}`);
+        }
+
+        function highlightMatrixThemeUI(thmNum) {
+            currentMatrixTheme = thmNum;
+            for (let i = 0; i < 4; i++) {
+                const b = document.getElementById(`matrixThmBtn${i}`);
+                if (b) b.className = (i === thmNum) ? "btn-opt active" : "btn-opt";
             }
         }
 
@@ -985,8 +1242,8 @@
             if (!charSettings) return;
             const data = new TextEncoder().encode("DEF:SET");
             await charSettings.writeValue(data);
-            log("⭐ Saved default avatar!");
-            alert("Default avatar saved!");
+            log("⭐ Saved default settings!");
+            alert("Default settings saved!");
         }
 
         function insertEmoji(em) {
@@ -1009,10 +1266,13 @@
             const h = String(d.getHours()).padStart(2, '0');
             const m = String(d.getMinutes()).padStart(2, '0');
             const s = String(d.getSeconds()).padStart(2, '0');
-            const payload = `${h}:${m}:${s}|28.5`;
+            const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+            const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+            const dateStr = `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`;
+            const payload = `${h}:${m}:${s}|28.5|${dateStr}`;
             const data = new TextEncoder().encode(payload);
             await charTime.writeValue(data);
-            log(`Time synced: ${h}:${m}:${s}`);
+            log(`Time & Date synced: ${h}:${m}:${s} | ${dateStr}`);
         }
 
         async function updateBrightness(val) {

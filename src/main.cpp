@@ -207,8 +207,17 @@ class TimeCallback : public NimBLECharacteristicCallbacks {
             
             size_t barIdx = val.find('|');
             if (barIdx != std::string::npos) {
-                float temp = atof(val.substr(barIdx + 1).c_str());
-                cyberHUD.setWeather(temp, "SYNCED");
+                std::string rest = val.substr(barIdx + 1);
+                size_t secondBar = rest.find('|');
+                if (secondBar != std::string::npos) {
+                    float temp = atof(rest.substr(0, secondBar).c_str());
+                    String dateStr = String(rest.substr(secondBar + 1).c_str());
+                    cyberHUD.setWeather(temp, "SYNCED");
+                    cyberHUD.setDate(dateStr);
+                } else {
+                    float temp = atof(rest.c_str());
+                    cyberHUD.setWeather(temp, "SYNCED");
+                }
             }
             lastActivityTime = millis();
             Serial.printf("[BLE] Time Synced: %02d:%02d:%02d\n", h, m, s);
@@ -247,6 +256,15 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
             memePet.defaultEmotion = memePet.currentEmotion;
             prefs.putUChar("def_mode", (uint8_t)defaultMode);
             prefs.putUChar("def_emo", (uint8_t)memePet.defaultEmotion);
+            prefs.putUChar("hud_lay", (uint8_t)cyberHUD.currentLayout);
+            prefs.putBool("hud_sec", cyberHUD.showSeconds);
+            prefs.putBool("hud_bat", cyberHUD.showBattery);
+            prefs.putBool("hud_date", cyberHUD.showDate);
+            prefs.putBool("hud_wave", cyberHUD.showWaveform);
+            prefs.putBool("hud_text", cyberHUD.showCustomText);
+            prefs.putString("hud_msg", cyberHUD.customMessage);
+            prefs.putUChar("robot_mood", (uint8_t)robotEyes.currentStyle);
+            prefs.putUChar("matrix_thm", (uint8_t)matrixRain.currentTheme);
             Serial.printf("[SETTINGS] Default Boot screen saved: Mode=%d, Emo=%d\n", (int)defaultMode, (int)memePet.defaultEmotion);
         }
         // 4. Boot Splash Type: "BOOT_TYPE:0" .. "BOOT_TYPE:3"
@@ -305,12 +323,78 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
             }
             Serial.println("[BATTERY] Battery log reset.");
         }
-        // 9. Save All Changes to Flash Memory: "SAVE_CONFIG" or "SAVE_CHANGES"
+        // 9. CyberHUD Config: "HUD_CFG:<layout>:<sec>:<bat>:<date>:<wave>:<text>"
+        else if (cmd.startsWith("HUD_CFG:")) {
+            String cfg = cmd.substring(8);
+            int idx1 = cfg.indexOf(':');
+            int idx2 = cfg.indexOf(':', idx1 + 1);
+            int idx3 = cfg.indexOf(':', idx2 + 1);
+            int idx4 = cfg.indexOf(':', idx3 + 1);
+            int idx5 = cfg.indexOf(':', idx4 + 1);
+            if (idx1 != -1) {
+                int lay = cfg.substring(0, idx1).toInt();
+                cyberHUD.setLayout(lay);
+                prefs.putUChar("hud_lay", (uint8_t)cyberHUD.currentLayout);
+                if (idx5 != -1) {
+                    bool sec = cfg.substring(idx1 + 1, idx2).toInt() != 0;
+                    bool bat = cfg.substring(idx2 + 1, idx3).toInt() != 0;
+                    bool dt  = cfg.substring(idx3 + 1, idx4).toInt() != 0;
+                    bool wav = cfg.substring(idx4 + 1, idx5).toInt() != 0;
+                    bool txt = cfg.substring(idx5 + 1).toInt() != 0;
+                    cyberHUD.setFlags(sec, bat, dt, wav, txt);
+                    prefs.putBool("hud_sec", sec);
+                    prefs.putBool("hud_bat", bat);
+                    prefs.putBool("hud_date", dt);
+                    prefs.putBool("hud_wave", wav);
+                    prefs.putBool("hud_text", txt);
+                }
+                currentMode = MODE_CYBER_HUD;
+                isVideoPlaying = false;
+                Serial.printf("[SETTINGS] CyberHUD Configured: Layout=%d\n", cyberHUD.currentLayout);
+            }
+        }
+        // 10. CyberHUD Custom Text: "HUD_MSG:<custom text>"
+        else if (cmd.startsWith("HUD_MSG:")) {
+            String msg = cmd.substring(8);
+            cyberHUD.setCustomText(msg);
+            prefs.putString("hud_msg", msg);
+            currentMode = MODE_CYBER_HUD;
+            isVideoPlaying = false;
+            Serial.printf("[SETTINGS] CyberHUD Custom Text: %s\n", msg.c_str());
+        }
+        // 11. Robot Mood: "ROBOT_MOOD:<0..3>"
+        else if (cmd.startsWith("ROBOT_MOOD:")) {
+            int mood = cmd.substring(11).toInt();
+            robotEyes.setStyle(mood);
+            prefs.putUChar("robot_mood", (uint8_t)robotEyes.currentStyle);
+            currentMode = MODE_ROBOT_EYES;
+            isVideoPlaying = false;
+            Serial.printf("[SETTINGS] Robot Mood: %d\n", robotEyes.currentStyle);
+        }
+        // 12. Matrix Theme: "MATRIX_THM:<0..3>"
+        else if (cmd.startsWith("MATRIX_THM:")) {
+            int thm = cmd.substring(11).toInt();
+            matrixRain.setTheme(thm);
+            prefs.putUChar("matrix_thm", (uint8_t)matrixRain.currentTheme);
+            currentMode = MODE_MATRIX_RAIN;
+            isVideoPlaying = false;
+            Serial.printf("[SETTINGS] Matrix Theme: %d\n", matrixRain.currentTheme);
+        }
+        // 13. Save All Changes to Flash Memory: "SAVE_CONFIG" or "SAVE_CHANGES"
         else if (cmd == "SAVE_CONFIG" || cmd == "SAVE_CHANGES") {
             defaultMode = currentMode;
             memePet.defaultEmotion = memePet.currentEmotion;
             prefs.putUChar("def_mode", (uint8_t)defaultMode);
             prefs.putUChar("def_emo", (uint8_t)memePet.defaultEmotion);
+            prefs.putUChar("hud_lay", (uint8_t)cyberHUD.currentLayout);
+            prefs.putBool("hud_sec", cyberHUD.showSeconds);
+            prefs.putBool("hud_bat", cyberHUD.showBattery);
+            prefs.putBool("hud_date", cyberHUD.showDate);
+            prefs.putBool("hud_wave", cyberHUD.showWaveform);
+            prefs.putBool("hud_text", cyberHUD.showCustomText);
+            prefs.putString("hud_msg", cyberHUD.customMessage);
+            prefs.putUChar("robot_mood", (uint8_t)robotEyes.currentStyle);
+            prefs.putUChar("matrix_thm", (uint8_t)matrixRain.currentTheme);
             prefs.putUChar("br", screenBrightness);
             prefs.putUChar("rot", screenRotation);
             prefs.putUInt("sleep", sleepTimeoutMs);
@@ -324,7 +408,7 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
             triggerTouchVisual("SAVED DEFAULTS 💾", 0x07E0, 1500, "SAVED:OK");
             Serial.println("[SETTINGS] Settings flashed to NVS memory as permanent default!");
         }
-        // 10. Turn Off BLE Radio / Save Power / Sleep: "BLE:OFF"
+        // 14. Turn Off BLE Radio / Save Power / Sleep: "BLE:OFF"
         else if (cmd == "BLE:OFF") {
             Serial.println("[SETTINGS] Web requested BLE power down & deep sleep.");
             if (pCharSet) {
@@ -334,12 +418,12 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
             delay(150);
             enterDeepSleep();
         }
-        // 11. Enter Deep Sleep Immediately: "SYS:SLEEP"
+        // 15. Enter Deep Sleep Immediately: "SYS:SLEEP"
         else if (cmd == "SYS:SLEEP") {
             Serial.println("[SETTINGS] Web requested immediate deep sleep.");
             enterDeepSleep();
         }
-        // 12. Brightness Value: "10".."255"
+        // 16. Brightness Value: "10".."255"
         else {
             int br = cmd.toInt();
             if (br >= 10 && br <= 255) {
@@ -718,9 +802,9 @@ void processTouch() {
     }
 
     // ---------------------------------------------------------
-    // 3. DOUBLE-TAP DETECTION (Instant Switch Mascot 🔄)
+    // 3. 5-TAP DETECTION (Instant Switch Main System Mode ⚡)
     // ---------------------------------------------------------
-    if (isrTapCount >= 2) {
+    if (isrTapCount >= 5) {
         isrTapCount = 0;
         lastActivityTime = now;
         isTemporaryLove = false;
@@ -728,26 +812,82 @@ void processTouch() {
         hold10sPrompted = false;
         isrDownTime = 0;
 
-        int next = ((int)memePet.currentEmotion + 1) % 7;
-        memePet.setEmotion((MemeEmotion)next);
-        memePet.defaultEmotion = (MemeEmotion)next; // Persist mascot
-        currentMode = MODE_CYBERPET;
+        currentMode = (SystemMode)(((int)currentMode + 1) % 4);
         isVideoPlaying = false;
 
-        const char* emoNames[] = { "LUFFY ⚡", "SHY LOVE 👉👈", "GIGGLE CAT 😸", "SAD BANANA 🍌", "UMARU CRY 😭", "ANGRY CAT 😾", "BUNNY 🐰" };
-        triggerTouchVisual(emoNames[next], 0xFFE0, 1000, "TOUCH:DOUBLE");
+        const char* modeNames[] = { "CYBERPET 🐱", "ROBOT EYES 🤖", "CYBER HUD ⚡", "MATRIX RAIN 📟" };
+        const uint16_t modeColors[] = { 0xFFE0, 0x07FF, 0x07FF, 0x07E0 };
+        triggerTouchVisual(modeNames[(int)currentMode], modeColors[(int)currentMode], 1400, "TOUCH:MODE");
 
-        if (bleConnected && pCharPet) {
-            char emoChar[2] = { (char)('0' + (int)next), '\0' };
-            pCharPet->setValue(std::string(emoChar));
-            pCharPet->notify();
+        if (bleConnected && pCharMode) {
+            char mChar[2] = { (char)('0' + (int)currentMode), '\0' };
+            pCharMode->setValue(std::string(mChar));
+            pCharMode->notify();
         }
-        Serial.printf("[TOUCH] Double-Tap! -> Switched Mascot: %d (%s)\n", next, emoNames[next]);
+        Serial.printf("[TOUCH] 5-Tap Gesture! -> Switched System Mode: %d (%s)\n", (int)currentMode, modeNames[(int)currentMode]);
         return;
     }
 
     // ---------------------------------------------------------
-    // 4. CONTINUOUS DIRECT HOLD (Finger is DOWN)
+    // 4. MULTI-TAP / DOUBLE-TAP SUB-OPTION CYCLING 🔄
+    // (User tapped 2-4 times, finger is UP, and 280ms elapsed without further taps)
+    // ---------------------------------------------------------
+    if (isrTapCount >= 2 && isrTapCount < 5 && !isDown && (now - isrLastTapEndTime > 280)) {
+        isrTapCount = 0;
+        lastActivityTime = now;
+        isTemporaryLove = false;
+        hold10sReady = false;
+        hold10sPrompted = false;
+        isrDownTime = 0;
+
+        if (currentMode == MODE_CYBERPET) {
+            int next = ((int)memePet.currentEmotion + 1) % 7;
+            memePet.setEmotion((MemeEmotion)next);
+            memePet.defaultEmotion = (MemeEmotion)next;
+            const char* emoNames[] = { "LUFFY ⚡", "SHY LOVE 👉👈", "GIGGLE CAT 😸", "SAD BANANA 🍌", "UMARU CRY 😭", "ANGRY CAT 😾", "BUNNY 🐰" };
+            triggerTouchVisual(emoNames[next], 0xFFE0, 1000, "TOUCH:DOUBLE");
+
+            if (bleConnected && pCharPet) {
+                char emoChar[2] = { (char)('0' + (int)next), '\0' };
+                pCharPet->setValue(std::string(emoChar));
+                pCharPet->notify();
+            }
+            Serial.printf("[TOUCH] Double-Tap! -> Mascot: %d (%s)\n", next, emoNames[next]);
+        } else if (currentMode == MODE_ROBOT_EYES) {
+            int next = robotEyes.cycleStyle();
+            const char* styleNames[] = { "CYAN NORMAL 👀", "HAPPY LOVE ❤️", "ANGRY RED 😾", "CYBER GOLD 🟡" };
+            const uint16_t styleCols[] = { 0x07FF, 0xF81F, 0xF800, 0xFFE0 };
+            triggerTouchVisual(styleNames[next], styleCols[next], 1000, "ROBOT:STYLE");
+            if (bleConnected && pCharSet) {
+                pCharSet->setValue("ROBOT_MOOD:" + std::to_string(next));
+                pCharSet->notify();
+            }
+            Serial.printf("[TOUCH] Double-Tap! -> Robot Style: %d (%s)\n", next, styleNames[next]);
+        } else if (currentMode == MODE_CYBER_HUD) {
+            int next = cyberHUD.cycleLayout();
+            const char* hudNames[] = { "FULL CYBER HUD ⚡", "BIG CLOCK & DATE ⏰", "MINIMAL DASH 📟" };
+            triggerTouchVisual(hudNames[next], 0x07FF, 1000, "HUD:LAYOUT");
+            if (bleConnected && pCharSet) {
+                pCharSet->setValue("HUD_LAY:" + std::to_string(next));
+                pCharSet->notify();
+            }
+            Serial.printf("[TOUCH] Double-Tap! -> HUD Layout: %d (%s)\n", next, hudNames[next]);
+        } else if (currentMode == MODE_MATRIX_RAIN) {
+            int next = matrixRain.cycleTheme();
+            const char* thmNames[] = { "NEO GREEN 🟢", "CYBER CYAN 🔵", "SYNTH MAGENTA 🟣", "FIRE AMBER 🟡" };
+            const uint16_t thmCols[] = { 0x07E0, 0x07FF, 0xF81F, 0xFD20 };
+            triggerTouchVisual(thmNames[next], thmCols[next], 1000, "MATRIX:THEME");
+            if (bleConnected && pCharSet) {
+                pCharSet->setValue("MATRIX_THM:" + std::to_string(next));
+                pCharSet->notify();
+            }
+            Serial.printf("[TOUCH] Double-Tap! -> Matrix Theme: %d (%s)\n", next, thmNames[next]);
+        }
+        return;
+    }
+
+    // ---------------------------------------------------------
+    // 5. CONTINUOUS DIRECT HOLD (Finger is DOWN)
     // ---------------------------------------------------------
     if (isDown && isrTapCount == 0 && isrDownTime > 0) {
         uint32_t holdDuration = now - isrDownTime;
@@ -813,7 +953,7 @@ void processTouch() {
     }
 
     // ---------------------------------------------------------
-    // 5. FINGER RELEASE & HUMAN CONFIRMATION (Finger is UP / !isDown)
+    // 6. FINGER RELEASE & HUMAN CONFIRMATION (Finger is UP / !isDown)
     // ---------------------------------------------------------
     if (!isDown) {
         // If user released between 10.0s and 14.0s -> EXECUTE ACTION!
@@ -838,21 +978,31 @@ void processTouch() {
     }
 
     // ---------------------------------------------------------
-    // 6. SINGLE TAP TIMEOUT (Poke 👆)
-    // 1 tap registered, finger lifted, and 450ms elapsed without a second tap
+    // 7. SINGLE TAP TIMEOUT (Poke / Interact 👆)
+    // 1 tap registered, finger lifted, and 350ms elapsed without a second tap
     // ---------------------------------------------------------
-    if (isrTapCount == 1 && !isDown && (now - isrLastTapEndTime > 450)) {
+    if (isrTapCount == 1 && !isDown && (now - isrLastTapEndTime > 350)) {
         isrTapCount = 0;
         lastActivityTime = now;
         if (!shyLoveTriggered && !hold10sReady && !hold14sCancelled) {
-            memePet.triggerTap();
-            triggerTouchVisual("POKE 👆", 0x07FF, 700, "TOUCH:POKE");
-            Serial.println("[TOUCH] Single Tap Confirmed -> POKE 👆");
+            if (currentMode == MODE_CYBERPET) {
+                memePet.triggerTap();
+                triggerTouchVisual("POKE 👆", 0x07FF, 700, "TOUCH:POKE");
+            } else if (currentMode == MODE_ROBOT_EYES) {
+                triggerTouchVisual("GLANCE 👀", 0x07FF, 700, "TOUCH:POKE");
+            } else if (currentMode == MODE_CYBER_HUD) {
+                triggerTouchVisual("TICK ⏱️", 0x07E0, 700, "TOUCH:POKE");
+            } else if (currentMode == MODE_MATRIX_RAIN) {
+                triggerTouchVisual("GLITCH ⚡", 0x07E0, 700, "TOUCH:POKE");
+            } else {
+                triggerTouchVisual("TAP 👆", 0x07FF, 700, "TOUCH:POKE");
+            }
+            Serial.println("[TOUCH] Single Tap Confirmed -> Interact 👆");
         }
     }
 
     // =========================================================================
-    // 5. AUTO-REVERT FROM SHY LOVE AFTER 5 SECONDS BACK TO ORIGINAL PHOTO
+    // 8. AUTO-REVERT FROM SHY LOVE AFTER 5 SECONDS BACK TO ORIGINAL PHOTO
     // =========================================================================
     if (isTemporaryLove && (now - loveStartTime >= 5000)) {
         isTemporaryLove = false;
@@ -1085,6 +1235,15 @@ void setup() {
     currentMode = defaultMode;
     memePet.defaultEmotion = (MemeEmotion)prefs.getUChar("def_emo", (uint8_t)EMOTION_LUFFY);
     memePet.currentEmotion = memePet.defaultEmotion;
+    cyberHUD.setLayout(prefs.getUChar("hud_lay", 0));
+    cyberHUD.showSeconds = prefs.getBool("hud_sec", true);
+    cyberHUD.showBattery = prefs.getBool("hud_bat", true);
+    cyberHUD.showDate = prefs.getBool("hud_date", true);
+    cyberHUD.showWaveform = prefs.getBool("hud_wave", true);
+    cyberHUD.showCustomText = prefs.getBool("hud_text", true);
+    cyberHUD.setCustomText(prefs.getString("hud_msg", "DIGI_HUD // SYS_ONLINE"));
+    robotEyes.setStyle(prefs.getUChar("robot_mood", 0));
+    matrixRain.setTheme(prefs.getUChar("matrix_thm", 0));
     bootSplashType = (BootSplashType)prefs.getUChar("boot_type", (uint8_t)BOOT_JOYBOY_INTRO);
     bootDurationSec = prefs.getUChar("boot_dur", 2);
     screenBrightness = prefs.getUChar("br", 240);
