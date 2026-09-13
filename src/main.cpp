@@ -881,11 +881,19 @@ void enterDeepSleep() {
     blinkDebugLed(1, 200);
 
     // Wait until touch sensor is completely released before sleeping!
+    // Require pin to be continuously LOW for at least 250ms
+    uint32_t lowStart = 0;
     uint32_t waitRelease = millis();
-    while (digitalRead(PIN_TOUCH) == HIGH && (millis() - waitRelease < 2500)) {
-        delay(20);
+    while (millis() - waitRelease < 3000) {
+        if (digitalRead(PIN_TOUCH) == LOW) {
+            if (lowStart == 0) lowStart = millis();
+            if (millis() - lowStart >= 250) break; // Cleanly LOW for 250ms
+        } else {
+            lowStart = 0;
+        }
+        delay(15);
     }
-    delay(50); // Debounce settling delay
+    delay(50); // Extra settling delay
 
     tft.setBrightness(0);
     tft.sleep();
@@ -1021,6 +1029,18 @@ void playBootSplash() {
 // INITIAL SETUP
 // =========================================================================
 void setup() {
+    // 0. False Deep Sleep Wakeup Glitch Filter
+    esp_sleep_wakeup_cause_t wakeupReason = esp_sleep_get_wakeup_cause();
+    if (wakeupReason == ESP_SLEEP_WAKEUP_GPIO) {
+        pinMode(PIN_TOUCH, INPUT_PULLDOWN);
+        delay(35); // Filter out electrostatic spikes / TTP223 baseline calibration micro-glitches (<30ms)
+        if (digitalRead(PIN_TOUCH) == LOW) {
+            // False table/noise glitch: Go immediately back to deep sleep in 0.03s!
+            esp_deep_sleep_enable_gpio_wakeup(1ULL << PIN_TOUCH, ESP_GPIO_WAKEUP_GPIO_HIGH);
+            esp_deep_sleep_start();
+        }
+    }
+
     Serial.begin(115200);
     delay(200);
     Serial.println("\n=== DIGI KEYCHAIN ENGINE v4.3 STARTUP ===");
@@ -1138,7 +1158,6 @@ void setup() {
     Serial.printf("[BLE] Stack initialized in STANDBY (Radio OFF, CPU @ 80MHz). Hold touch for 10s to activate.\n");
 
     // 4. Cold Boot Splash vs Deep Sleep Wakeup
-    esp_sleep_wakeup_cause_t wakeupReason = esp_sleep_get_wakeup_cause();
     if (wakeupReason == ESP_SLEEP_WAKEUP_UNDEFINED) {
         playBootSplash();
     } else {
