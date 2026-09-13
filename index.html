@@ -1015,10 +1015,23 @@
                 const idx = parseInt(parts[1]);
                 if (!isNaN(idx)) highlightMatrixThemeUI(idx);
                 setTouchBanner("📟 MATRIX THEME UPDATED", "var(--amber)", 1500);
-            } else if (msg === "TOUCH:HOLD") {
-                setTouchBanner("❤️ SHY LOVE (2s HOLD)", "var(--magenta)", 3000);
-            } else if (msg === "TOUCH:REVERT") {
-                setTouchBanner("🔄 RETURNED TO MASCOT", "var(--green)", 1500);
+            } else if (msg === "TOUCH:SHY:HUD" || msg === "TOUCH:SHY") {
+                setTouchBanner("💌 CYBERHUD SECRET MSG (2s HOLD)", "var(--magenta)", 5000);
+                log("💌 CyberHUD 2s Hold -> Secret Love Overlay Displayed!");
+            } else if (msg === "TOUCH:SHY:ROBOT") {
+                highlightRobotMoodUI(1);
+                setTouchBanner("❤️ ROBOT HEART EYES (2s HOLD)", "var(--magenta)", 5000);
+                log("🤖 Robot Eyes 2s Hold -> Blushing Cheeks & Heart Eyes Active!");
+            } else if (msg === "TOUCH:SHY:MATRIX") {
+                setTouchBanner("💖 MATRIX LOVE RAIN (2s HOLD)", "var(--magenta)", 5000);
+                log("📟 Matrix Rain 2s Hold -> Cyber Heart Rain & Love Card Active!");
+            } else if (msg === "TOUCH:SHY:PET" || msg === "TOUCH:HOLD") {
+                highlightEmotionUI(1);
+                setTouchBanner("👉👈 CYBERPET SHY LOVE (2s HOLD)", "var(--magenta)", 5000);
+                log("🐱 CyberPet 2s Hold -> Shy Love Avatar Active!");
+            } else if (msg.startsWith("TOUCH:REVERT")) {
+                setTouchBanner("🔄 REVERTED (5s ELAPSED)", "var(--green)", 1500);
+                log("🔄 5s elapsed -> Reverted to normal screen.");
             } else if (msg === "BLE:OFFLINE") {
                 setTouchBanner("💤 BLE RADIO OFF (80MHz)", "var(--text-muted)", 3000);
             } else if (msg === "BLE:ONLINE") {

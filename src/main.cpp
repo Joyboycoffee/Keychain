@@ -945,16 +945,20 @@ void processTouch() {
 
             if (currentMode == MODE_CYBER_HUD) {
                 cyberHUD.triggerShy(5000);
-                triggerTouchVisual("SECRET MSG 💌", 0xF81F, 5000, "TOUCH:SHY");
+                triggerTouchVisual("SECRET MSG 💌", 0xF81F, 5000, "TOUCH:SHY:HUD");
                 Serial.printf("[TOUCH] 2.0s Hold -> CyberHUD Shy Overlay (%s)\n", cyberHUD.customShyText.c_str());
             } else if (currentMode == MODE_MATRIX_RAIN) {
                 matrixRain.triggerHeartRain(5000);
-                triggerTouchVisual("HEART RAIN 💖", 0xF81F, 5000, "TOUCH:SHY");
-                Serial.println("[TOUCH] 2.0s Hold -> Matrix Cyber Heart Rain!");
+                triggerTouchVisual("HEART RAIN 💖", 0xF81F, 5000, "TOUCH:SHY:MATRIX");
+                Serial.printf("[TOUCH] 2.0s Hold -> Matrix Cyber Heart Rain! (%s)\n", matrixRain.customShyText.c_str());
             } else if (currentMode == MODE_ROBOT_EYES) {
                 robotEyes.triggerShyLove(5000);
-                triggerTouchVisual("HEART EYES ❤️", 0xF81F, 5000, "TOUCH:SHY");
-                Serial.println("[TOUCH] 2.0s Hold -> Robot Eyes Happy Love!");
+                triggerTouchVisual("HEART EYES ❤️", 0xF81F, 5000, "TOUCH:SHY:ROBOT");
+                if (bleConnected && pCharSet) {
+                    pCharSet->setValue(std::string("ROBOT_MOOD:1"));
+                    pCharSet->notify();
+                }
+                Serial.printf("[TOUCH] 2.0s Hold -> Robot Eyes Happy Love! (%s)\n", robotEyes.customShyText.c_str());
             } else {
                 // MODE_CYBERPET (or default)
                 preHoldEmotion = memePet.currentEmotion;
@@ -964,7 +968,7 @@ void processTouch() {
                 memePet.setEmotion(EMOTION_SHY);
                 currentMode = MODE_CYBERPET;
                 isVideoPlaying = false;
-                triggerTouchVisual("SHY LOVE ❤️", 0xF81F, 5000, "TOUCH:HOLD");
+                triggerTouchVisual("SHY LOVE ❤️", 0xF81F, 5000, "TOUCH:SHY:PET");
 
                 if (bleConnected && pCharPet) {
                     char emoChar[2] = { (char)('0' + (int)EMOTION_SHY), '\0' };
@@ -1027,7 +1031,7 @@ void processTouch() {
     }
 
     // =========================================================================
-    // 8. AUTO-REVERT FROM SHY LOVE AFTER 5 SECONDS BACK TO ORIGINAL PHOTO
+    // 8. AUTO-REVERT FROM SHY LOVE AFTER 5 SECONDS BACK TO ORIGINAL STATE
     // =========================================================================
     if (isTemporaryLove && (now - loveStartTime >= 5000)) {
         isTemporaryLove = false;
@@ -1042,6 +1046,41 @@ void processTouch() {
         triggerTouchVisual(emoNames[preHoldEmotion], 0x07FF, 700, "TOUCH:REVERT");
         Serial.printf("[TOUCH] 5s elapsed -> Reverted to %d (%s)\n", (int)preHoldEmotion, emoNames[preHoldEmotion]);
     }
+
+    // Notify BLE when Robot Eyes reverts from Shy Love
+    static bool lastRobotShyActive = false;
+    if (lastRobotShyActive && !robotEyes.isShyLoveActive) {
+        if (bleConnected && pCharSet) {
+            pCharSet->setValue("ROBOT_MOOD:" + std::to_string(robotEyes.currentStyle));
+            pCharSet->notify();
+            pCharSet->setValue(std::string("TOUCH:REVERT"));
+            pCharSet->notify();
+        }
+        Serial.printf("[TOUCH] Robot Eyes reverted to mood %d\n", robotEyes.currentStyle);
+    }
+    lastRobotShyActive = robotEyes.isShyLoveActive;
+
+    // Notify BLE when CyberHUD reverts from Shy Overlay
+    static bool lastHudShyActive = false;
+    if (lastHudShyActive && !cyberHUD.isShyActive) {
+        if (bleConnected && pCharSet) {
+            pCharSet->setValue(std::string("TOUCH:REVERT"));
+            pCharSet->notify();
+        }
+        Serial.println("[TOUCH] CyberHUD Shy Overlay closed.");
+    }
+    lastHudShyActive = cyberHUD.isShyActive;
+
+    // Notify BLE when Matrix Rain reverts from Heart Rain
+    static bool lastMatrixShyActive = false;
+    if (lastMatrixShyActive && !matrixRain.isHeartRainActive) {
+        if (bleConnected && pCharSet) {
+            pCharSet->setValue(std::string("TOUCH:REVERT"));
+            pCharSet->notify();
+        }
+        Serial.println("[TOUCH] Matrix Heart Rain ended.");
+    }
+    lastMatrixShyActive = matrixRain.isHeartRainActive;
 }
 
 void enterDeepSleep() {
