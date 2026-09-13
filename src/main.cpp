@@ -7,11 +7,11 @@
 #include "esp_sleep.h"
 #include "config.h"
 #include "display_setup.h"
+#include "emoji_renderer.h"
 #include "meme_pet.h"
 #include "robot_eyes.h"
 #include "cyber_hud.h"
 #include "matrix_rain.h"
-#include "emoji_renderer.h"
 
 // Global Display Objects
 LGFX_ST7789 tft;
@@ -380,7 +380,14 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
             isVideoPlaying = false;
             Serial.printf("[SETTINGS] Matrix Theme: %d\n", matrixRain.currentTheme);
         }
-        // 13. Save All Changes to Flash Memory: "SAVE_CONFIG" or "SAVE_CHANGES"
+        // 13. CyberHUD Shy Secret Message: "HUD_SHY:<custom text>"
+        else if (cmd.startsWith("HUD_SHY:")) {
+            String msg = cmd.substring(8);
+            cyberHUD.setShyText(msg);
+            prefs.putString("hud_shy", msg);
+            Serial.printf("[SETTINGS] CyberHUD Shy Text: %s\n", msg.c_str());
+        }
+        // 14. Save All Changes to Flash Memory: "SAVE_CONFIG" or "SAVE_CHANGES"
         else if (cmd == "SAVE_CONFIG" || cmd == "SAVE_CHANGES") {
             defaultMode = currentMode;
             memePet.defaultEmotion = memePet.currentEmotion;
@@ -393,6 +400,7 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
             prefs.putBool("hud_wave", cyberHUD.showWaveform);
             prefs.putBool("hud_text", cyberHUD.showCustomText);
             prefs.putString("hud_msg", cyberHUD.customMessage);
+            prefs.putString("hud_shy", cyberHUD.customShyText);
             prefs.putUChar("robot_mood", (uint8_t)robotEyes.currentStyle);
             prefs.putUChar("matrix_thm", (uint8_t)matrixRain.currentTheme);
             prefs.putUChar("br", screenBrightness);
@@ -928,26 +936,41 @@ void processTouch() {
             return;
         }
 
-        // --- 2.0s – 9.5s: SHY LOVE ❤️ ---
+        // --- 2.0s – 9.5s: MODE-SPECIFIC SHY / SECRET REACTION ❤️ ---
         if (holdDuration >= 2000 && holdDuration < 9500 && !shyLoveTriggered && !hold10sReady) {
             shyLoveTriggered = true;
             lastActivityTime = now;
 
-            preHoldEmotion = memePet.currentEmotion;
-            isTemporaryLove = true;
-            loveStartTime = now;
+            if (currentMode == MODE_CYBER_HUD) {
+                cyberHUD.triggerShy(5000);
+                triggerTouchVisual("SECRET MSG 💌", 0xF81F, 5000, "TOUCH:SHY");
+                Serial.printf("[TOUCH] 2.0s Hold -> CyberHUD Shy Overlay (%s)\n", cyberHUD.customShyText.c_str());
+            } else if (currentMode == MODE_MATRIX_RAIN) {
+                matrixRain.triggerHeartRain(5000);
+                triggerTouchVisual("HEART RAIN 💖", 0xF81F, 5000, "TOUCH:SHY");
+                Serial.println("[TOUCH] 2.0s Hold -> Matrix Cyber Heart Rain!");
+            } else if (currentMode == MODE_ROBOT_EYES) {
+                robotEyes.triggerShyLove(5000);
+                triggerTouchVisual("HEART EYES ❤️", 0xF81F, 5000, "TOUCH:SHY");
+                Serial.println("[TOUCH] 2.0s Hold -> Robot Eyes Happy Love!");
+            } else {
+                // MODE_CYBERPET (or default)
+                preHoldEmotion = memePet.currentEmotion;
+                isTemporaryLove = true;
+                loveStartTime = now;
 
-            memePet.setEmotion(EMOTION_SHY);
-            currentMode = MODE_CYBERPET;
-            isVideoPlaying = false;
-            triggerTouchVisual("SHY LOVE ❤️", 0xF81F, 5000, "TOUCH:HOLD");
+                memePet.setEmotion(EMOTION_SHY);
+                currentMode = MODE_CYBERPET;
+                isVideoPlaying = false;
+                triggerTouchVisual("SHY LOVE ❤️", 0xF81F, 5000, "TOUCH:HOLD");
 
-            if (bleConnected && pCharPet) {
-                char emoChar[2] = { (char)('0' + (int)EMOTION_SHY), '\0' };
-                pCharPet->setValue(std::string(emoChar));
-                pCharPet->notify();
+                if (bleConnected && pCharPet) {
+                    char emoChar[2] = { (char)('0' + (int)EMOTION_SHY), '\0' };
+                    pCharPet->setValue(std::string(emoChar));
+                    pCharPet->notify();
+                }
+                Serial.printf("[TOUCH] 2.0s Hold -> Pet Shy Love! (Reverting to %d in 5s)\n", (int)preHoldEmotion);
             }
-            Serial.printf("[TOUCH] 2.0s Hold -> Shy Love! (Reverting to %d in 5s)\n", (int)preHoldEmotion);
             return;
         }
     }
@@ -1242,6 +1265,7 @@ void setup() {
     cyberHUD.showWaveform = prefs.getBool("hud_wave", true);
     cyberHUD.showCustomText = prefs.getBool("hud_text", true);
     cyberHUD.setCustomText(prefs.getString("hud_msg", "DIGI_HUD // SYS_ONLINE"));
+    cyberHUD.setShyText(prefs.getString("hud_shy", "I LOVE YOU :heart: :sparkles:"));
     robotEyes.setStyle(prefs.getUChar("robot_mood", 0));
     matrixRain.setTheme(prefs.getUChar("matrix_thm", 0));
     bootSplashType = (BootSplashType)prefs.getUChar("boot_type", (uint8_t)BOOT_JOYBOY_INTRO);

@@ -2,6 +2,7 @@
 #include <LovyanGFX.hpp>
 #include "display_setup.h"
 #include "config.h"
+#include "emoji_renderer.h"
 
 class CyberHUD {
 public:
@@ -12,7 +13,11 @@ public:
     bool showWaveform = true;
     bool showCustomText = true;
     String customMessage = "DIGI_HUD // SYS_ONLINE";
+    String customShyText = "I LOVE YOU :heart: :sparkles:";
     String dateString = "SUN 13 SEP 2026";
+
+    bool isShyActive = false;
+    uint32_t shyStartTime = 0;
 
     int hours = 13;
     int minutes = 37;
@@ -57,6 +62,15 @@ public:
         if (text.length() > 0) customMessage = text;
     }
 
+    void setShyText(const String& text) {
+        if (text.length() > 0) customShyText = text;
+    }
+
+    void triggerShy(uint32_t durMs = 5000) {
+        isShyActive = true;
+        shyStartTime = millis();
+    }
+
     void setFlags(bool sec, bool bat, bool date, bool wave, bool text) {
         showSeconds = sec;
         showBattery = bat;
@@ -80,6 +94,11 @@ public:
         }
         animPhase = (animPhase + 1) % 360;
 
+        // Auto revert shy mode after 5 seconds
+        if (isShyActive && (millis() - shyStartTime >= 5000)) {
+            isShyActive = false;
+        }
+
         canvas.fillScreen(TFT_BLACK);
 
         if (currentLayout == 0) {
@@ -88,6 +107,11 @@ public:
             renderBigClockDate();
         } else {
             renderMinimalDashboard();
+        }
+
+        // Overlay 2-Second Hold Shy / Love Reaction
+        if (isShyActive) {
+            renderShyOverlay();
         }
     }
 
@@ -338,5 +362,50 @@ private:
         char bStr[8];
         snprintf(bStr, sizeof(bStr), "%d%%", batteryPercent);
         canvas.drawString(bStr, x + 38, y + 3);
+    }
+
+    void renderShyOverlay() {
+        // Floating Heart Particles
+        drawFloatingHearts();
+
+        // Translucent Cyber Love Card
+        canvas.fillRoundRect(8, 46, 224, 148, 8, 0x0841);
+        canvas.drawRoundRect(8, 46, 224, 148, 8, 0xF81F);
+        canvas.drawRoundRect(10, 48, 220, 144, 6, 0x981F);
+
+        // Header Title
+        canvas.setTextColor(0xF81F, 0x0841);
+        canvas.setTextSize(1);
+        canvas.drawCenterString("CYBER LOVE PROTOCOL // 2s HOLD", 120, 58);
+
+        // Render Custom Shy / Secret Message with Emojis
+        int textY = 96;
+        int txtSize = (customShyText.length() > 14) ? 2 : 3;
+        int textW = customShyText.length() * 6 * txtSize;
+        int startX = max(16, 120 - (textW / 2));
+        EmojiRenderer::renderTextWithEmojis(&canvas, customShyText, startX, textY, txtSize, 0xFFFF, 0x0841);
+
+        // Subtitle / Heart Icon
+        canvas.setTextColor(0xFD20, 0x0841);
+        canvas.setTextSize(1);
+        canvas.drawCenterString("<3 SPECIAL SECRET MESSAGE <3", 120, 142);
+
+        // Progress Timeout Bar
+        uint32_t elapsed = millis() - shyStartTime;
+        float pct = 1.0f - ((float)elapsed / 5000.0f);
+        if (pct < 0.0f) pct = 0.0f;
+        if (pct > 1.0f) pct = 1.0f;
+        canvas.drawRoundRect(30, 168, 180, 8, 3, 0xF81F);
+        canvas.fillRect(32, 170, (int)(176 * pct), 4, 0xF81F);
+    }
+
+    void drawFloatingHearts() {
+        for (int i = 0; i < 4; i++) {
+            int hx = 24 + i * 62 + (int)(sin((animPhase + i * 25) * 0.1f) * 10);
+            int hy = 28 + (int)(cos((animPhase + i * 25) * 0.12f) * 14);
+            canvas.fillCircle(hx - 3, hy - 2, 4, 0xF81F);
+            canvas.fillCircle(hx + 3, hy - 2, 4, 0xF81F);
+            canvas.fillTriangle(hx - 7, hy - 1, hx + 7, hy - 1, hx, hy + 7, 0xF81F);
+        }
     }
 };

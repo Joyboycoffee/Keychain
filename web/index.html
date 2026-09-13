@@ -468,6 +468,13 @@
                     <button class="btn-opt" onclick="sendHudCustomText()" style="background:var(--cyan); color:#000; font-weight:700;">📤 SYNC TEXT</button>
                 </div>
 
+                <!-- Custom 2-Second Hold Shy Message -->
+                <div style="font-size:0.78rem; color:var(--magenta); font-weight:700; margin-top:4px;">❤️ 2-SECOND HOLD SECRET / SHY MESSAGE:</div>
+                <div class="text-input-wrap">
+                    <input type="text" id="txtHudShyMessage" value="I LOVE YOU ❤️" maxlength="24" placeholder="Enter 2s hold secret message...">
+                    <button class="btn-opt" onclick="sendHudShyText()" style="background:var(--magenta); color:#fff; font-weight:700;">💌 SYNC SHY TEXT</button>
+                </div>
+
                 <!-- Element Checkboxes -->
                 <div style="font-size:0.78rem; color:var(--text-muted); font-weight:700; margin-top:4px;">TOGGLE DISPLAY ELEMENTS:</div>
                 <div class="checkbox-grid">
@@ -718,17 +725,56 @@
                     <button class="btn-opt" onclick="sendCustomText()" style="background:var(--cyan); color:#000; font-weight:700;">SEND</button>
                 </div>
 
+                <div style="font-size:0.78rem; color:var(--cyan); font-weight:700; margin-top:6px; display:flex; justify-content:space-between;">
+                    <span>🎨 32 VECTOR EMOJI PALETTE (TAP TO INSERT):</span>
+                    <span style="font-size:0.72rem; color:var(--text-muted);">Also supports direct typing from keyboard!</span>
+                </div>
+
+                <!-- Category 1: Popular & Reactions -->
+                <div style="font-size:0.72rem; color:var(--text-muted); font-weight:700;">POPULAR & LOVE:</div>
                 <div class="emoji-row">
-                    <div class="emoji-chip" onclick="insertEmoji(':coffee:')">☕</div>
-                    <div class="emoji-chip" onclick="insertEmoji(':heart:')">❤️</div>
-                    <div class="emoji-chip" onclick="insertEmoji(':fire:')">🔥</div>
-                    <div class="emoji-chip" onclick="insertEmoji(':star:')">⭐</div>
-                    <div class="emoji-chip" onclick="insertEmoji(':sparkles:')">✨</div>
-                    <div class="emoji-chip" onclick="insertEmoji(':cat:')">🐱</div>
-                    <div class="emoji-chip" onclick="insertEmoji(':cry:')">😭</div>
-                    <div class="emoji-chip" onclick="insertEmoji(':banana:')">🍌</div>
-                    <div class="emoji-chip" onclick="insertEmoji(':skull:')">💀</div>
-                    <div class="emoji-chip" onclick="insertEmoji(':zap:')">⚡</div>
+                    <div class="emoji-chip" onclick="insertEmoji('☕')">☕</div>
+                    <div class="emoji-chip" onclick="insertEmoji('❤️')">❤️</div>
+                    <div class="emoji-chip" onclick="insertEmoji('💖')">💖</div>
+                    <div class="emoji-chip" onclick="insertEmoji('🔥')">🔥</div>
+                    <div class="emoji-chip" onclick="insertEmoji('⚡')">⚡</div>
+                    <div class="emoji-chip" onclick="insertEmoji('⭐')">⭐</div>
+                    <div class="emoji-chip" onclick="insertEmoji('✨')">✨</div>
+                    <div class="emoji-chip" onclick="insertEmoji('🚀')">🚀</div>
+                    <div class="emoji-chip" onclick="insertEmoji('👑')">👑</div>
+                    <div class="emoji-chip" onclick="insertEmoji('💎')">💎</div>
+                    <div class="emoji-chip" onclick="insertEmoji('💯')">💯</div>
+                    <div class="emoji-chip" onclick="insertEmoji('👍')">👍</div>
+                    <div class="emoji-chip" onclick="insertEmoji('🎉')">🎉</div>
+                </div>
+
+                <!-- Category 2: Mascots & Expressions -->
+                <div style="font-size:0.72rem; color:var(--text-muted); font-weight:700; margin-top:4px;">MASCOTS & FACES:</div>
+                <div class="emoji-row">
+                    <div class="emoji-chip" onclick="insertEmoji('🐱')">🐱</div>
+                    <div class="emoji-chip" onclick="insertEmoji('🐶')">🐶</div>
+                    <div class="emoji-chip" onclick="insertEmoji('🐰')">🐰</div>
+                    <div class="emoji-chip" onclick="insertEmoji('🍌')">🍌</div>
+                    <div class="emoji-chip" onclick="insertEmoji('💀')">💀</div>
+                    <div class="emoji-chip" onclick="insertEmoji('😭')">😭</div>
+                    <div class="emoji-chip" onclick="insertEmoji('😎')">😎</div>
+                    <div class="emoji-chip" onclick="insertEmoji('😈')">😈</div>
+                    <div class="emoji-chip" onclick="insertEmoji('💩')">💩</div>
+                    <div class="emoji-chip" onclick="insertEmoji('🧸')">🧸</div>
+                    <div class="emoji-chip" onclick="insertEmoji('👀')">👀</div>
+                </div>
+
+                <!-- Category 3: Cyber & Fun -->
+                <div style="font-size:0.72rem; color:var(--text-muted); font-weight:700; margin-top:4px;">CYBER, FOOD & NATURE:</div>
+                <div class="emoji-row">
+                    <div class="emoji-chip" onclick="insertEmoji('🤖')">🤖</div>
+                    <div class="emoji-chip" onclick="insertEmoji('👾')">👾</div>
+                    <div class="emoji-chip" onclick="insertEmoji('🎮')">🎮</div>
+                    <div class="emoji-chip" onclick="insertEmoji('🎵')">🎵</div>
+                    <div class="emoji-chip" onclick="insertEmoji('🍕')">🍕</div>
+                    <div class="emoji-chip" onclick="insertEmoji('🍔')">🍔</div>
+                    <div class="emoji-chip" onclick="insertEmoji('🌙')">🌙</div>
+                    <div class="emoji-chip" onclick="insertEmoji('🌸')">🌸</div>
                 </div>
             </div>
         </section>
@@ -1162,6 +1208,14 @@
             log(`HUD Banner: ${text}`);
         }
 
+        async function sendHudShyText() {
+            if (!charSettings) return;
+            const text = document.getElementById('txtHudShyMessage').value;
+            const data = new TextEncoder().encode(`HUD_SHY:${text}`);
+            await charSettings.writeValue(data);
+            log(`CyberHUD Shy Secret: ${text}`);
+        }
+
         async function setMatrixTheme(thmNum) {
             highlightMatrixThemeUI(thmNum);
             if (!charSettings) return;
@@ -1246,10 +1300,19 @@
             alert("Default settings saved!");
         }
 
+        let lastFocusedInput = null;
+        document.addEventListener('focusin', (e) => {
+            if (e.target && (e.target.id === 'txtMessage' || e.target.id === 'txtHudMessage' || e.target.id === 'txtHudShyMessage')) {
+                lastFocusedInput = e.target;
+            }
+        });
+
         function insertEmoji(em) {
-            const input = document.getElementById('txtMessage');
-            input.value += " " + em;
-            input.focus();
+            const input = lastFocusedInput || document.getElementById('txtMessage');
+            if (input) {
+                input.value += (input.value.length > 0 && !input.value.endsWith(' ') ? " " : "") + em;
+                input.focus();
+            }
         }
 
         async function sendCustomText() {

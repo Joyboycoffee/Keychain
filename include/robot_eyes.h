@@ -6,6 +6,9 @@
 class RobotEyes {
 public:
     int currentStyle = 0; // 0 = Cyan Normal, 1 = Happy Love, 2 = Angry Slant, 3 = Cyber Gold Scanner
+    bool isShyLoveActive = false;
+    uint32_t shyLoveStartTime = 0;
+    int preShyStyle = 0;
 
 private:
     float eyeWidth = 55;
@@ -53,6 +56,13 @@ public:
         return currentStyle;
     }
 
+    void triggerShyLove(uint32_t durMs = 5000) {
+        if (!isShyLoveActive) preShyStyle = currentStyle;
+        isShyLoveActive = true;
+        shyLoveStartTime = millis();
+        setStyle(1); // Switch to Happy Love
+    }
+
     void setMood(PetMood mood) {
         currentMood = mood;
         if (mood == MOOD_HAPPY || mood == MOOD_LOVE) {
@@ -70,6 +80,11 @@ public:
     void update() {
         uint32_t now = millis();
         scanPhase = (scanPhase + 4) % 360;
+
+        if (isShyLoveActive && (now - shyLoveStartTime >= 5000)) {
+            isShyLoveActive = false;
+            setStyle(preShyStyle);
+        }
 
         // 1. Random Gaze Tracking (looks around naturally)
         if (now - lastGazeChange > (currentStyle == 3 ? 1400 : 2500) && !isBlinking) {
