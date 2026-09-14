@@ -1800,19 +1800,6 @@ void loop() {
         saveBatteryDischargeLog();
     }
 
-    // 15-Second Media Stream Auto-Revert back to default mascot
-    if (currentMode == MODE_STREAM_MEDIA && streamStartTime > 0 && (millis() - streamStartTime >= 15000)) {
-        currentMode = defaultMode;
-        isVideoPlaying = false;
-        newMediaFrameReady = false;
-        streamStartTime = 0;
-        if (pCharMode) {
-            char mChar[2] = { (char)('0' + (int)defaultMode), '\0' };
-            pCharMode->setValue(std::string(mChar));
-            pCharMode->notify();
-        }
-        Serial.printf("[STREAM] 15s elapsed -> Auto-reverted to default mode (%d)\n", (int)defaultMode);
-    }
 
     // =========================================================================
     // SECRET DEVELOPER EASTER EGG SCREEN OVERLAY (7-POKE UNLOCK)
