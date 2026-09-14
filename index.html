@@ -1311,6 +1311,35 @@
           </button>
         </div>
 
+        <!-- Secret Developer Easter Egg Card -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              SECRET EASTER EGG PROMPT
+            </div>
+            <div class="badge badge-mag">7-POKE UNLOCK 🎉</div>
+          </div>
+          <div style="font-size:0.75rem; color:var(--beige-muted); margin-bottom:8px;">
+            Configure your custom secret Easter Egg message. Rapidly tap/poke the touch sensor <b>7 times</b> to trigger this hidden prompt on the screen!
+          </div>
+
+          <div class="text-input-wrap">
+            <input type="text" id="txtEasterEgg" value="YOU ARE AWESOME :sparkles: :heart: :fire:" maxlength="40" placeholder="Enter secret Easter Egg message...">
+            <button class="btn-primary" style="flex-shrink:0;" onclick="sendEasterEggMessage()">
+              <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              SAVE SECRET
+            </button>
+          </div>
+
+          <div style="display:flex; gap:8px; margin-top:8px;">
+            <button class="btn-opt" style="flex:1; background:var(--magenta-bg); color:var(--magenta); border-color:var(--magenta);" onclick="testEasterEgg()">
+              <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              TEST EASTER EGG ON DEVICE
+            </button>
+          </div>
+        </div>
+
         <!-- Hardware Touch Gesture Guide -->
         <div class="card">
           <div class="card-header">
@@ -1332,6 +1361,10 @@
             <div class="stat-tile">
               <div class="stat-label">5 QUICK TAPS <span class="badge badge-ok">MODE</span></div>
               <div class="stat-value" style="font-size:0.72rem;">Pet ➔ Robot ➔ HUD ➔ Matrix</div>
+            </div>
+            <div class="stat-tile">
+              <div class="stat-label">7 QUICK POKES <span class="badge badge-mag">EASTER EGG</span></div>
+              <div class="stat-value" style="font-size:0.72rem;">Unlock Hidden Developer Prompt 🎉</div>
             </div>
             <div class="stat-tile">
               <div class="stat-label">2-SEC HOLD <span class="badge badge-mag">SHY LOVE</span></div>
@@ -2043,6 +2076,9 @@
         highlightEmotionUI(1);
         setTouchBanner("👉👈 CYBERPET SHY LOVE (2s HOLD)", "badge-mag", 5000);
         log("🐱 CyberPet 2s Hold -> Shy Love Avatar Active!");
+      } else if (msg === "EASTER:UNLOCKED") {
+        setTouchBanner("🎉 SECRET EASTER EGG UNLOCKED! (7 POKES)", "badge-mag", 6000);
+        log("🎉 Secret Developer Easter Egg Unlocked on Keychain!");
       } else if (msg.startsWith("TOUCH:REVERT")) {
         setTouchBanner("🔄 REVERTED (5s ELAPSED)", "badge-ok", 1500);
         log("🔄 5s elapsed -> Reverted to normal screen.");
@@ -2343,7 +2379,7 @@
 
     let lastFocusedInput = null;
     document.addEventListener('focusin', (e) => {
-      if (e.target && (e.target.id === 'txtMessage' || e.target.id === 'txtHudMessage' || e.target.id === 'txtHudShyMessage')) {
+      if (e.target && (e.target.id === 'txtMessage' || e.target.id === 'txtHudMessage' || e.target.id === 'txtHudShyMessage' || e.target.id === 'txtEasterEgg')) {
         lastFocusedInput = e.target;
       }
     });
@@ -2378,6 +2414,44 @@
         await char.writeValue(data);
       } else if (char.writeValueWithoutResponse) {
         await char.writeValueWithoutResponse(data);
+      }
+    }
+
+    async function sendEasterEggMessage() {
+      vibrate();
+      if (!charSettings) {
+        alert("Please pair with DIGI_KEYCHAIN over Bluetooth first!");
+        return;
+      }
+      const textElem = document.getElementById('txtEasterEgg');
+      const text = textElem ? textElem.value.trim() : "";
+      if (!text) return;
+      try {
+        const data = new TextEncoder().encode(`EGG_MSG:${text}`);
+        await safeBleWrite(charSettings, data, false);
+        log(`🎉 Secret Easter Egg saved: "${text}"`);
+        setTouchBanner("EASTER EGG SAVED 💾", "badge-mag", 2500);
+        alert("Secret Easter Egg message saved to keychain!\n\nRapidly tap/poke the touch sensor 7 times to reveal it!");
+      } catch (err) {
+        console.error(err);
+        log(`❌ Easter Egg error: ${err.message}`);
+      }
+    }
+
+    async function testEasterEgg() {
+      vibrate();
+      if (!charSettings) {
+        alert("Please pair with DIGI_KEYCHAIN over Bluetooth first!");
+        return;
+      }
+      try {
+        const data = new TextEncoder().encode("EGG:TRIGGER");
+        await safeBleWrite(charSettings, data, false);
+        log("🎉 Triggered Easter Egg on keychain screen!");
+        setTouchBanner("EASTER EGG UNLOCKED 🎉", "badge-mag", 5000);
+      } catch (err) {
+        console.error(err);
+        log(`❌ Easter Egg test error: ${err.message}`);
       }
     }
 

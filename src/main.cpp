@@ -82,6 +82,13 @@ String   touchVisualText     = "TOUCH";
 uint16_t touchVisualColor    = 0x07FF;
 uint32_t touchVisualEndTime  = 0;
 
+// Secret Developer Easter Egg Prompt State
+String   easterEggMessage    = "YOU ARE AWESOME :sparkles: :heart: :fire:";
+bool     isEasterEggActive   = false;
+uint32_t easterEggStartTime  = 0;
+uint32_t easterEggDurationMs = 6500;
+int      easterEggScrollX    = 240;
+
 // Dynamic Image / Video Stream Buffers
 #define STREAM_CHUNK_BUFFER 20480
 uint8_t* pStreamBuf          = nullptr;
@@ -123,6 +130,7 @@ void updateBatteryTelemetry();
 void saveBatteryDischargeLog();
 void playBootSplash();
 void triggerTouchVisual(const String& label, uint16_t color, uint32_t durationMs, const char* bleState);
+void triggerEasterEgg();
 void blinkDebugLed(int count, int delayMs = 150);
 void startBLE(bool notifyVisual = true);
 void stopBLE(bool notifyVisual = true);
@@ -397,7 +405,17 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
             prefs.putString("hud_shy", msg);
             Serial.printf("[SETTINGS] Synced Shy Secret Text: %s\n", msg.c_str());
         }
-        // 14. Save All Changes to Flash Memory: "SAVE_CONFIG" or "SAVE_CHANGES"
+        // 14. Developer Secret Easter Egg Message: "EGG_MSG:<custom text>"
+        else if (cmd.startsWith("EGG_MSG:")) {
+            easterEggMessage = cmd.substring(8);
+            prefs.putString("egg_msg", easterEggMessage);
+            Serial.printf("[SETTINGS] Synced Easter Egg Text: %s\n", easterEggMessage.c_str());
+        }
+        // 15. Preview/Trigger Easter Egg: "EGG:TRIGGER" or "EGG:PREVIEW"
+        else if (cmd == "EGG:TRIGGER" || cmd == "EGG:PREVIEW") {
+            triggerEasterEgg();
+        }
+        // 16. Save All Changes to Flash Memory: "SAVE_CONFIG" or "SAVE_CHANGES"
         else if (cmd == "SAVE_CONFIG" || cmd == "SAVE_CHANGES") {
             defaultMode = currentMode;
             memePet.defaultEmotion = memePet.currentEmotion;
@@ -411,6 +429,7 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
             prefs.putBool("hud_text", cyberHUD.showCustomText);
             prefs.putString("hud_msg", cyberHUD.customMessage);
             prefs.putString("hud_shy", cyberHUD.customShyText);
+            prefs.putString("egg_msg", easterEggMessage);
             prefs.putUChar("robot_mood", (uint8_t)robotEyes.currentStyle);
             prefs.putUChar("matrix_thm", (uint8_t)matrixRain.currentTheme);
             prefs.putUChar("br", screenBrightness);
@@ -735,6 +754,17 @@ void triggerTouchVisual(const String& label, uint16_t color, uint32_t durationMs
     }
 }
 
+void triggerEasterEgg() {
+    isEasterEggActive = true;
+    easterEggStartTime = millis();
+    easterEggScrollX = 240;
+    lastActivityTime = millis();
+    isVideoPlaying = false;
+    blinkDebugLed(3, 40); // 3 quick celebratory LED pulses
+    triggerTouchVisual("EASTER EGG! 🎉", 0xF81F, easterEggDurationMs, "EASTER:UNLOCKED");
+    Serial.printf("[EASTER EGG] Unlocked! -> %s\n", easterEggMessage.c_str());
+}
+
 // =========================================================================
 // POWER & BLE MANAGEMENT HELPERS
 // =========================================================================
@@ -854,9 +884,24 @@ void processTouch() {
     }
 
     // ---------------------------------------------------------
-    // 3. 5-TAP DETECTION (Instant Switch Main System Mode ⚡)
+    // 3. 7-TAP DETECTION (Secret Developer Easter Egg 🎉)
     // ---------------------------------------------------------
-    if (isrTapCount >= 5) {
+    if (isrTapCount >= 7) {
+        isrTapCount = 0;
+        lastActivityTime = now;
+        isTemporaryLove = false;
+        hold10sReady = false;
+        hold10sPrompted = false;
+        isrDownTime = 0;
+        triggerEasterEgg();
+        return;
+    }
+
+    // ---------------------------------------------------------
+    // 4. 5-TAP DETECTION (Instant Switch Main System Mode ⚡)
+    // (User tapped 5-6 times, finger is UP, and 260ms elapsed without reaching 7)
+    // ---------------------------------------------------------
+    if (isrTapCount >= 5 && isrTapCount < 7 && !isDown && (now - isrLastTapEndTime > 260)) {
         isrTapCount = 0;
         lastActivityTime = now;
         isTemporaryLove = false;
@@ -1360,6 +1405,7 @@ void setup() {
     screenRotation = prefs.getUChar("rot", 3);
     sleepTimeoutMs = prefs.getUInt("sleep", 0); // 0 = Never sleep by default
     customMessage = prefs.getString("msg", "I AM JOY BOY COFFEE :coffee: :fire:");
+    easterEggMessage = prefs.getString("egg_msg", "YOU ARE AWESOME :sparkles: :heart: :fire:");
 
     // Battery Discharge Logger State from NVS
     lastSavedRunSec  = prefs.getUInt("l_run", 0);
@@ -1475,6 +1521,65 @@ void loop() {
         lastBatCheck = millis();
         updateBatteryTelemetry();
         saveBatteryDischargeLog();
+    }
+
+    // =========================================================================
+    // SECRET DEVELOPER EASTER EGG SCREEN OVERLAY (7-POKE UNLOCK)
+    // =========================================================================
+    if (isEasterEggActive) {
+        if (millis() - easterEggStartTime >= easterEggDurationMs) {
+            isEasterEggActive = false;
+            if (pCharSet) {
+                pCharSet->setValue(std::string("TOUCH:REVERT"));
+                pCharSet->notify();
+            }
+        } else {
+            // Render Secret Easter Egg Prompt Card
+            canvas.fillScreen(0x0000);
+
+            // Glitch / Neon Dynamic Double Frame
+            uint16_t borderColor = ((millis() / 150) % 2 == 0) ? 0xF81F : 0x07FF;
+            canvas.drawRoundRect(4, 4, 232, 232, 8, borderColor);
+            canvas.drawRoundRect(6, 6, 228, 228, 6, 0x18E3);
+
+            // Cyber Grid Lines
+            canvas.drawFastHLine(10, 48, 220, 0x2104);
+            canvas.drawFastHLine(10, 192, 220, 0x2104);
+
+            // Top Hacker Badge
+            canvas.fillRoundRect(22, 14, 196, 24, 4, 0x10A2);
+            canvas.drawRoundRect(22, 14, 196, 24, 4, borderColor);
+            canvas.setTextColor(borderColor, 0x10A2);
+            canvas.setTextSize(1);
+            canvas.drawCenterString("EASTER EGG UNLOCKED 🔓", 120, 22);
+
+            // Animated Center Text with Emojis
+            int endX = EmojiRenderer::renderTextWithEmojis(&canvas, easterEggMessage, easterEggScrollX, 102, 3, 0xFFE0, 0x0000);
+            easterEggScrollX -= 3;
+            if (endX < 10) {
+                easterEggScrollX = 240;
+            }
+
+            // Bottom Subtitle
+            canvas.setTextColor(0x07E0, 0x0000);
+            canvas.setTextSize(1);
+            canvas.drawCenterString("YOU FOUND THE SECRET! ✨", 120, 204);
+
+            // Sparkle Stars in corners
+            EmojiRenderer::drawEmoji(&canvas, EMOJI_SPARKLES, 10, 14);
+            EmojiRenderer::drawEmoji(&canvas, EMOJI_SPARKLES, 206, 14);
+
+            // On-Screen Touch Visualizer Overlay if active
+            if (millis() < touchVisualEndTime) {
+                int pulseR = (millis() / 40) % 10 + 4;
+                canvas.drawCircle(222, 18, pulseR, touchVisualColor);
+                canvas.fillCircle(222, 18, 4, touchVisualColor);
+            }
+
+            canvas.pushSprite(0, 0);
+            delay(25);
+            return;
+        }
     }
 
     // Render Active Mode into Canvas
