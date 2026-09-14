@@ -766,6 +766,38 @@ void triggerEasterEgg() {
 }
 
 // =========================================================================
+// SMOOTH BRIGHTNESS FADE-IN (0.7s) & FADE-OUT (1.5s) ENGINE
+// =========================================================================
+void fadeInBrightness(uint8_t targetBr, uint32_t durationMs) {
+    if (targetBr == 0) return;
+    int steps = 30;
+    uint32_t stepDelay = durationMs / steps;
+    for (int i = 1; i <= steps; i++) {
+        float progress = (float)i / (float)steps;
+        float ease = sin(progress * 1.5707963f); // Smooth sine ease-out
+        uint8_t b = (uint8_t)(ease * targetBr);
+        tft.setBrightness(b);
+        delay(stepDelay);
+    }
+    tft.setBrightness(targetBr);
+}
+
+void fadeOutBrightness(uint32_t durationMs) {
+    uint8_t curBr = screenBrightness;
+    if (curBr == 0) return;
+    int steps = 45;
+    uint32_t stepDelay = durationMs / steps;
+    for (int i = steps; i >= 0; i--) {
+        float progress = (float)i / (float)steps;
+        float ease = progress * progress; // Quadratic ease-in for gentle gradual fade
+        uint8_t b = (uint8_t)(ease * curBr);
+        tft.setBrightness(b);
+        delay(stepDelay);
+    }
+    tft.setBrightness(0);
+}
+
+// =========================================================================
 // POWER & BLE MANAGEMENT HELPERS
 // =========================================================================
 void blinkDebugLed(int count, int delayMs) {
@@ -1179,6 +1211,9 @@ void enterDeepSleep() {
         stopBLE(false);
     }
 
+    // Smooth 1.5s fade out animation to pitch black
+    fadeOutBrightness(1500);
+
     // Distinct longer 200ms single flash to signal power-down before sleeping
     blinkDebugLed(1, 200);
 
@@ -1217,7 +1252,16 @@ void enterDeepSleep() {
 // =========================================================================
 void playBootSplash() {
     if (bootSplashType == BOOT_INSTANT) {
-        Serial.println("[BOOT] Instant boot requested.");
+        Serial.println("[BOOT] Instant boot requested -> Fading in active mode directly.");
+        switch (currentMode) {
+            case MODE_CYBERPET:    memePet.update(); break;
+            case MODE_ROBOT_EYES:  robotEyes.update(); break;
+            case MODE_CYBER_HUD:   cyberHUD.update(); break;
+            case MODE_MATRIX_RAIN: matrixRain.update(); break;
+            default: break;
+        }
+        canvas.pushSprite(0, 0);
+        fadeInBrightness(screenBrightness, 700);
         return;
     }
 
@@ -1235,7 +1279,11 @@ void playBootSplash() {
                 canvas.drawJpg(buf, sz, 0, 0, 240, 240);
                 canvas.pushSprite(0, 0);
                 free(buf);
-                delay(bootDurationSec * 1000);
+                fadeInBrightness(screenBrightness, 700);
+                if (bootDurationSec > 0) {
+                    uint32_t rem = bootDurationSec * 1000 > 700 ? (bootDurationSec * 1000 - 700) : 0;
+                    if (rem > 0) delay(rem);
+                }
                 return;
             }
             f.close();
@@ -1252,6 +1300,7 @@ void playBootSplash() {
             uint32_t frameDelay = 1000 / fps;
             Serial.printf("[BOOT] Playing /boot_anim.bin (%d frames @ %d FPS)...\n", totalFrames, fps);
 
+            uint32_t startAnim = millis();
             uint32_t endTime = millis() + (bootDurationSec * 1000);
             while (millis() < endTime && f.available() > 2) {
                 f.seek(2);
@@ -1269,16 +1318,26 @@ void playBootSplash() {
                     } else {
                         f.seek(f.position() + fLen);
                     }
+                    // Smooth fade in over first 700ms
+                    uint32_t elapsed = millis() - startAnim;
+                    if (elapsed < 700) {
+                        float progress = (float)elapsed / 700.0f;
+                        float ease = sin(progress * 1.5707963f);
+                        tft.setBrightness((uint8_t)(ease * screenBrightness));
+                    } else {
+                        tft.setBrightness(screenBrightness);
+                    }
                     delay(frameDelay);
                 }
             }
+            tft.setBrightness(screenBrightness);
             f.close();
             return;
         }
     }
 
     // 3. Default Built-in Joyboy Cyber Boot Intro
-    Serial.println("[BOOT] Playing Built-in Joyboy Cyber Intro...");
+    Serial.println("[BOOT] Playing Built-in Joyboy Cyber Intro with smooth 0.7s fade-in...");
     uint32_t startIntro = millis();
     int pulse = 0;
     while (millis() - startIntro < (uint32_t)(bootDurationSec * 1000)) {
@@ -1323,8 +1382,20 @@ void playBootSplash() {
         canvas.fillRect(42, 194, (int)(156 * pct), 4, 0x07E0);
 
         canvas.pushSprite(0, 0);
+
+        // Smooth 0.7s (700ms) fade in during boot intro start
+        uint32_t elapsed = millis() - startIntro;
+        if (elapsed < 700) {
+            float progress = (float)elapsed / 700.0f;
+            float ease = sin(progress * 1.5707963f);
+            tft.setBrightness((uint8_t)(ease * screenBrightness));
+        } else {
+            tft.setBrightness(screenBrightness);
+        }
+
         delay(30);
     }
+    tft.setBrightness(screenBrightness);
 }
 
 // =========================================================================
@@ -1356,10 +1427,10 @@ void setup() {
     delay(200);
     Serial.println("\n=== DIGI KEYCHAIN ENGINE v4.3 STARTUP ===");
 
-    // 1. Release Deep Sleep GPIO Hold
+    // 1. Release Deep Sleep GPIO Hold & Ensure Backlight starts OFF
     gpio_hold_dis((gpio_num_t)PIN_TFT_BL);
     pinMode(PIN_TFT_BL, OUTPUT);
-    digitalWrite(PIN_TFT_BL, HIGH);
+    digitalWrite(PIN_TFT_BL, LOW);
 
     pinMode(PIN_TOUCH, INPUT_PULLDOWN);
     attachInterrupt(digitalPinToInterrupt(PIN_TOUCH), touchISR, CHANGE);
@@ -1427,7 +1498,7 @@ void setup() {
     Serial.println("[DISPLAY] Initializing ST7789 display...");
     tft.init();
     tft.setRotation(screenRotation);
-    tft.setBrightness(screenBrightness);
+    tft.setBrightness(0); // Start at 0 brightness so fade-in is perfectly smooth!
 
     canvas.setColorDepth(16);
     if (!canvas.createSprite(240, 240)) {
@@ -1483,11 +1554,34 @@ void setup() {
     digitalWrite(PIN_DEBUG_LED, HIGH); // Ensure LED is OFF
     Serial.printf("[BLE] Stack initialized in STANDBY (Radio OFF, CPU @ 80MHz). Hold touch for 10s to activate.\n");
 
-    // 4. Cold Boot Splash vs Deep Sleep Wakeup
+    // 4. Cold Boot Splash vs Deep Sleep Wakeup (with smooth 0.7s fade-in)
     if (wakeupReason == ESP_SLEEP_WAKEUP_UNDEFINED) {
         playBootSplash();
     } else {
-        Serial.printf("[BOOT] Woke from Deep Sleep (%d). Skipping splash.\n", (int)wakeupReason);
+        Serial.printf("[BOOT] Woke from Deep Sleep (%d). Pre-rendering active mode and fading in smoothly (0.7s)...\n", (int)wakeupReason);
+        // Pre-render active mode first frame into canvas
+        switch (currentMode) {
+            case MODE_CYBERPET:    memePet.update(); break;
+            case MODE_ROBOT_EYES:  robotEyes.update(); break;
+            case MODE_CYBER_HUD:   cyberHUD.update(); break;
+            case MODE_MATRIX_RAIN: matrixRain.update(); break;
+            case MODE_TEXT_SCROLL: {
+                canvas.fillScreen(TFT_BLACK);
+                canvas.drawRoundRect(2, 2, 236, 236, 8, 0x07FF);
+                canvas.drawRoundRect(4, 4, 232, 232, 6, 0x18E3);
+                canvas.setTextColor(0x07FF, TFT_BLACK);
+                canvas.setTextSize(1);
+                canvas.drawCenterString("MARQUEE BROADCAST", 120, 18);
+                EmojiRenderer::renderTextWithEmojis(&canvas, customMessage, scrollX, 96, 3, 0xFFFF, 0x0000);
+                canvas.setTextColor(0x8410, TFT_BLACK);
+                canvas.setTextSize(1);
+                canvas.drawCenterString("DIGI KEYCHAIN", 120, 205);
+                break;
+            }
+            default: break;
+        }
+        canvas.pushSprite(0, 0);
+        fadeInBrightness(screenBrightness, 700);
     }
 
     lastActivityTime = millis();
