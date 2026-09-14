@@ -1,1638 +1,2150 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DIGI KEYCHAIN // Deck</title>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg-base: #070a0f;
-            --bg-card: #0e131b;
-            --bg-btn: #161c26;
-            --border: #232b38;
-            --cyan: #00f0ff;
-            --magenta: #ff007f;
-            --amber: #ffaa00;
-            --green: #00ff66;
-            --text-main: #f0f6fc;
-            --text-muted: #8b949e;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>DIGI KEYCHAIN // CONTROL TERMINAL</title>
+  <style>
+    :root {
+      --bg: #090a0c;
+      --surface: #111317;
+      --surface-raised: #171920;
+      --border: #22252d;
+      --border-accent: #3a3f4d;
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            -webkit-tap-highlight-color: transparent;
-        }
+      --beige-light: #f5f0e6;
+      --beige-main: #e2d7c5;
+      --beige-muted: #9e9382;
+      --beige-dim: #5c554a;
 
-        body {
-            background-color: var(--bg-base);
-            color: var(--text-main);
-            font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            padding-bottom: 75px;
-        }
+      --accent: #d8c7ad;
+      --accent-glow: rgba(216, 199, 173, 0.25);
 
-        header {
-            background-color: rgba(14, 19, 27, 0.95);
-            backdrop-filter: blur(12px);
-            border-bottom: 1px solid var(--border);
-            padding: 10px 16px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
+      --green: #a2c892;
+      --green-bg: rgba(162, 200, 146, 0.12);
+      --red: #df735d;
+      --red-bg: rgba(223, 115, 93, 0.12);
+      --amber: #e2b46a;
+      --amber-bg: rgba(226, 180, 106, 0.12);
+      --cyan: #82b1ff;
+      --cyan-bg: rgba(130, 177, 255, 0.12);
+      --magenta: #e092bb;
+      --magenta-bg: rgba(224, 146, 187, 0.12);
 
-        .brand-title {
-            font-size: 1.05rem;
-            font-weight: 700;
-            letter-spacing: 1px;
-            background: linear-gradient(90deg, var(--cyan), var(--magenta));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
+      --key-bg: #15171d;
+      --key-border: #282c36;
+      --key-active: #d8c7ad;
+      --key-active-text: #090a0c;
 
-        .header-actions {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
+      --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, Menlo, Monaco, monospace;
+      --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
 
-        .pill {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.7rem;
-            font-weight: 700;
-            padding: 5px 9px;
-            border-radius: 999px;
-            border: 1px solid var(--border);
-            background: rgba(255, 255, 255, 0.03);
-            white-space: nowrap;
-        }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: var(--font-mono);
+      -webkit-tap-highlight-color: transparent;
+    }
 
-        .pill.offline { color: #f85149; border-color: rgba(248, 81, 73, 0.3); }
-        .pill.online { color: var(--green); border-color: rgba(0, 255, 102, 0.4); box-shadow: 0 0 10px rgba(0, 255, 102, 0.2); }
+    body {
+      background-color: var(--bg);
+      color: var(--beige-main);
+      padding: 12px;
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+      font-size: 13px;
+      line-height: 1.4;
+    }
 
-        .btn-connect-head {
-            background: linear-gradient(135deg, #1f6feb, #238636);
-            color: #ffffff;
-            font-weight: 700;
-            font-size: 0.78rem;
-            padding: 6px 12px;
-            border-radius: 6px;
-            border: none;
-            cursor: pointer;
-        }
+    /* VIEW MODES */
+    .app-container {
+      max-width: 900px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding-bottom: 75px;
+    }
 
-        #touchBanner {
-            background: rgba(0, 240, 255, 0.05);
-            border-bottom: 1px solid var(--border);
-            padding: 8px 16px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            font-size: 0.78rem;
-            font-family: 'JetBrains Mono', monospace;
-            transition: all 0.2s ease;
-        }
+    body.view-desktop .app-container {
+      max-width: 1140px;
+      padding-bottom: 20px;
+    }
 
-        #touchBanner.active {
-            background: rgba(0, 240, 255, 0.25);
-            border-color: var(--cyan);
-            box-shadow: inset 0 0 15px rgba(0, 240, 255, 0.4);
-        }
+    body.view-desktop .mobile-nav {
+      display: none !important;
+    }
 
-        .tab-bar {
-            display: flex;
-            background: var(--bg-card);
-            border-bottom: 1px solid var(--border);
-            overflow-x: auto;
-            scrollbar-width: none;
-            padding: 4px 8px;
-            gap: 6px;
-            position: sticky;
-            top: 51px;
-            z-index: 90;
-        }
-        .tab-bar::-webkit-scrollbar { display: none; }
+    body.view-mobile .tabs-bar {
+      display: none !important;
+    }
 
-        .tab-btn {
-            background: transparent;
-            border: 1px solid transparent;
-            color: var(--text-muted);
-            font-weight: 700;
-            font-size: 0.8rem;
-            padding: 8px 12px;
-            border-radius: 6px;
-            white-space: nowrap;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
+    @media (min-width: 920px) {
+      body:not(.view-mobile) .app-container {
+        max-width: 1140px;
+        padding-bottom: 20px;
+      }
+      body:not(.view-mobile) .mobile-nav {
+        display: none !important;
+      }
+      body:not(.view-mobile) .tabs-bar {
+        display: flex !important;
+      }
+    }
 
-        .tab-btn.active {
-            background: var(--bg-btn);
-            color: var(--cyan);
-            border-color: var(--border);
-            box-shadow: 0 0 10px rgba(0, 240, 255, 0.15);
-        }
+    @media (max-width: 919px) {
+      body:not(.view-desktop) .tabs-bar {
+        display: none;
+      }
+      body:not(.view-desktop) .mobile-nav {
+        display: flex;
+      }
+    }
 
-        main {
-            max-width: 650px;
-            width: 100%;
-            margin: 0 auto;
-            padding: 14px;
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
-        }
+    /* HEADER */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 10px 14px;
+      border-radius: 4px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
 
-        .tab-content {
-            display: none;
-            flex-direction: column;
-            gap: 14px;
-        }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
 
-        .tab-content.active {
-            display: flex;
-        }
+    .brand-title {
+      font-size: 0.92rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      color: var(--beige-light);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
 
-        .card {
-            background-color: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
+    .brand-badge {
+      font-size: 0.65rem;
+      background: var(--surface-raised);
+      border: 1px solid var(--border-accent);
+      color: var(--beige-muted);
+      padding: 1px 5px;
+      border-radius: 2px;
+      letter-spacing: 0.5px;
+    }
 
-        .card-title {
-            font-size: 0.86rem;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            color: var(--cyan);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
 
-        .btn-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-            gap: 8px;
-        }
+    .view-mode-selector {
+      display: flex;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 2px;
+      gap: 2px;
+    }
 
-        button.btn-opt {
-            background-color: var(--bg-btn);
-            border: 1px solid var(--border);
-            color: var(--text-main);
-            font-family: inherit;
-            font-weight: 600;
-            font-size: 0.82rem;
-            padding: 11px 8px;
-            border-radius: 8px;
-            cursor: pointer;
-            text-align: center;
-            transition: all 0.15s ease;
-        }
+    .view-btn {
+      background: transparent;
+      border: none;
+      color: var(--beige-dim);
+      padding: 4px 7px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: all 0.15s;
+    }
 
-        button.btn-opt:active {
-            transform: scale(0.97);
-        }
+    .view-btn.active {
+      background: var(--beige-main);
+      color: var(--bg);
+    }
 
-        button.btn-opt.active {
-            background-color: rgba(0, 240, 255, 0.15);
-            border-color: var(--cyan);
-            color: var(--cyan);
-            box-shadow: 0 0 10px rgba(0, 240, 255, 0.25);
-        }
+    /* HARDWARE TOUCH SENSOR HUD */
+    .touch-hud {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 8px 12px;
+      font-size: 0.75rem;
+      transition: all 0.2s ease;
+    }
 
-        .btn-primary {
-            background: linear-gradient(135deg, #d29922, #db6d28);
-            color: #fff;
-            font-weight: 700;
-            font-size: 0.84rem;
-            padding: 12px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            width: 100%;
-            text-align: center;
-        }
+    .touch-hud.active {
+      border-color: var(--accent);
+      background: var(--surface-raised);
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
 
-        .checkbox-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 10px;
-        }
+    .touch-hud-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--beige-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
 
-        .custom-check {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.8rem;
-            color: var(--text-main);
-            cursor: pointer;
-            user-select: none;
-        }
+    .touch-hud-label svg {
+      width: 14px;
+      height: 14px;
+      stroke: var(--accent);
+    }
 
-        .custom-check input {
-            cursor: pointer;
-            accent-color: var(--cyan);
-            width: 16px;
-            height: 16px;
-        }
+    /* TABS */
+    .tabs-bar {
+      display: flex;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .tabs-bar::-webkit-scrollbar { display: none; }
 
-        .context-panel {
-            display: none;
-        }
+    .tab-btn {
+      flex: 1;
+      min-width: 90px;
+      padding: 10px 8px;
+      background: transparent;
+      color: var(--beige-muted);
+      border: none;
+      border-bottom: 2px solid transparent;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      cursor: pointer;
+      text-align: center;
+      white-space: nowrap;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
 
-        .context-panel.active {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
+    .tab-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
+    .tab-btn.active {
+      color: var(--beige-light);
+      border-bottom: 2px solid var(--accent);
+      background: var(--surface-raised);
+    }
 
-        .slider-wrap {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
+    .tab-content { display: none; flex-direction: column; gap: 12px; }
+    .tab-content.active { display: flex; }
 
-        .slider-head {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.76rem;
-            color: var(--text-muted);
-            font-family: 'JetBrains Mono', monospace;
-        }
+    /* CARDS */
+    .card {
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
 
-        input[type="range"] {
-            -webkit-appearance: none;
-            width: 100%;
-            height: 7px;
-            border-radius: 4px;
-            background: #21262d;
-            outline: none;
-        }
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+      margin-bottom: 2px;
+    }
 
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
-            background: var(--cyan);
-            box-shadow: 0 0 10px var(--cyan);
-            cursor: pointer;
-        }
+    .card-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: var(--beige-light);
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
 
-        .text-input-wrap {
-            display: flex;
-            gap: 8px;
-        }
+    .card-title svg { width: 14px; height: 14px; stroke: var(--accent); fill: none; stroke-width: 2; }
 
-        input[type="text"] {
-            flex: 1;
-            background: #000;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            color: #fff;
-            padding: 10px 12px;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.85rem;
-        }
+    /* TELEMETRY GRID & STAT TILES */
+    .telemetry-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
 
-        .emoji-row {
-            display: flex;
-            gap: 6px;
-            overflow-x: auto;
-            padding-bottom: 4px;
-        }
+    @media (min-width: 600px) {
+      .telemetry-grid.grid-4 {
+        grid-template-columns: repeat(4, 1fr);
+      }
+    }
 
-        .emoji-chip {
-            background: var(--bg-btn);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 6px 12px;
-            font-size: 1.15rem;
-            cursor: pointer;
-            flex-shrink: 0;
-        }
+    .stat-tile {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
 
-        .progress-bar-wrap {
-            height: 6px;
-            background: #21262d;
-            border-radius: 3px;
-            overflow: hidden;
-            display: none;
-        }
+    .stat-label {
+      font-size: 0.65rem;
+      color: var(--beige-dim);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
 
-        .progress-bar {
-            height: 100%;
-            width: 0%;
-            background: linear-gradient(90deg, var(--cyan), var(--magenta));
-            transition: width 0.1s ease;
-        }
+    .stat-value {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--beige-light);
+    }
 
-        .stats-box {
-            background: #05070a;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 12px;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.8rem;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 6px;
+      border-radius: 2px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
 
-        .stats-row {
-            display: flex;
-            justify-content: space-between;
-        }
+    .badge-ok { background: var(--green-bg); color: var(--green); border: 1px solid var(--green); }
+    .badge-alert { background: var(--red-bg); color: var(--red); border: 1px solid var(--red); }
+    .badge-warn { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber); }
+    .badge-cyan { background: var(--cyan-bg); color: var(--cyan); border: 1px solid var(--cyan); }
+    .badge-mag { background: var(--magenta-bg); color: var(--magenta); border: 1px solid var(--magenta); }
 
-        .terminal {
-            background: #000;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 8px 12px;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.72rem;
-            color: #39d353;
-            max-height: 90px;
-            overflow-y: auto;
-        }
-    </style>
+    /* ACTION BUTTONS */
+    .btn-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      gap: 8px;
+    }
+
+    button {
+      background: var(--surface-raised);
+      color: var(--beige-main);
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+      border-radius: 3px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.12s;
+      user-select: none;
+    }
+
+    button:hover {
+      background: #1f232c;
+      border-color: var(--border-accent);
+      color: var(--beige-light);
+    }
+
+    button:active {
+      transform: scale(0.98);
+      background: var(--border-accent);
+    }
+
+    button svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #090a0c !important;
+      border: 1px solid var(--accent);
+    }
+    .btn-primary:hover { background: #ecdcc3; }
+    .btn-primary svg { stroke: #090a0c; }
+
+    .btn-danger {
+      background: var(--red-bg);
+      color: var(--red);
+      border: 1px solid var(--red);
+    }
+    .btn-danger:hover { background: rgba(223, 115, 93, 0.25); }
+
+    .btn-accent {
+      background: #1f221c;
+      color: var(--green);
+      border: 1px solid var(--green);
+    }
+    .btn-accent:hover { background: var(--green-bg); }
+
+    .btn-opt {
+      background-color: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--beige-main);
+      font-weight: 600;
+      font-size: 0.75rem;
+      padding: 10px 8px;
+      border-radius: 3px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s ease;
+    }
+
+    .btn-opt.active {
+      background-color: var(--surface-raised);
+      border-color: var(--accent);
+      color: var(--beige-light);
+      box-shadow: 0 0 8px var(--accent-glow);
+    }
+
+    /* CONTEXT PANELS */
+    .context-panel {
+      display: none;
+    }
+
+    .context-panel.active {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* FORMS & SLIDERS */
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--beige-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .text-input-wrap {
+      display: flex;
+      gap: 8px;
+    }
+
+    input[type="text"], input[type="number"], input[type="password"] {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 9px 10px;
+      border-radius: 3px;
+      color: var(--beige-light);
+      font-size: 0.78rem;
+      font-family: var(--font-mono);
+      outline: none;
+    }
+
+    input[type="text"]:focus, input[type="number"]:focus, input[type="password"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 5px var(--accent-glow);
+    }
+
+    .checkbox-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 8px;
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 8px 10px;
+      border-radius: 3px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .checkbox-row input[type="checkbox"] {
+      accent-color: var(--accent);
+      width: 14px;
+      height: 14px;
+      cursor: pointer;
+    }
+
+    .checkbox-row label {
+      cursor: pointer;
+      color: var(--beige-main);
+      font-size: 0.72rem;
+      margin: 0;
+    }
+
+    .slider-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .slider-head {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.72rem;
+      color: var(--beige-muted);
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: #1c1f26;
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 2px;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent-glow);
+      cursor: pointer;
+    }
+
+    /* EMOJI PICKER CHIPS */
+    .emoji-row {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      scrollbar-width: none;
+    }
+    .emoji-row::-webkit-scrollbar { display: none; }
+
+    .emoji-chip {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 6px 12px;
+      font-size: 1.15rem;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all 0.12s;
+    }
+    .emoji-chip:hover {
+      border-color: var(--accent);
+      background: var(--surface-raised);
+    }
+    .emoji-chip:active {
+      transform: scale(0.92);
+    }
+
+    /* PROGRESS BAR */
+    .progress-bar-wrap {
+      height: 6px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+      display: none;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent), var(--green));
+      box-shadow: 0 0 8px var(--accent-glow);
+      transition: width 0.1s ease;
+    }
+
+    /* TERMINAL */
+    .terminal {
+      background: #050608;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 10px 12px;
+      font-size: 0.72rem;
+      color: var(--green);
+      max-height: 110px;
+      overflow-y: auto;
+      line-height: 1.45;
+    }
+
+    /* MOBILE NAV */
+    .mobile-nav {
+      display: flex;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      z-index: 100;
+      padding: 4px;
+    }
+
+    .nav-item {
+      flex: 1;
+      padding: 8px 2px;
+      background: transparent;
+      border: none;
+      color: var(--beige-dim);
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      cursor: pointer;
+    }
+
+    .nav-item.active {
+      color: var(--beige-light);
+    }
+
+    .nav-item.active svg {
+      stroke: var(--accent);
+    }
+
+    .nav-item svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+    }
+
+    /* UTILITIES */
+    .text-dim { color: var(--beige-dim); }
+    .text-muted { color: var(--beige-muted); }
+    .text-light { color: var(--beige-light); }
+    .text-accent { color: var(--accent); }
+    .divider { height: 1px; background: var(--border); width: 100%; margin: 2px 0; }
+  </style>
 </head>
-<body>
-    <header>
-        <div class="brand-title">⚡ DIGI KEYCHAIN</div>
-        <div class="header-actions">
-            <div id="batteryPill" class="pill">⚡ 4.2V</div>
-            <div id="statusBadge" class="pill offline">OFFLINE</div>
-            <button id="btnConnect" class="btn-connect-head" onclick="connectBLE()">PAIR</button>
+<body class="view-auto">
+
+  <div class="app-container">
+
+    <!-- HEADER -->
+    <header class="header">
+      <div class="brand">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+        </svg>
+        <div class="brand-title">DIGI KEYCHAIN <span class="brand-badge">ESP32-C3</span></div>
+      </div>
+      
+      <div class="header-actions">
+        <div id="batteryPill" class="badge badge-warn">⚡ 4.2V</div>
+        <div id="statusBadge" class="badge badge-alert">OFFLINE</div>
+        <button id="btnConnect" class="btn-primary" style="padding:4px 10px; font-size:0.68rem;" onclick="connectBLE()">
+          <svg viewBox="0 0 24 24"><path d="M6.5 6.5l11 11L12 23V1l5.5 5.5-11 11"/></svg>
+          PAIR
+        </button>
+        <div class="view-mode-selector">
+          <button class="view-btn active" id="btn-mode-auto" onclick="setViewMode('auto')">AUTO</button>
+          <button class="view-btn" id="btn-mode-mobile" onclick="setViewMode('mobile')">PHONE</button>
+          <button class="view-btn" id="btn-mode-desktop" onclick="setViewMode('desktop')">PC</button>
         </div>
+      </div>
     </header>
 
-    <div id="touchBanner">
+    <!-- HARDWARE TOUCH SENSOR TACTICAL HUD -->
+    <div id="touchBanner" class="touch-hud">
+      <div class="touch-hud-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M4.93 19.07L19.07 4.93"/>
+        </svg>
         <span>HARDWARE TOUCH SENSOR</span>
-        <strong id="touchText" style="color:var(--text-muted);">[ IDLE ]</strong>
+      </div>
+      <strong id="touchText" class="badge badge-cyan">[ IDLE ]</strong>
     </div>
 
-    <nav class="tab-bar">
-        <button class="tab-btn active" onclick="switchTab('tabMascots')">🎭 Mascots</button>
-        <button class="tab-btn" onclick="switchTab('tabBoot')">🎬 Boot Splash</button>
-        <button class="tab-btn" onclick="switchTab('tabDisplay')">📱 Display & Battery</button>
-        <button class="tab-btn" onclick="switchTab('tabMarquee')">✨ Marquee</button>
-        <button class="tab-btn" onclick="switchTab('tabStream')">🖼️ Stream Media</button>
+    <!-- MAIN TABS (Desktop / Wide) -->
+    <nav class="tabs-bar">
+      <button class="tab-btn active" id="dtab-tabMascots" onclick="switchTab('tabMascots')">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><circle cx="15.5" cy="8.5" r="1.5"/><path d="M8 15s1.5 2 4 2 4-2 4-2"/></svg>
+        MODES
+      </button>
+      <button class="tab-btn" id="dtab-tabBoot" onclick="switchTab('tabBoot')">
+        <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        BOOT
+      </button>
+      <button class="tab-btn" id="dtab-tabDisplay" onclick="switchTab('tabDisplay')">
+        <svg viewBox="0 0 24 24"><rect x="1" y="6" width="18" height="12" rx="2"/><line x1="23" y1="10" x2="23" y2="14"/></svg>
+        POWER & LOGS
+      </button>
+      <button class="tab-btn" id="dtab-tabMarquee" onclick="switchTab('tabMarquee')">
+        <svg viewBox="0 0 24 24"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>
+        MARQUEE
+      </button>
+      <button class="tab-btn" id="dtab-tabStream" onclick="switchTab('tabStream')">
+        <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+        STREAM
+      </button>
     </nav>
 
-    <main>
-        <!-- TAB 1: MASCOTS & SYSTEM MODES -->
-        <section id="tabMascots" class="tab-content active">
-            <!-- 1. System Mode Switcher -->
-            <div class="card">
-                <div class="card-title">
-                    <span>SYSTEM MODE</span>
-                    <span style="font-size:0.72rem; color:var(--text-muted); font-family:'JetBrains Mono', monospace;">5-Tap Keychain Gesture</span>
-                </div>
-                <div class="btn-grid">
-                    <button class="btn-opt active" id="modeBtn0" onclick="setMode(0)">🐱 CyberPet</button>
-                    <button class="btn-opt" id="modeBtn1" onclick="setMode(1)">🤖 Robot Eyes</button>
-                    <button class="btn-opt" id="modeBtn2" onclick="setMode(2)">⚡ Cyber HUD</button>
-                    <button class="btn-opt" id="modeBtn3" onclick="setMode(3)">📟 Matrix</button>
-                </div>
+    <main style="display:flex; flex-direction:column; gap:12px;">
+      
+      <!-- TAB 1: MODES & MASCOTS -->
+      <section id="tabMascots" class="tab-content active">
+        
+        <!-- System Mode Switcher -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              SYSTEM MODE
             </div>
-
-            <!-- 2. Dynamic Contextual Panel: CyberPet (Mode 0) -->
-            <div class="card context-panel active" id="panelMode0">
-                <div class="card-title">
-                    <span>🐱 CYBERPET REACTION AVATARS</span>
-                    <span style="font-size:0.72rem; color:var(--amber); font-family:'JetBrains Mono', monospace;">Double-Tap: Next</span>
-                </div>
-                <div class="btn-grid">
-                    <button class="btn-opt active" id="emoBtn0" onclick="setEmotion(0)">🏴‍☠️ Luffy</button>
-                    <button class="btn-opt" id="emoBtn1" onclick="setEmotion(1)">👉👈 Shy Love</button>
-                    <button class="btn-opt" id="emoBtn2" onclick="setEmotion(2)">🐱 Giggling Cat</button>
-                    <button class="btn-opt" id="emoBtn3" onclick="setEmotion(3)">🍌 Sad Banana</button>
-                    <button class="btn-opt" id="emoBtn4" onclick="setEmotion(4)">😭 Umaru Cry</button>
-                    <button class="btn-opt" id="emoBtn5" onclick="setEmotion(5)">😾 Angry Cat</button>
-                    <button class="btn-opt" id="emoBtn6" onclick="setEmotion(6)">🐰 Bunny</button>
-                </div>
-                <button class="btn-primary" style="margin-top:4px;" onclick="saveAsDefault()">
-                    ⭐ SET AS DEFAULT BOOT AVATAR
-                </button>
-            </div>
-
-            <!-- 3. Dynamic Contextual Panel: Robot Eyes (Mode 1) -->
-            <div class="card context-panel" id="panelMode1">
-                <div class="card-title">
-                    <span>🤖 ROBOT EYES MOODS & STYLES</span>
-                    <span style="font-size:0.72rem; color:var(--cyan); font-family:'JetBrains Mono', monospace;">Double-Tap: Next</span>
-                </div>
-                <div class="btn-grid">
-                    <button class="btn-opt active" id="robotMoodBtn0" onclick="setRobotMood(0)">👀 Cyan Normal</button>
-                    <button class="btn-opt" id="robotMoodBtn1" onclick="setRobotMood(1)">❤️ Happy Love</button>
-                    <button class="btn-opt" id="robotMoodBtn2" onclick="setRobotMood(2)">😾 Angry Red</button>
-                    <button class="btn-opt" id="robotMoodBtn3" onclick="setRobotMood(3)">🟡 Cyber Gold</button>
-                </div>
-                <button class="btn-primary" style="margin-top:4px;" onclick="saveAsDefault()">
-                    ⭐ SET AS DEFAULT BOOT SCREEN
-                </button>
-            </div>
-
-            <!-- 4. Dynamic Contextual Panel: Cyber HUD (Mode 2) -->
-            <div class="card context-panel" id="panelMode2">
-                <div class="card-title">
-                    <span>⚡ CYBER HUD CUSTOMIZATION</span>
-                    <span style="font-size:0.72rem; color:var(--green); font-family:'JetBrains Mono', monospace;">Double-Tap: Layout</span>
-                </div>
-                
-                <!-- Layout Selection -->
-                <div style="font-size:0.78rem; color:var(--text-muted); font-weight:700;">HUD LAYOUT STYLE:</div>
-                <div class="btn-grid">
-                    <button class="btn-opt active" id="hudLayBtn0" onclick="setHudLayout(0)">⚡ Full HUD</button>
-                    <button class="btn-opt" id="hudLayBtn1" onclick="setHudLayout(1)">⏰ Big Clock & Date</button>
-                    <button class="btn-opt" id="hudLayBtn2" onclick="setHudLayout(2)">📟 Minimal Dashboard</button>
-                </div>
-
-                <!-- Custom Header / Banner Text -->
-                <div style="font-size:0.78rem; color:var(--text-muted); font-weight:700; margin-top:4px;">CUSTOM HUD BANNER TEXT:</div>
-                <div class="text-input-wrap">
-                    <input type="text" id="txtHudMessage" value="JOYBOY // SYS_ONLINE" maxlength="24" placeholder="Enter HUD banner text...">
-                    <button class="btn-opt" onclick="sendHudCustomText()" style="background:var(--cyan); color:#000; font-weight:700;">📤 SYNC TEXT</button>
-                </div>
-
-                <!-- Custom 2-Second Hold Shy Message -->
-                <div style="font-size:0.78rem; color:var(--magenta); font-weight:700; margin-top:4px;">❤️ 2-SECOND HOLD SECRET / SHY MESSAGE:</div>
-                <div class="text-input-wrap">
-                    <input type="text" id="txtHudShyMessage" value="I LOVE YOU ❤️" maxlength="24" placeholder="Enter 2s hold secret message...">
-                    <button class="btn-opt" onclick="sendHudShyText()" style="background:var(--magenta); color:#fff; font-weight:700;">💌 SYNC SHY TEXT</button>
-                </div>
-
-                <!-- Element Checkboxes -->
-                <div style="font-size:0.78rem; color:var(--text-muted); font-weight:700; margin-top:4px;">TOGGLE DISPLAY ELEMENTS:</div>
-                <div class="checkbox-grid">
-                    <label class="custom-check">
-                        <input type="checkbox" id="chkHudSec" checked onchange="syncHudConfig()">
-                        <span>Show Seconds (HH:MM:SS)</span>
-                    </label>
-                    <label class="custom-check">
-                        <input type="checkbox" id="chkHudBat" checked onchange="syncHudConfig()">
-                        <span>Show Battery Badge</span>
-                    </label>
-                    <label class="custom-check">
-                        <input type="checkbox" id="chkHudDate" checked onchange="syncHudConfig()">
-                        <span>Show Live Date Banner</span>
-                    </label>
-                    <label class="custom-check">
-                        <input type="checkbox" id="chkHudWave" checked onchange="syncHudConfig()">
-                        <span>Show Waveform Animation</span>
-                    </label>
-                    <label class="custom-check">
-                        <input type="checkbox" id="chkHudText" checked onchange="syncHudConfig()">
-                        <span>Show Custom Banner Text</span>
-                    </label>
-                </div>
-
-                <div style="display:flex; gap:8px; margin-top:4px;">
-                    <button class="btn-opt" onclick="syncTimeAndWeather()" style="flex:1; background:#1f6feb; color:#fff; border-color:#388bfd;">
-                        ⏰ Sync Time & Date Now
-                    </button>
-                    <button class="btn-primary" style="flex:1;" onclick="saveAsDefault()">
-                        ⭐ Set As Default
-                    </button>
-                </div>
-            </div>
-
-            <!-- 5. Dynamic Contextual Panel: Matrix Rain (Mode 3) -->
-            <div class="card context-panel" id="panelMode3">
-                <div class="card-title">
-                    <span>📟 MATRIX RAIN COLOR THEMES</span>
-                    <span style="font-size:0.72rem; color:var(--green); font-family:'JetBrains Mono', monospace;">Double-Tap: Theme</span>
-                </div>
-                <div class="btn-grid">
-                    <button class="btn-opt active" id="matrixThmBtn0" onclick="setMatrixTheme(0)" style="color:#00ff66; border-color:rgba(0,255,102,0.4);">🟢 Neo Green</button>
-                    <button class="btn-opt" id="matrixThmBtn1" onclick="setMatrixTheme(1)" style="color:#00f0ff; border-color:rgba(0,240,255,0.4);">🔵 Cyber Cyan</button>
-                    <button class="btn-opt" id="matrixThmBtn2" onclick="setMatrixTheme(2)" style="color:#ff007f; border-color:rgba(255,0,127,0.4);">🟣 Synth Magenta</button>
-                    <button class="btn-opt" id="matrixThmBtn3" onclick="setMatrixTheme(3)" style="color:#ffaa00; border-color:rgba(255,170,0,0.4);">🟡 Fire Amber</button>
-                </div>
-                <button class="btn-primary" style="margin-top:4px;" onclick="saveAsDefault()">
-                    ⭐ SET AS DEFAULT BOOT SCREEN
-                </button>
-            </div>
-
-            <!-- 6. Touch Gesture Quick Reference Cheat-Sheet -->
-            <div class="card" style="background: rgba(14, 19, 27, 0.6); border-style: dashed;">
-                <div class="card-title" style="font-size:0.8rem; color:var(--text-muted);">
-                    <span>🎮 HARDWARE TOUCH GESTURE GUIDE</span>
-                </div>
-                <div class="stats-box" style="font-size:0.76rem; gap:8px;">
-                    <div class="stats-row">
-                        <strong style="color:var(--cyan);">👆 Single Tap</strong>
-                        <span>Interactive Poke / Glance / Tick</span>
-                    </div>
-                    <div class="stats-row">
-                        <strong style="color:var(--amber);">🔄 Double Tap</strong>
-                        <span>Cycle Sub-Option inside current Mode</span>
-                    </div>
-                    <div class="stats-row">
-                        <strong style="color:var(--green);">⚡ 5 Quick Taps</strong>
-                        <span>Switch System Mode (Pet ➔ Eyes ➔ HUD ➔ Matrix)</span>
-                    </div>
-                    <div class="stats-row">
-                        <strong style="color:var(--magenta);">❤️ 2-Second Hold</strong>
-                        <span>Shy Love Mascot Reaction (reverts in 5s)</span>
-                    </div>
-                    <div class="stats-row">
-                        <strong style="color:#388bfd;">🔋 10s Hold + Release</strong>
-                        <span>Turn BLE ON (when off) / Deep Sleep (when on)</span>
-                    </div>
-                    <div class="stats-row">
-                        <strong style="color:#f85149;">🛑 Hold &gt; 14s</strong>
-                        <span>Noise Rejection / Table Contact Cancel</span>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- TAB 2: BOOT SPLASH STUDIO -->
-        <section id="tabBoot" class="tab-content">
-            <div class="card">
-                <div class="card-title">
-                    <span>STARTUP ANIMATION TYPE</span>
-                    <button class="btn-opt" style="padding:4px 8px; font-size:0.75rem;" onclick="testBootSplash()">▶️ Preview</button>
-                </div>
-                <div class="btn-grid">
-                    <button class="btn-opt active" id="bootBtn0" onclick="setBootType(0)">☕ Joyboy</button>
-                    <button class="btn-opt" id="bootBtn1" onclick="setBootType(1)">🖼️ Custom Pic</button>
-                    <button class="btn-opt" id="bootBtn2" onclick="setBootType(2)">🎞️ Custom Video</button>
-                    <button class="btn-opt" id="bootBtn3" onclick="setBootType(3)">⚡ Instant</button>
-                </div>
-
-                <div class="slider-wrap">
-                    <div class="slider-head">
-                        <span>DISPLAY DURATION</span>
-                        <span id="bootDurVal">2 Seconds</span>
-                    </div>
-                    <input type="range" id="bootDurSlider" min="1" max="4" value="2" oninput="updateBootDuration(this.value)">
-                </div>
-
-                <div style="display:flex; flex-direction:column; gap:8px;">
-                    <div style="display:flex; gap:8px;">
-                        <label class="btn-opt" style="flex:1; text-align:center; background:#1f2937;">
-                            📁 Upload Boot Pic
-                            <input type="file" accept="image/*" style="display:none;" onchange="uploadBootImage(event)">
-                        </label>
-                        <label class="btn-opt" style="flex:1; text-align:center; background:#1f2937;">
-                            🎥 Upload Boot Video
-                            <input type="file" accept="video/*,image/gif" style="display:none;" onchange="uploadBootVideo(event)">
-                        </label>
-                    </div>
-                    <div id="bootProgressWrap" class="progress-bar-wrap">
-                        <div id="bootProgressBar" class="progress-bar"></div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- TAB 3: DISPLAY & BATTERY DISCHARGE LOGGER -->
-        <section id="tabDisplay" class="tab-content">
-            <div class="card">
-                <div class="card-title">
-                    <span>🔋 BATTERY DISCHARGE & RUNTIME TRACKER</span>
-                    <button class="btn-opt" style="padding:4px 8px; font-size:0.75rem;" onclick="fetchBatteryLog()">🔄 Refresh</button>
-                </div>
-                
-                <div class="stats-box">
-                    <div class="stats-row">
-                        <span style="color:var(--text-muted)">LAST RUN DURATION:</span>
-                        <strong id="logLastRun" style="color:var(--cyan)">--</strong>
-                    </div>
-                    <div class="stats-row">
-                        <span style="color:var(--text-muted)">LAST VOLTAGE DROP:</span>
-                        <strong id="logLastVolt" style="color:var(--amber)">--</strong>
-                    </div>
-                    <div class="stats-row">
-                        <span style="color:var(--text-muted)">EST. DISCHARGE RATE:</span>
-                        <strong id="logDischargeRate" style="color:#ff7b72">--</strong>
-                    </div>
-                    <div class="stats-row">
-                        <span style="color:var(--text-muted)">CURRENT SESSION UPTIME:</span>
-                        <strong id="logCurRun" style="color:var(--green)">0s</strong>
-                    </div>
-                    <div class="stats-row">
-                        <span style="color:var(--text-muted)">CURRENT VOLTAGE:</span>
-                        <strong id="logCurVolt">--</strong>
-                    </div>
-                    <div class="stats-row">
-                        <span style="color:var(--text-muted)">ALL-TIME LIFETIME UPTIME:</span>
-                        <strong id="logAllTime" style="color:var(--magenta)">--</strong>
-                    </div>
-                    <div class="stats-row">
-                        <span style="color:var(--text-muted)">TOTAL RECORDED CYCLES:</span>
-                        <strong id="logCycles">--</strong>
-                    </div>
-                </div>
-
-                <div style="display:flex; gap:8px;">
-                    <button class="btn-opt" style="flex:1;" onclick="fetchBatteryLog()">📖 Read ESP Flash Log</button>
-                    <button class="btn-opt" style="flex:1; background:#3b1219; color:#f85149; border-color:#da3633;" onclick="resetBatteryLog()">🗑️ Reset Log</button>
-                </div>
-            </div>
-
-            <!-- POWER & HARDWARE CONTROLS -->
-            <div class="card">
-                <div class="card-title"><span>⚡ POWER MANAGEMENT & MEMORY</span></div>
-                <div style="display:flex; flex-direction:column; gap:8px;">
-                    <button class="btn-opt" style="background:#161b22; border-color:#388bfd; color:var(--cyan); font-weight:700; padding:10px;" onclick="turnOffBLE()">
-                        🔵 TURN OFF BLE & SLEEP (MICROAMP MODE)
-                    </button>
-                    <div style="font-size:0.75rem; color:var(--text-muted); margin-top:-4px; margin-bottom:4px;">
-                        💡 Powers down Bluetooth & enters deep sleep with a single 200ms LED flash. Hold touch for 10s to wake and turn BLE on!
-                    </div>
-
-                    <button class="btn-opt" style="background:#21262d; border-color:#8957e5; color:var(--magenta); font-weight:700; padding:10px;" onclick="enterDeepSleepNow()">
-                        🌙 DEEP SLEEP NOW (MICROAMP MODE)
-                    </button>
-                    <div style="font-size:0.75rem; color:var(--text-muted); margin-top:-4px; margin-bottom:4px;">
-                        💡 Shuts down screen & chips to microamp sleep (200ms flash). Single tap on sensor wakes it back up!
-                    </div>
-
-                    <button class="btn-primary" style="margin-top:6px; font-weight:700; padding:12px;" onclick="saveChangesToFlash()">
-                        💾 SAVE CHANGES TO FLASH MEMORY
-                    </button>
-                    <div style="font-size:0.75rem; color:var(--green); text-align:center;">
-                        Flashes Brightness, Sleep Timer, Mascot, and Settings as permanent defaults.
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-title"><span>SCREEN ORIENTATION</span></div>
-                <div class="btn-grid">
-                    <button class="btn-opt" id="rotBtn0" onclick="setRotation(0)">0° Normal</button>
-                    <button class="btn-opt" id="rotBtn1" onclick="setRotation(1)">90° Right</button>
-                    <button class="btn-opt" id="rotBtn2" onclick="setRotation(2)">180° Invert</button>
-                    <button class="btn-opt active" id="rotBtn3" onclick="setRotation(3)">270° Left</button>
-                </div>
-
-                <div class="slider-wrap">
-                    <div class="slider-head">
-                        <span>LIVE ROTATION SLIDER</span>
-                        <span id="angleVal">270°</span>
-                    </div>
-                    <input type="range" id="angleSlider" min="0" max="360" value="270" step="90" oninput="updateAngleSlider(this.value)">
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-title"><span>BRIGHTNESS & SLEEP</span></div>
-                
-                <div class="slider-wrap">
-                    <div class="slider-head">
-                        <span>BRIGHTNESS</span>
-                        <span id="brVal">95%</span>
-                    </div>
-                    <input type="range" id="brSlider" min="15" max="255" value="240" oninput="updateBrightness(this.value)">
-                </div>
-
-                <div class="slider-wrap">
-                    <div class="slider-head">
-                        <span>AUTO SLEEP TIMEOUT</span>
-                        <span id="sleepVal">Never (Always ON)</span>
-                    </div>
-                    <input type="range" id="sleepSlider" min="0" max="5" value="5" oninput="updateSleepSlider(this.value)">
-                </div>
-
-                <button class="btn-opt" onclick="syncTimeAndWeather()" style="background:#1f6feb; color:#fff; border-color:#388bfd;">
-                    ⏰ SYNC TIME & WEATHER
-                </button>
-            </div>
-        </section>
-
-        <!-- TAB 4: MARQUEE TEXT -->
-        <section id="tabMarquee" class="tab-content">
-            <div class="card">
-                <div class="card-title"><span>SCROLLING TEXT BROADCAST</span></div>
-                <div class="text-input-wrap">
-                    <input type="text" id="txtMessage" value="JOY BOY COFFEE :coffee: :fire:" placeholder="Enter marquee text...">
-                    <button class="btn-opt" onclick="sendCustomText()" style="background:var(--cyan); color:#000; font-weight:700;">SEND</button>
-                </div>
-
-                <div style="font-size:0.78rem; color:var(--cyan); font-weight:700; margin-top:6px; display:flex; justify-content:space-between;">
-                    <span>🎨 32 VECTOR EMOJI PALETTE (TAP TO INSERT):</span>
-                    <span style="font-size:0.72rem; color:var(--text-muted);">Also supports direct typing from keyboard!</span>
-                </div>
-
-                <!-- Category 1: Popular & Reactions -->
-                <div style="font-size:0.72rem; color:var(--text-muted); font-weight:700;">POPULAR & LOVE:</div>
-                <div class="emoji-row">
-                    <div class="emoji-chip" onclick="insertEmoji('☕')">☕</div>
-                    <div class="emoji-chip" onclick="insertEmoji('❤️')">❤️</div>
-                    <div class="emoji-chip" onclick="insertEmoji('💖')">💖</div>
-                    <div class="emoji-chip" onclick="insertEmoji('🔥')">🔥</div>
-                    <div class="emoji-chip" onclick="insertEmoji('⚡')">⚡</div>
-                    <div class="emoji-chip" onclick="insertEmoji('⭐')">⭐</div>
-                    <div class="emoji-chip" onclick="insertEmoji('✨')">✨</div>
-                    <div class="emoji-chip" onclick="insertEmoji('🚀')">🚀</div>
-                    <div class="emoji-chip" onclick="insertEmoji('👑')">👑</div>
-                    <div class="emoji-chip" onclick="insertEmoji('💎')">💎</div>
-                    <div class="emoji-chip" onclick="insertEmoji('💯')">💯</div>
-                    <div class="emoji-chip" onclick="insertEmoji('👍')">👍</div>
-                    <div class="emoji-chip" onclick="insertEmoji('🎉')">🎉</div>
-                </div>
-
-                <!-- Category 2: Mascots & Expressions -->
-                <div style="font-size:0.72rem; color:var(--text-muted); font-weight:700; margin-top:4px;">MASCOTS & FACES:</div>
-                <div class="emoji-row">
-                    <div class="emoji-chip" onclick="insertEmoji('🐱')">🐱</div>
-                    <div class="emoji-chip" onclick="insertEmoji('🐶')">🐶</div>
-                    <div class="emoji-chip" onclick="insertEmoji('🐰')">🐰</div>
-                    <div class="emoji-chip" onclick="insertEmoji('🍌')">🍌</div>
-                    <div class="emoji-chip" onclick="insertEmoji('💀')">💀</div>
-                    <div class="emoji-chip" onclick="insertEmoji('😭')">😭</div>
-                    <div class="emoji-chip" onclick="insertEmoji('😎')">😎</div>
-                    <div class="emoji-chip" onclick="insertEmoji('😈')">😈</div>
-                    <div class="emoji-chip" onclick="insertEmoji('💩')">💩</div>
-                    <div class="emoji-chip" onclick="insertEmoji('🧸')">🧸</div>
-                    <div class="emoji-chip" onclick="insertEmoji('👀')">👀</div>
-                </div>
-
-                <!-- Category 3: Cyber & Fun -->
-                <div style="font-size:0.72rem; color:var(--text-muted); font-weight:700; margin-top:4px;">CYBER, FOOD & NATURE:</div>
-                <div class="emoji-row">
-                    <div class="emoji-chip" onclick="insertEmoji('🤖')">🤖</div>
-                    <div class="emoji-chip" onclick="insertEmoji('👾')">👾</div>
-                    <div class="emoji-chip" onclick="insertEmoji('🎮')">🎮</div>
-                    <div class="emoji-chip" onclick="insertEmoji('🎵')">🎵</div>
-                    <div class="emoji-chip" onclick="insertEmoji('🍕')">🍕</div>
-                    <div class="emoji-chip" onclick="insertEmoji('🍔')">🍔</div>
-                    <div class="emoji-chip" onclick="insertEmoji('🌙')">🌙</div>
-                    <div class="emoji-chip" onclick="insertEmoji('🌸')">🌸</div>
-                </div>
-            </div>
-        </section>
-
-        <!-- TAB 5: LIVE MEDIA STREAMING (IMAGE, VIDEO & GIF) -->
-        <section id="tabStream" class="tab-content">
-            <div class="card">
-                <div class="card-title"><span>LIVE MEDIA STREAM (IMAGE / VIDEO / GIF)</span></div>
-                
-                <label class="btn-opt" style="text-align:center; padding:14px; background:#161c26;">
-                    📷 Stream Static Image (PNG / JPG / WebP)
-                    <input type="file" accept="image/*" style="display:none;" onchange="uploadLiveImage(event)">
-                </label>
-                
-                <label class="btn-opt" style="text-align:center; padding:14px; background:linear-gradient(135deg, #8957e5, #d946ef); color:#fff;">
-                    🎬 Stream 25 FPS Video / Animated GIF Loop
-                    <input type="file" accept="video/*,image/gif" style="display:none;" onchange="uploadLiveVideo(event)">
-                </label>
-
-                <div id="streamProgressWrap" class="progress-bar-wrap">
-                    <div id="streamProgressBar" class="progress-bar"></div>
-                </div>
-            </div>
-        </section>
-
-        <div class="card" style="padding:10px;">
-            <div class="card-title" style="font-size:0.78rem;">
-                <span>📟 LIVE CONSOLE / TERMINAL</span>
-                <button class="btn-opt" style="padding:2px 8px; font-size:0.7rem;" onclick="clearTerminal()">Clear</button>
-            </div>
-            <div class="terminal" id="terminal">> Digi Keychain ready. Hold touch 10s to turn on Bluetooth, then tap Pair.</div>
+            <div style="font-size:0.65rem; color:var(--beige-dim);">5-Tap Gesture Switch</div>
+          </div>
+          <div class="btn-grid">
+            <button class="btn-opt active" id="modeBtn0" onclick="setMode(0)">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+              CYBERPET
+            </button>
+            <button class="btn-opt" id="modeBtn1" onclick="setMode(1)">
+              <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><line x1="12" y1="7" x2="12" y2="11"/><line x1="7" y1="15" x2="7.01" y2="15"/><line x1="17" y1="15" x2="17.01" y2="15"/></svg>
+              ROBOT EYES
+            </button>
+            <button class="btn-opt" id="modeBtn2" onclick="setMode(2)">
+              <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              CYBER HUD
+            </button>
+            <button class="btn-opt" id="modeBtn3" onclick="setMode(3)">
+              <svg viewBox="0 0 24 24"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
+              MATRIX
+            </button>
+          </div>
         </div>
+
+        <!-- Mode 0: CyberPet Reaction Avatars -->
+        <div class="card context-panel active" id="panelMode0">
+          <div class="card-header">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/></svg>
+              CYBERPET REACTION AVATARS
+            </div>
+            <div class="badge badge-warn">DOUBLE-TAP: NEXT</div>
+          </div>
+          <div class="btn-grid">
+            <button class="btn-opt active" id="emoBtn0" onclick="setEmotion(0)">🏴‍☠️ Luffy</button>
+            <button class="btn-opt" id="emoBtn1" onclick="setEmotion(1)">👉👈 Shy Love</button>
+            <button class="btn-opt" id="emoBtn2" onclick="setEmotion(2)">🐱 Giggling Cat</button>
+            <button class="btn-opt" id="emoBtn3" onclick="setEmotion(3)">🍌 Sad Banana</button>
+            <button class="btn-opt" id="emoBtn4" onclick="setEmotion(4)">😭 Umaru Cry</button>
+            <button class="btn-opt" id="emoBtn5" onclick="setEmotion(5)">😾 Angry Cat</button>
+            <button class="btn-opt" id="emoBtn6" onclick="setEmotion(6)">🐰 Bunny</button>
+          </div>
+          <button class="btn-primary" onclick="saveAsDefault()">
+            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            SET AS DEFAULT BOOT AVATAR
+          </button>
+        </div>
+
+        <!-- Mode 1: Robot Eyes Moods -->
+        <div class="card context-panel" id="panelMode1">
+          <div class="card-header">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/></svg>
+              ROBOT EYES MOODS & STYLES
+            </div>
+            <div class="badge badge-cyan">DOUBLE-TAP: NEXT</div>
+          </div>
+          <div class="btn-grid">
+            <button class="btn-opt active" id="robotMoodBtn0" onclick="setRobotMood(0)">👀 Cyan Normal</button>
+            <button class="btn-opt" id="robotMoodBtn1" onclick="setRobotMood(1)">❤️ Happy Love</button>
+            <button class="btn-opt" id="robotMoodBtn2" onclick="setRobotMood(2)">😾 Angry Red</button>
+            <button class="btn-opt" id="robotMoodBtn3" onclick="setRobotMood(3)">🟡 Cyber Gold</button>
+          </div>
+          <button class="btn-primary" onclick="saveAsDefault()">
+            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            SET AS DEFAULT BOOT SCREEN
+          </button>
+        </div>
+
+        <!-- Mode 2: Cyber HUD Customization -->
+        <div class="card context-panel" id="panelMode2">
+          <div class="card-header">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              CYBER HUD CUSTOMIZATION
+            </div>
+            <div class="badge badge-ok">DOUBLE-TAP: LAYOUT</div>
+          </div>
+
+          <label>HUD LAYOUT STYLE</label>
+          <div class="btn-grid">
+            <button class="btn-opt active" id="hudLayBtn0" onclick="setHudLayout(0)">⚡ Full HUD</button>
+            <button class="btn-opt" id="hudLayBtn1" onclick="setHudLayout(1)">⏰ Big Clock & Date</button>
+            <button class="btn-opt" id="hudLayBtn2" onclick="setHudLayout(2)">📟 Minimal Dashboard</button>
+          </div>
+
+          <label>CUSTOM HUD BANNER TEXT</label>
+          <div class="text-input-wrap">
+            <input type="text" id="txtHudMessage" value="JOYBOY // SYS_ONLINE" maxlength="24" placeholder="Enter HUD banner text...">
+            <button class="btn-primary" onclick="sendHudCustomText()">
+              <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              SYNC
+            </button>
+          </div>
+
+          <label class="text-accent">2-SECOND HOLD SECRET / SHY MESSAGE</label>
+          <div class="text-input-wrap">
+            <input type="text" id="txtHudShyMessage" value="I LOVE YOU ❤️" maxlength="24" placeholder="Enter 2s hold secret message...">
+            <button class="btn-opt" style="background:var(--magenta-bg); color:var(--magenta); border-color:var(--magenta);" onclick="sendHudShyText()">
+              <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+              SYNC SHY
+            </button>
+          </div>
+
+          <label>TOGGLE DISPLAY ELEMENTS</label>
+          <div class="checkbox-grid">
+            <div class="checkbox-row" onclick="toggleCheckbox('chkHudSec')">
+              <input type="checkbox" id="chkHudSec" checked onchange="syncHudConfig()">
+              <label>Show Seconds (HH:MM:SS)</label>
+            </div>
+            <div class="checkbox-row" onclick="toggleCheckbox('chkHudBat')">
+              <input type="checkbox" id="chkHudBat" checked onchange="syncHudConfig()">
+              <label>Show Battery Badge</label>
+            </div>
+            <div class="checkbox-row" onclick="toggleCheckbox('chkHudDate')">
+              <input type="checkbox" id="chkHudDate" checked onchange="syncHudConfig()">
+              <label>Show Live Date Banner</label>
+            </div>
+            <div class="checkbox-row" onclick="toggleCheckbox('chkHudWave')">
+              <input type="checkbox" id="chkHudWave" checked onchange="syncHudConfig()">
+              <label>Show Waveform Animation</label>
+            </div>
+            <div class="checkbox-row" onclick="toggleCheckbox('chkHudText')">
+              <input type="checkbox" id="chkHudText" checked onchange="syncHudConfig()">
+              <label>Show Custom Banner Text</label>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:8px;">
+            <button class="btn-opt" style="flex:1;" onclick="syncTimeAndWeather()">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              SYNC TIME & DATE
+            </button>
+            <button class="btn-primary" style="flex:1;" onclick="saveAsDefault()">
+              <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              SET AS DEFAULT
+            </button>
+          </div>
+        </div>
+
+        <!-- Mode 3: Matrix Themes -->
+        <div class="card context-panel" id="panelMode3">
+          <div class="card-header">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/></svg>
+              MATRIX RAIN COLOR THEMES
+            </div>
+            <div class="badge badge-ok">DOUBLE-TAP: THEME</div>
+          </div>
+          <div class="btn-grid">
+            <button class="btn-opt active" id="matrixThmBtn0" onclick="setMatrixTheme(0)" style="color:var(--green); border-color:var(--green);">🟢 Neo Green</button>
+            <button class="btn-opt" id="matrixThmBtn1" onclick="setMatrixTheme(1)" style="color:var(--cyan); border-color:var(--cyan);">🔵 Cyber Cyan</button>
+            <button class="btn-opt" id="matrixThmBtn2" onclick="setMatrixTheme(2)" style="color:var(--magenta); border-color:var(--magenta);">🟣 Synth Magenta</button>
+            <button class="btn-opt" id="matrixThmBtn3" onclick="setMatrixTheme(3)" style="color:var(--amber); border-color:var(--amber);">🟡 Fire Amber</button>
+          </div>
+          <button class="btn-primary" onclick="saveAsDefault()">
+            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            SET AS DEFAULT BOOT SCREEN
+          </button>
+        </div>
+
+        <!-- Hardware Touch Gesture Guide -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24"><path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M4.93 19.07L19.07 4.93"/></svg>
+              HARDWARE TOUCH GESTURE GUIDE
+            </div>
+            <div style="font-size:0.65rem; color:var(--beige-dim);">ESP32-C3 CAPACITIVE ENGINE</div>
+          </div>
+          <div class="telemetry-grid">
+            <div class="stat-tile">
+              <div class="stat-label">SINGLE TAP <span class="badge badge-cyan">INTERACTIVE</span></div>
+              <div class="stat-value" style="font-size:0.75rem;">Poke Avatar / Glance HUD / Rain Burst</div>
+            </div>
+            <div class="stat-tile">
+              <div class="stat-label">DOUBLE TAP <span class="badge badge-warn">SUB-OPTION</span></div>
+              <div class="stat-value" style="font-size:0.75rem;">Next Avatar / Mood / HUD Layout / Theme</div>
+            </div>
+            <div class="stat-tile">
+              <div class="stat-label">5 QUICK TAPS <span class="badge badge-ok">MODE SWITCH</span></div>
+              <div class="stat-value" style="font-size:0.75rem;">Pet ➔ Robot ➔ CyberHUD ➔ Matrix</div>
+            </div>
+            <div class="stat-tile">
+              <div class="stat-label">2-SECOND HOLD <span class="badge badge-mag">SHY / LOVE</span></div>
+              <div class="stat-value" style="font-size:0.75rem;">Secret Love Reaction (Reverts in 5s)</div>
+            </div>
+            <div class="stat-tile">
+              <div class="stat-label">10S HOLD + RELEASE <span class="badge badge-ok">POWER / BLE</span></div>
+              <div class="stat-value" style="font-size:0.75rem;">BLE Radio ON / Deep Sleep Toggle</div>
+            </div>
+            <div class="stat-tile">
+              <div class="stat-label">HOLD &gt; 14S <span class="badge badge-alert">NOISE REJECT</span></div>
+              <div class="stat-value" style="font-size:0.75rem;">Table Contact Cancel / Safety Reset</div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- TAB 2: BOOT SPLASH STUDIO -->
+      <section id="tabBoot" class="tab-content">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              STARTUP ANIMATION TYPE
+            </div>
+            <button class="btn-opt" style="padding:4px 8px; font-size:0.7rem;" onclick="testBootSplash()">
+              <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              PREVIEW
+            </button>
+          </div>
+          <div class="btn-grid">
+            <button class="btn-opt active" id="bootBtn0" onclick="setBootType(0)">☕ Joyboy</button>
+            <button class="btn-opt" id="bootBtn1" onclick="setBootType(1)">🖼️ Custom Pic</button>
+            <button class="btn-opt" id="bootBtn2" onclick="setBootType(2)">🎞️ Custom Video</button>
+            <button class="btn-opt" id="bootBtn3" onclick="setBootType(3)">⚡ Instant</button>
+          </div>
+
+          <div class="slider-wrap">
+            <div class="slider-head">
+              <span>DISPLAY DURATION</span>
+              <span id="bootDurVal" class="text-accent">2 Seconds</span>
+            </div>
+            <input type="range" id="bootDurSlider" min="1" max="4" value="2" oninput="updateBootDuration(this.value)">
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <div style="display:flex; gap:8px;">
+              <label class="btn-opt" style="flex:1; text-align:center;">
+                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                UPLOAD PIC
+                <input type="file" accept="image/*" style="display:none;" onchange="uploadBootImage(event)">
+              </label>
+              <label class="btn-opt" style="flex:1; text-align:center;">
+                <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+                UPLOAD VIDEO
+                <input type="file" accept="video/*,image/gif" style="display:none;" onchange="uploadBootVideo(event)">
+              </label>
+            </div>
+            <div id="bootProgressWrap" class="progress-bar-wrap">
+              <div id="bootProgressBar" class="progress-bar"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: POWER, BATTERY & LOGS -->
+      <section id="tabDisplay" class="tab-content">
+        
+        <!-- Battery Discharge & Runtime Tracker -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24"><rect x="1" y="6" width="18" height="12" rx="2"/><line x1="23" y1="10" x2="23" y2="14"/></svg>
+              BATTERY DISCHARGE & RUNTIME TRACKER
+            </div>
+            <button class="btn-opt" style="padding:4px 8px; font-size:0.7rem;" onclick="fetchBatteryLog()">
+              <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              REFRESH
+            </button>
+          </div>
+
+          <div class="telemetry-grid grid-4">
+            <div class="stat-tile">
+              <div class="stat-label">LAST RUN</div>
+              <div class="stat-value" id="logLastRun" style="color:var(--cyan);">--</div>
+            </div>
+            <div class="stat-tile">
+              <div class="stat-label">VOLTAGE DROP</div>
+              <div class="stat-value" id="logLastVolt" style="color:var(--amber);">--</div>
+            </div>
+            <div class="stat-tile">
+              <div class="stat-label">DISCHARGE RATE</div>
+              <div class="stat-value" id="logDischargeRate" style="color:var(--red);">--</div>
+            </div>
+            <div class="stat-tile">
+              <div class="stat-label">SESSION UPTIME</div>
+              <div class="stat-value" id="logCurRun" style="color:var(--green);">0s</div>
+            </div>
+            <div class="stat-tile">
+              <div class="stat-label">CURRENT VOLTAGE</div>
+              <div class="stat-value" id="logCurVolt">--</div>
+            </div>
+            <div class="stat-tile">
+              <div class="stat-label">LIFETIME UPTIME</div>
+              <div class="stat-value" id="logAllTime" style="color:var(--magenta);">--</div>
+            </div>
+            <div class="stat-tile">
+              <div class="stat-label">RECORDED CYCLES</div>
+              <div class="stat-value" id="logCycles">--</div>
+            </div>
+            <div class="stat-tile">
+              <div class="stat-label">FLASH LOG SYNC</div>
+              <div class="stat-value text-accent" style="font-size:0.75rem;">AUTO ON SLEEP</div>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:8px;">
+            <button class="btn-opt" style="flex:1;" onclick="fetchBatteryLog()">
+              <svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+              READ ESP FLASH LOG
+            </button>
+            <button class="btn-danger" style="flex:1;" onclick="resetBatteryLog()">
+              <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              RESET LOG
+            </button>
+          </div>
+        </div>
+
+        <!-- Power Management & Memory -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              POWER MANAGEMENT & FLASH MEMORY
+            </div>
+          </div>
+
+          <div class="btn-grid">
+            <button class="btn-opt" style="border-color:var(--cyan); color:var(--cyan);" onclick="turnOffBLE()">
+              <svg viewBox="0 0 24 24"><path d="M6.5 6.5l11 11L12 23V1l5.5 5.5-11 11"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              TURN OFF BLE & SLEEP
+            </button>
+            <button class="btn-opt" style="border-color:var(--magenta); color:var(--magenta);" onclick="enterDeepSleepNow()">
+              <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+              DEEP SLEEP NOW
+            </button>
+          </div>
+
+          <div style="font-size:0.68rem; color:var(--beige-dim); line-height:1.4;">
+            💡 Single tap wakes from deep sleep (200ms flash). 10s hold wakes with BLE radio enabled.
+          </div>
+
+          <button class="btn-primary" onclick="saveChangesToFlash()">
+            <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            SAVE CHANGES TO FLASH MEMORY
+          </button>
+        </div>
+
+        <!-- Display Orientation & Brightness -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/></svg>
+              SCREEN ORIENTATION & BRIGHTNESS
+            </div>
+          </div>
+
+          <label>ORIENTATION</label>
+          <div class="btn-grid">
+            <button class="btn-opt" id="rotBtn0" onclick="setRotation(0)">0° Normal</button>
+            <button class="btn-opt" id="rotBtn1" onclick="setRotation(1)">90° Right</button>
+            <button class="btn-opt" id="rotBtn2" onclick="setRotation(2)">180° Invert</button>
+            <button class="btn-opt active" id="rotBtn3" onclick="setRotation(3)">270° Left</button>
+          </div>
+
+          <div class="slider-wrap">
+            <div class="slider-head">
+              <span>LIVE ROTATION ANGLE</span>
+              <span id="angleVal" class="text-accent">270°</span>
+            </div>
+            <input type="range" id="angleSlider" min="0" max="360" value="270" step="90" oninput="updateAngleSlider(this.value)">
+          </div>
+
+          <div class="slider-wrap">
+            <div class="slider-head">
+              <span>BRIGHTNESS</span>
+              <span id="brVal" class="text-accent">95%</span>
+            </div>
+            <input type="range" id="brSlider" min="15" max="255" value="240" oninput="updateBrightness(this.value)">
+          </div>
+
+          <div class="slider-wrap">
+            <div class="slider-head">
+              <span>AUTO SLEEP TIMEOUT</span>
+              <span id="sleepVal" class="text-accent">Never (Always ON)</span>
+            </div>
+            <input type="range" id="sleepSlider" min="0" max="5" value="5" oninput="updateSleepSlider(this.value)">
+          </div>
+
+          <button class="btn-opt" onclick="syncTimeAndWeather()">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            SYNC TIME & WEATHER NOW
+          </button>
+        </div>
+
+      </section>
+
+      <!-- TAB 4: MARQUEE TEXT & 32 VECTOR EMOJI PICKER -->
+      <section id="tabMarquee" class="tab-content">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>
+              SCROLLING TEXT BROADCAST
+            </div>
+          </div>
+
+          <div class="text-input-wrap">
+            <input type="text" id="txtMessage" value="JOY BOY COFFEE ☕ 🔥" placeholder="Enter marquee text...">
+            <button class="btn-primary" onclick="sendCustomText()">
+              <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              SEND
+            </button>
+          </div>
+
+          <div class="card-header" style="margin-top:4px;">
+            <div class="card-title" style="font-size:0.72rem; color:var(--beige-muted);">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/></svg>
+              32 VECTOR EMOJI PALETTE (TAP TO INSERT)
+            </div>
+            <div style="font-size:0.65rem; color:var(--beige-dim);">Direct Keyboard Emojis Supported</div>
+          </div>
+
+          <label>POPULAR & REACTIONS</label>
+          <div class="emoji-row">
+            <div class="emoji-chip" onclick="insertEmoji('☕')">☕</div>
+            <div class="emoji-chip" onclick="insertEmoji('❤️')">❤️</div>
+            <div class="emoji-chip" onclick="insertEmoji('💖')">💖</div>
+            <div class="emoji-chip" onclick="insertEmoji('🔥')">🔥</div>
+            <div class="emoji-chip" onclick="insertEmoji('⚡')">⚡</div>
+            <div class="emoji-chip" onclick="insertEmoji('⭐')">⭐</div>
+            <div class="emoji-chip" onclick="insertEmoji('✨')">✨</div>
+            <div class="emoji-chip" onclick="insertEmoji('🚀')">🚀</div>
+            <div class="emoji-chip" onclick="insertEmoji('👑')">👑</div>
+            <div class="emoji-chip" onclick="insertEmoji('💎')">💎</div>
+            <div class="emoji-chip" onclick="insertEmoji('💯')">💯</div>
+            <div class="emoji-chip" onclick="insertEmoji('👍')">👍</div>
+            <div class="emoji-chip" onclick="insertEmoji('🎉')">🎉</div>
+          </div>
+
+          <label>MASCOTS & FACES</label>
+          <div class="emoji-row">
+            <div class="emoji-chip" onclick="insertEmoji('🐱')">🐱</div>
+            <div class="emoji-chip" onclick="insertEmoji('🐶')">🐶</div>
+            <div class="emoji-chip" onclick="insertEmoji('🐰')">🐰</div>
+            <div class="emoji-chip" onclick="insertEmoji('🍌')">🍌</div>
+            <div class="emoji-chip" onclick="insertEmoji('💀')">💀</div>
+            <div class="emoji-chip" onclick="insertEmoji('😭')">😭</div>
+            <div class="emoji-chip" onclick="insertEmoji('😎')">😎</div>
+            <div class="emoji-chip" onclick="insertEmoji('😈')">😈</div>
+            <div class="emoji-chip" onclick="insertEmoji('💩')">💩</div>
+            <div class="emoji-chip" onclick="insertEmoji('🧸')">🧸</div>
+            <div class="emoji-chip" onclick="insertEmoji('👀')">👀</div>
+          </div>
+
+          <label>CYBER, FOOD & NATURE</label>
+          <div class="emoji-row">
+            <div class="emoji-chip" onclick="insertEmoji('🤖')">🤖</div>
+            <div class="emoji-chip" onclick="insertEmoji('👾')">👾</div>
+            <div class="emoji-chip" onclick="insertEmoji('🎮')">🎮</div>
+            <div class="emoji-chip" onclick="insertEmoji('🎵')">🎵</div>
+            <div class="emoji-chip" onclick="insertEmoji('🍕')">🍕</div>
+            <div class="emoji-chip" onclick="insertEmoji('🍔')">🍔</div>
+            <div class="emoji-chip" onclick="insertEmoji('🌙')">🌙</div>
+            <div class="emoji-chip" onclick="insertEmoji('🌸')">🌸</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 5: LIVE MEDIA STREAMING -->
+      <section id="tabStream" class="tab-content">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+              LIVE MEDIA STREAM (IMAGE / VIDEO / GIF)
+            </div>
+          </div>
+
+          <div class="btn-grid">
+            <label class="btn-opt" style="text-align:center; padding:14px;">
+              <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              STREAM STATIC IMAGE
+              <input type="file" accept="image/*" style="display:none;" onchange="uploadLiveImage(event)">
+            </label>
+
+            <label class="btn-primary" style="text-align:center; padding:14px;">
+              <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              STREAM 25 FPS VIDEO / GIF
+              <input type="file" accept="video/*,image/gif" style="display:none;" onchange="uploadLiveVideo(event)">
+            </label>
+          </div>
+
+          <div id="streamProgressWrap" class="progress-bar-wrap">
+            <div id="streamProgressBar" class="progress-bar"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- LIVE TERMINAL CONSOLE -->
+      <div class="card" style="padding:10px;">
+        <div class="card-header" style="padding-bottom:4px; margin-bottom:6px;">
+          <div class="card-title" style="font-size:0.72rem;">
+            <svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+            LIVE CONSOLE
+          </div>
+          <button class="btn-opt" style="padding:2px 8px; font-size:0.65rem;" onclick="clearTerminal()">CLEAR</button>
+        </div>
+        <div class="terminal" id="terminal">> Digi Keychain ready. Tap PAIR to connect over Bluetooth.</div>
+      </div>
+
     </main>
 
-    <script>
-        const SERVICE_UUID       = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
-        const CHAR_MODE_UUID     = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
-        const CHAR_PET_UUID      = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
-        const CHAR_TEXT_UUID     = "6e400004-b5a3-f393-e0a9-e50e24dcca9e";
-        const CHAR_TIME_UUID     = "6e400005-b5a3-f393-e0a9-e50e24dcca9e";
-        const CHAR_SETTINGS_UUID = "6e400006-b5a3-f393-e0a9-e50e24dcca9e";
-        const CHAR_BATTERY_UUID  = "6e400007-b5a3-f393-e0a9-e50e24dcca9e";
-        const CHAR_STREAM_UUID   = "6e400008-b5a3-f393-e0a9-e50e24dcca9e";
+    <!-- FIXED MOBILE NAVIGATION BAR -->
+    <nav class="mobile-nav">
+      <button class="nav-item active" id="mtab-tabMascots" onclick="switchTab('tabMascots')">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><circle cx="15.5" cy="8.5" r="1.5"/><path d="M8 15s1.5 2 4 2 4-2 4-2"/></svg>
+        MODES
+      </button>
+      <button class="nav-item" id="mtab-tabBoot" onclick="switchTab('tabBoot')">
+        <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        BOOT
+      </button>
+      <button class="nav-item" id="mtab-tabDisplay" onclick="switchTab('tabDisplay')">
+        <svg viewBox="0 0 24 24"><rect x="1" y="6" width="18" height="12" rx="2"/><line x1="23" y1="10" x2="23" y2="14"/></svg>
+        POWER
+      </button>
+      <button class="nav-item" id="mtab-tabMarquee" onclick="switchTab('tabMarquee')">
+        <svg viewBox="0 0 24 24"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>
+        MARQUEE
+      </button>
+      <button class="nav-item" id="mtab-tabStream" onclick="switchTab('tabStream')">
+        <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+        STREAM
+      </button>
+    </nav>
 
-        let bleDevice = null;
-        let gattServer = null;
-        let charMode = null, charPet = null, charText = null, charTime = null, charSettings = null, charBattery = null, charStream = null;
+  </div>
 
-        const sleepValues = [15, 30, 60, 120, 300, 0];
-        const sleepLabels = ["15s", "30s", "1m", "2m", "5m", "Never (Always ON)"];
+  <script>
+    // UUIDs for DIGI_KEYCHAIN GATT Service
+    const SERVICE_UUID       = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+    const CHAR_MODE_UUID     = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
+    const CHAR_PET_UUID      = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
+    const CHAR_TEXT_UUID     = "6e400004-b5a3-f393-e0a9-e50e24dcca9e";
+    const CHAR_TIME_UUID     = "6e400005-b5a3-f393-e0a9-e50e24dcca9e";
+    const CHAR_SETTINGS_UUID = "6e400006-b5a3-f393-e0a9-e50e24dcca9e";
+    const CHAR_BATTERY_UUID  = "6e400007-b5a3-f393-e0a9-e50e24dcca9e";
+    const CHAR_STREAM_UUID   = "6e400008-b5a3-f393-e0a9-e50e24dcca9e";
 
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-            document.getElementById(tabId).classList.add('active');
-            event.target.classList.add('active');
-            if (tabId === 'tabDisplay') {
-                fetchBatteryLog();
-            }
+    let bleDevice = null;
+    let gattServer = null;
+    let charMode = null, charPet = null, charText = null, charTime = null, charSettings = null, charBattery = null, charStream = null;
+
+    const sleepValues = [15, 30, 60, 120, 300, 0];
+    const sleepLabels = ["15s", "30s", "1m", "2m", "5m", "Never (Always ON)"];
+
+    function vibrate(ms = 12) {
+      if (navigator.vibrate) {
+        try { navigator.vibrate(ms); } catch (e) {}
+      }
+    }
+
+    function setViewMode(mode) {
+      vibrate();
+      document.body.className = `view-${mode}`;
+      document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+      const activeBtn = document.getElementById(`btn-mode-${mode}`);
+      if (activeBtn) activeBtn.classList.add('active');
+    }
+
+    function switchTab(tabId) {
+      vibrate();
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+
+      const targetTab = document.getElementById(tabId);
+      if (targetTab) targetTab.classList.add('active');
+
+      const dBtn = document.getElementById(`dtab-${tabId}`);
+      if (dBtn) dBtn.classList.add('active');
+
+      const mBtn = document.getElementById(`mtab-${tabId}`);
+      if (mBtn) mBtn.classList.add('active');
+
+      if (tabId === 'tabDisplay') {
+        fetchBatteryLog();
+      }
+    }
+
+    function toggleCheckbox(id) {
+      const cb = document.getElementById(id);
+      if (cb) {
+        cb.checked = !cb.checked;
+        cb.dispatchEvent(new Event('change'));
+      }
+    }
+
+    function formatDuration(sec) {
+      if (sec < 60) return `${sec}s`;
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      if (m < 60) return `${m}m ${s}s`;
+      const h = Math.floor(m / 60);
+      const rm = m % 60;
+      return `${h}h ${rm}m ${s}s`;
+    }
+
+    function log(msg) {
+      const term = document.getElementById('terminal');
+      if (!term) return;
+      const d = new Date().toLocaleTimeString();
+      term.innerHTML += `<br>[${d}] ${msg}`;
+      term.scrollTop = term.scrollHeight;
+    }
+
+    function clearTerminal() {
+      vibrate();
+      const term = document.getElementById('terminal');
+      if (term) term.innerHTML = `> Console cleared.`;
+    }
+
+    async function connectBLE() {
+      vibrate();
+      try {
+        log("Scanning for DIGI_KEYCHAIN...");
+        const sb = document.getElementById('statusBadge');
+        if (sb) {
+          sb.innerText = "CONNECTING...";
+          sb.className = "badge badge-warn";
         }
-
-        function formatDuration(sec) {
-            if (sec < 60) return `${sec}s`;
-            const m = Math.floor(sec / 60);
-            const s = sec % 60;
-            if (m < 60) return `${m}m ${s}s`;
-            const h = Math.floor(m / 60);
-            const rm = m % 60;
-            return `${h}h ${rm}m ${s}s`;
-        }
-
-        function log(msg) {
-            const term = document.getElementById('terminal');
-            if (!term) return;
-            const d = new Date().toLocaleTimeString();
-            term.innerHTML += `<br>[${d}] ${msg}`;
-            term.scrollTop = term.scrollHeight;
-        }
-
-        function clearTerminal() {
-            const term = document.getElementById('terminal');
-            if (term) term.innerHTML = `> Console cleared.`;
-        }
-
-        async function connectBLE() {
-            try {
-                log("Scanning for DIGI_KEYCHAIN...");
-                document.getElementById('statusBadge').innerText = "CONNECTING...";
-                
-                bleDevice = await navigator.bluetooth.requestDevice({
-                    filters: [
-                        { name: 'DIGI_KEYCHAIN' },
-                        { namePrefix: 'DIGI' }
-                    ],
-                    optionalServices: [ SERVICE_UUID ]
-                });
-
-                log(`Connecting to: ${bleDevice.name || 'DIGI_KEYCHAIN'}...`);
-                bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
-                
-                gattServer = await bleDevice.gatt.connect();
-                log("GATT connected! Getting primary service...");
-                
-                const service = await gattServer.getPrimaryService(SERVICE_UUID);
-                log("Primary service found! Initializing characteristics...");
-
-                charMode     = await service.getCharacteristic(CHAR_MODE_UUID).catch(()=>null);
-                charPet      = await service.getCharacteristic(CHAR_PET_UUID).catch(()=>null);
-                charText     = await service.getCharacteristic(CHAR_TEXT_UUID).catch(()=>null);
-                charTime     = await service.getCharacteristic(CHAR_TIME_UUID).catch(()=>null);
-                charSettings = await service.getCharacteristic(CHAR_SETTINGS_UUID).catch(()=>null);
-                charBattery  = await service.getCharacteristic(CHAR_BATTERY_UUID).catch(()=>null);
-                charStream   = await service.getCharacteristic(CHAR_STREAM_UUID).catch(()=>null);
-
-                if (charMode) {
-                    await charMode.startNotifications().catch(()=>{});
-                    charMode.addEventListener('characteristicvaluechanged', (e) => {
-                        const m = parseInt(new TextDecoder().decode(e.target.value));
-                        highlightModeUI(m);
-                    });
-                }
-
-                if (charPet) {
-                    await charPet.startNotifications().catch(()=>{});
-                    charPet.addEventListener('characteristicvaluechanged', (e) => {
-                        const a = parseInt(new TextDecoder().decode(e.target.value));
-                        highlightEmotionUI(a);
-                    });
-                }
-
-                if (charBattery) {
-                    await charBattery.startNotifications().catch(()=>{});
-                    charBattery.addEventListener('characteristicvaluechanged', (e) => {
-                        const str = new TextDecoder().decode(e.target.value);
-                        const parts = str.split('|');
-                        if (parts.length >= 2) {
-                            const v = parts[0];
-                            const pct = parts[1];
-                            const usb = parts[2] === '1';
-                            const badge = document.getElementById('batteryPill');
-                            if (badge) badge.innerText = usb ? `⚡ USB (${v}V)` : `🔋 ${v}V (${pct}%)`;
-                            const cv = document.getElementById('logCurVolt');
-                            if (cv) cv.innerText = usb ? `5.0V (USB Powered)` : `${v}V (${pct}%)`;
-                        }
-                    });
-                }
-
-                if (charSettings) {
-                    await charSettings.startNotifications().catch(()=>{});
-                    charSettings.addEventListener('characteristicvaluechanged', (e) => {
-                        const msg = new TextDecoder().decode(e.target.value);
-                        handleSettingsNotification(msg);
-                    });
-                }
-
-                document.getElementById('statusBadge').innerText = "ONLINE ⚡";
-                document.getElementById('statusBadge').className = "pill online";
-                document.getElementById('btnConnect').innerText = "CONNECTED";
-                log("✅ Online! Telemetry & controls active.");
-
-                syncTimeAndWeather();
-                setTimeout(() => fetchBatteryLog(), 800);
-            } catch (err) {
-                console.error(err);
-                log(`Error: ${err.message}`);
-                document.getElementById('statusBadge').innerText = "OFFLINE";
-                document.getElementById('statusBadge').className = "pill offline";
-            }
-        }
-
-        function onDisconnected() {
-            log("Device disconnected.");
-            document.getElementById('statusBadge').innerText = "OFFLINE";
-            document.getElementById('statusBadge').className = "pill offline";
-            document.getElementById('btnConnect').innerText = "PAIR";
-            const tb = document.getElementById('touchBanner');
-            const tt = document.getElementById('touchText');
-            if (tb) tb.className = "";
-            if (tt) {
-                tt.innerText = "[ IDLE ]";
-                tt.style.color = "var(--text-muted)";
-            }
-            charMode = null;
-            charPet = null;
-            charText = null;
-            charTime = null;
-            charSettings = null;
-            charBattery = null;
-            charStream = null;
-            gattServer = null;
-            bleDevice = null;
-        }
-
-        let touchResetTimer = null;
-        function setTouchBanner(text, color, autoClearMs = 1200) {
-            const tb = document.getElementById('touchBanner');
-            const tt = document.getElementById('touchText');
-            if (!tb || !tt) return;
-            if (touchResetTimer) clearTimeout(touchResetTimer);
-            
-            tb.className = "active";
-            tt.innerText = text;
-            tt.style.color = color;
-            
-            if (autoClearMs > 0) {
-                touchResetTimer = setTimeout(() => {
-                    tb.className = "";
-                    tt.innerText = "[ IDLE ]";
-                    tt.style.color = "var(--text-muted)";
-                }, autoClearMs);
-            }
-        }
-
-        let currentHudLayout = 0;
-        let currentRobotMood = 0;
-        let currentMatrixTheme = 0;
-
-        function handleSettingsNotification(msg) {
-            // 1. Touch gesture and sub-option notifications
-            if (msg === "TOUCH:POKE") {
-                setTouchBanner("👆 POKE TRIGGERED", "var(--cyan)", 1500);
-            } else if (msg === "TOUCH:DOUBLE") {
-                setTouchBanner("⚡ DOUBLE-TAP SUB-OPTION", "var(--amber)", 1500);
-            } else if (msg === "TOUCH:MODE") {
-                setTouchBanner("⚡ 5-TAP MODE SWITCH", "var(--green)", 2000);
-            } else if (msg.startsWith("ROBOT:STYLE") || msg.startsWith("ROBOT_MOOD:")) {
-                const parts = msg.split(':');
-                const idx = parseInt(parts[1]);
-                if (!isNaN(idx)) highlightRobotMoodUI(idx);
-                setTouchBanner("🤖 ROBOT MOOD UPDATED", "var(--cyan)", 1500);
-            } else if (msg.startsWith("HUD:LAYOUT") || msg.startsWith("HUD_LAY:")) {
-                const parts = msg.split(':');
-                const idx = parseInt(parts[1]);
-                if (!isNaN(idx)) highlightHudLayoutUI(idx);
-                setTouchBanner("⚡ HUD LAYOUT UPDATED", "var(--green)", 1500);
-            } else if (msg.startsWith("MATRIX:THEME") || msg.startsWith("MATRIX_THM:")) {
-                const parts = msg.split(':');
-                const idx = parseInt(parts[1]);
-                if (!isNaN(idx)) highlightMatrixThemeUI(idx);
-                setTouchBanner("📟 MATRIX THEME UPDATED", "var(--amber)", 1500);
-            } else if (msg === "TOUCH:SHY:HUD" || msg === "TOUCH:SHY") {
-                setTouchBanner("💌 CYBERHUD SECRET MSG (2s HOLD)", "var(--magenta)", 5000);
-                log("💌 CyberHUD 2s Hold -> Secret Love Overlay Displayed!");
-            } else if (msg === "TOUCH:SHY:ROBOT") {
-                highlightRobotMoodUI(1);
-                setTouchBanner("❤️ ROBOT HEART EYES (2s HOLD)", "var(--magenta)", 5000);
-                log("🤖 Robot Eyes 2s Hold -> Blushing Cheeks & Heart Eyes Active!");
-            } else if (msg === "TOUCH:SHY:MATRIX") {
-                setTouchBanner("💖 MATRIX LOVE RAIN (2s HOLD)", "var(--magenta)", 5000);
-                log("📟 Matrix Rain 2s Hold -> Cyber Heart Rain & Love Card Active!");
-            } else if (msg === "TOUCH:SHY:PET" || msg === "TOUCH:HOLD") {
-                highlightEmotionUI(1);
-                setTouchBanner("👉👈 CYBERPET SHY LOVE (2s HOLD)", "var(--magenta)", 5000);
-                log("🐱 CyberPet 2s Hold -> Shy Love Avatar Active!");
-            } else if (msg.startsWith("TOUCH:REVERT")) {
-                setTouchBanner("🔄 REVERTED (5s ELAPSED)", "var(--green)", 1500);
-                log("🔄 5s elapsed -> Reverted to normal screen.");
-            } else if (msg === "BLE:OFFLINE") {
-                setTouchBanner("💤 BLE RADIO OFF (80MHz)", "var(--text-muted)", 3000);
-            } else if (msg === "BLE:ONLINE") {
-                setTouchBanner("⚡ BLE RADIO ONLINE", "var(--cyan)", 3000);
-            } else if (msg === "TOUCH:READY") {
-                setTouchBanner("⚡ RELEASE TO CONFIRM", "var(--cyan)", 2500);
-            } else if (msg === "TOUCH:STUCK" || msg === "TOUCH:CANCEL") {
-                setTouchBanner("🛑 HELD >14s: CANCELLED", "var(--red)", 2500);
-            } else if (msg === "SAVED:OK") {
-                setTouchBanner("💾 SAVED AS DEFAULT", "var(--green)", 2000);
-            }
-            // 2. Battery Log format: "BAT_LOG|last_sec|last_start_mv|last_end_mv|cur_sec|cur_mv|usb|cycles|all_time_sec"
-            else if (msg.startsWith("BAT_LOG|")) {
-                const parts = msg.split('|');
-                if (parts.length >= 8) {
-                    const lastSec   = parseInt(parts[1]);
-                    const lastStart = (parseInt(parts[2]) / 1000).toFixed(2);
-                    const lastEnd   = (parseInt(parts[3]) / 1000).toFixed(2);
-                    const curSec    = parseInt(parts[4]);
-                    const curVolt   = (parseInt(parts[5]) / 1000).toFixed(2);
-                    const isUsb     = parts[6] === '1';
-                    const cycles    = parts[7];
-                    const allSec    = parts.length >= 9 ? parseInt(parts[8]) : 0;
-
-                    document.getElementById('logLastRun').innerText = lastSec > 0 ? formatDuration(lastSec) : "No Previous Run Saved";
-                    document.getElementById('logLastVolt').innerText = lastSec > 0 ? `${lastStart}V ➔ ${lastEnd}V` : "--";
-                    
-                    let dropMv = (parseInt(parts[2]) - parseInt(parts[3]));
-                    let rateStr = (lastSec > 60 && dropMv > 0) ? `${Math.round((dropMv / lastSec) * 3600)} mV/hr` : "--";
-                    const rateElem = document.getElementById('logDischargeRate');
-                    if (rateElem) rateElem.innerText = rateStr;
-
-                    document.getElementById('logCurRun').innerText = formatDuration(curSec);
-                    document.getElementById('logCurVolt').innerText = isUsb ? `5.0V (USB Powered)` : `${curVolt}V`;
-                    document.getElementById('logCycles').innerText = `Cycle #${cycles}`;
-                    
-                    const allElem = document.getElementById('logAllTime');
-                    if (allElem) allElem.innerText = allSec > 0 ? formatDuration(allSec) : formatDuration(curSec);
-
-                    log(`🔋 Battery Log Read: Last Run was ${formatDuration(lastSec)} (${lastStart}V ➔ ${lastEnd}V)`);
-                }
-            }
-        }
-
-        async function fetchBatteryLog() {
-            if (!charSettings) return;
-            const data = new TextEncoder().encode("BAT:GET_LOG");
-            await charSettings.writeValue(data);
-        }
-
-        async function resetBatteryLog() {
-            if (!charSettings) return;
-            if (!confirm("Reset the battery discharge log?")) return;
-            const data = new TextEncoder().encode("BAT:RESET_LOG");
-            await charSettings.writeValue(data);
-            log("Battery discharge log cleared.");
-        }
-
-        async function saveChangesToFlash() {
-            if (!charSettings) {
-                alert("Please pair with DIGI_KEYCHAIN over Bluetooth first!");
-                return;
-            }
-            const data = new TextEncoder().encode("SAVE_CONFIG");
-            await charSettings.writeValue(data);
-            log("💾 Flashed current settings to ESP32 NVS memory as permanent default!");
-            alert("✅ Settings Flashed to Memory!\n\nSystem Mode, CyberHUD, Robot Eyes, Matrix Themes, Brightness, Sleep Timeout, Screen Rotation, and Mascots are now saved permanently in ESP32 memory.");
-        }
-
-        async function turnOffBLE() {
-            if (!charSettings) {
-                log("Not connected over BLE.");
-                return;
-            }
-            if (!confirm("Turn off Bluetooth on the ESP32 to save power?\n\n(To turn it back on, hold the Touch Sensor for 10 seconds until the blue LED flashes)")) return;
-            try {
-                const data = new TextEncoder().encode("BLE:OFF");
-                await charSettings.writeValue(data);
-            } catch(e) {}
-            log("💤 Bluetooth turned OFF on ESP32. CPU scaled down to 80MHz.");
-            if (gattServer && gattServer.connected) {
-                try { gattServer.disconnect(); } catch(e) {}
-            }
-            onDisconnected();
-        }
-
-        async function enterDeepSleepNow() {
-            if (!charSettings) {
-                log("Not connected over BLE.");
-                return;
-            }
-            if (!confirm("Put DIGI KEYCHAIN into Deep Sleep now?\n\n(Tap the Touch Sensor to wake it back up)")) return;
-            try {
-                const data = new TextEncoder().encode("SYS:SLEEP");
-                await charSettings.writeValue(data);
-            } catch(e) {}
-            log("🌙 Deep Sleep initiated. Tap touch sensor to wake up.");
-            if (gattServer && gattServer.connected) {
-                try { gattServer.disconnect(); } catch(e) {}
-            }
-            onDisconnected();
-        }
-
-        async function setMode(modeNum) {
-            highlightModeUI(modeNum);
-            if (!charMode) return;
-            const data = new TextEncoder().encode(modeNum.toString());
-            await charMode.writeValue(data);
-            log(`Mode: ${modeNum}`);
-        }
-
-        function highlightModeUI(m) {
-            for (let i = 0; i < 4; i++) {
-                const b = document.getElementById(`modeBtn${i}`);
-                if (b) b.className = (i === m) ? "btn-opt active" : "btn-opt";
-                const p = document.getElementById(`panelMode${i}`);
-                if (p) {
-                    if (i === m) p.classList.add('active');
-                    else p.classList.remove('active');
-                }
-            }
-        }
-
-        async function setEmotion(emoNum) {
-            highlightEmotionUI(emoNum);
-            if (!charPet) return;
-            const data = new TextEncoder().encode(emoNum.toString());
-            await charPet.writeValue(data);
-            log(`Emotion: ${emoNum}`);
-        }
-
-        function highlightEmotionUI(a) {
-            for (let i = 0; i < 7; i++) {
-                const b = document.getElementById(`emoBtn${i}`);
-                if (b) b.className = (i === a) ? "btn-opt active" : "btn-opt";
-            }
-        }
-
-        async function setRobotMood(moodNum) {
-            highlightRobotMoodUI(moodNum);
-            if (!charSettings) return;
-            const data = new TextEncoder().encode(`ROBOT_MOOD:${moodNum}`);
-            await charSettings.writeValue(data);
-            log(`Robot Mood: ${moodNum}`);
-        }
-
-        function highlightRobotMoodUI(moodNum) {
-            currentRobotMood = moodNum;
-            for (let i = 0; i < 4; i++) {
-                const b = document.getElementById(`robotMoodBtn${i}`);
-                if (b) b.className = (i === moodNum) ? "btn-opt active" : "btn-opt";
-            }
-        }
-
-        async function setHudLayout(layNum) {
-            highlightHudLayoutUI(layNum);
-            await syncHudConfig(layNum);
-        }
-
-        function highlightHudLayoutUI(layNum) {
-            currentHudLayout = layNum;
-            for (let i = 0; i < 3; i++) {
-                const b = document.getElementById(`hudLayBtn${i}`);
-                if (b) b.className = (i === layNum) ? "btn-opt active" : "btn-opt";
-            }
-        }
-
-        async function syncHudConfig(optLay) {
-            const lay = (typeof optLay === 'number') ? optLay : currentHudLayout;
-            const sec = document.getElementById('chkHudSec')?.checked ? 1 : 0;
-            const bat = document.getElementById('chkHudBat')?.checked ? 1 : 0;
-            const dt  = document.getElementById('chkHudDate')?.checked ? 1 : 0;
-            const wav = document.getElementById('chkHudWave')?.checked ? 1 : 0;
-            const txt = document.getElementById('chkHudText')?.checked ? 1 : 0;
-
-            if (!charSettings) return;
-            const data = new TextEncoder().encode(`HUD_CFG:${lay}:${sec}:${bat}:${dt}:${wav}:${txt}`);
-            await charSettings.writeValue(data);
-            log(`CyberHUD Config: Layout=${lay}, Sec=${sec}, Bat=${bat}, Date=${dt}, Wave=${wav}, Text=${txt}`);
-        }
-
-        async function sendHudCustomText() {
-            if (!charSettings) return;
-            const text = document.getElementById('txtHudMessage').value;
-            const data = new TextEncoder().encode(`HUD_MSG:${text}`);
-            await charSettings.writeValue(data);
-            log(`HUD Banner: ${text}`);
-        }
-
-        async function sendHudShyText() {
-            if (!charSettings) return;
-            const text = document.getElementById('txtHudShyMessage').value;
-            const data = new TextEncoder().encode(`HUD_SHY:${text}`);
-            await charSettings.writeValue(data);
-            log(`CyberHUD Shy Secret: ${text}`);
-        }
-
-        async function setMatrixTheme(thmNum) {
-            highlightMatrixThemeUI(thmNum);
-            if (!charSettings) return;
-            const data = new TextEncoder().encode(`MATRIX_THM:${thmNum}`);
-            await charSettings.writeValue(data);
-            log(`Matrix Theme: ${thmNum}`);
-        }
-
-        function highlightMatrixThemeUI(thmNum) {
-            currentMatrixTheme = thmNum;
-            for (let i = 0; i < 4; i++) {
-                const b = document.getElementById(`matrixThmBtn${i}`);
-                if (b) b.className = (i === thmNum) ? "btn-opt active" : "btn-opt";
-            }
-        }
-
-        async function setBootType(bt) {
-            if (!charSettings) return;
-            for (let i = 0; i < 4; i++) {
-                const b = document.getElementById(`bootBtn${i}`);
-                if (b) b.className = (i === bt) ? "btn-opt active" : "btn-opt";
-            }
-            const data = new TextEncoder().encode(`BOOT_TYPE:${bt}`);
-            await charSettings.writeValue(data);
-            log(`Boot Type: ${bt}`);
-        }
-
-        async function updateBootDuration(dur) {
-            document.getElementById('bootDurVal').innerText = `${dur} Seconds`;
-            if (!charSettings) return;
-            const data = new TextEncoder().encode(`BOOT_DUR:${dur}`);
-            await charSettings.writeValue(data);
-        }
-
-        async function testBootSplash() {
-            if (!charSettings) return;
-            const data = new TextEncoder().encode("BOOT:PREVIEW");
-            await charSettings.writeValue(data);
-            log("Boot preview triggered on Keychain!");
-        }
-
-        async function setRotation(rot) {
-            if (!charSettings) return;
-            for (let i = 0; i < 4; i++) {
-                const b = document.getElementById(`rotBtn${i}`);
-                if (b) b.className = (i === rot) ? "btn-opt active" : "btn-opt";
-            }
-            const deg = rot * 90;
-            document.getElementById('angleSlider').value = deg;
-            document.getElementById('angleVal').innerText = deg + '°';
-            const data = new TextEncoder().encode(`ROT:${rot}`);
-            await charSettings.writeValue(data);
-            log(`Rotation: ${deg}°`);
-        }
-
-        async function updateAngleSlider(deg) {
-            document.getElementById('angleVal').innerText = deg + '°';
-            const rot = Math.round(deg / 90) % 4;
-            for (let i = 0; i < 4; i++) {
-                const b = document.getElementById(`rotBtn${i}`);
-                if (b) b.className = (i === rot) ? "btn-opt active" : "btn-opt";
-            }
-            if (!charSettings) return;
-            const data = new TextEncoder().encode(`ROT:${rot}`);
-            await charSettings.writeValue(data);
-        }
-
-        async function updateSleepSlider(idx) {
-            const sec = sleepValues[idx];
-            document.getElementById('sleepVal').innerText = sleepLabels[idx];
-            if (!charSettings) return;
-            const data = new TextEncoder().encode(`SLEEP:${sec}`);
-            await charSettings.writeValue(data);
-            log(`Sleep timeout: ${sleepLabels[idx]}`);
-        }
-
-        async function saveAsDefault() {
-            if (!charSettings) return;
-            const data = new TextEncoder().encode("DEF:SET");
-            await charSettings.writeValue(data);
-            log("⭐ Saved default settings!");
-            alert("Default settings saved!");
-        }
-
-        let lastFocusedInput = null;
-        document.addEventListener('focusin', (e) => {
-            if (e.target && (e.target.id === 'txtMessage' || e.target.id === 'txtHudMessage' || e.target.id === 'txtHudShyMessage')) {
-                lastFocusedInput = e.target;
-            }
+        
+        bleDevice = await navigator.bluetooth.requestDevice({
+          filters: [
+            { name: 'DIGI_KEYCHAIN' },
+            { namePrefix: 'DIGI' }
+          ],
+          optionalServices: [ SERVICE_UUID ]
         });
 
-        function insertEmoji(em) {
-            const input = lastFocusedInput || document.getElementById('txtMessage');
-            if (input) {
-                input.value += (input.value.length > 0 && !input.value.endsWith(' ') ? " " : "") + em;
-                input.focus();
-            }
+        log(`Connecting to: ${bleDevice.name || 'DIGI_KEYCHAIN'}...`);
+        bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
+        
+        gattServer = await bleDevice.gatt.connect();
+        log("GATT connected! Getting primary service...");
+        
+        const service = await gattServer.getPrimaryService(SERVICE_UUID);
+        log("Primary service found! Initializing characteristics...");
+
+        charMode     = await service.getCharacteristic(CHAR_MODE_UUID).catch(()=>null);
+        charPet      = await service.getCharacteristic(CHAR_PET_UUID).catch(()=>null);
+        charText     = await service.getCharacteristic(CHAR_TEXT_UUID).catch(()=>null);
+        charTime     = await service.getCharacteristic(CHAR_TIME_UUID).catch(()=>null);
+        charSettings = await service.getCharacteristic(CHAR_SETTINGS_UUID).catch(()=>null);
+        charBattery  = await service.getCharacteristic(CHAR_BATTERY_UUID).catch(()=>null);
+        charStream   = await service.getCharacteristic(CHAR_STREAM_UUID).catch(()=>null);
+
+        if (charMode) {
+          await charMode.startNotifications().catch(()=>{});
+          charMode.addEventListener('characteristicvaluechanged', (e) => {
+            const m = parseInt(new TextDecoder().decode(e.target.value));
+            highlightModeUI(m);
+          });
         }
 
-        async function sendCustomText() {
-            if (!charText) return;
-            const text = document.getElementById('txtMessage').value;
-            const data = new TextEncoder().encode(text);
-            await charText.writeValue(data);
-            log(`Marquee sent: ${text}`);
+        if (charPet) {
+          await charPet.startNotifications().catch(()=>{});
+          charPet.addEventListener('characteristicvaluechanged', (e) => {
+            const a = parseInt(new TextDecoder().decode(e.target.value));
+            highlightEmotionUI(a);
+          });
         }
 
-        async function syncTimeAndWeather() {
-            if (!charTime) return;
-            const d = new Date();
-            const h = String(d.getHours()).padStart(2, '0');
-            const m = String(d.getMinutes()).padStart(2, '0');
-            const s = String(d.getSeconds()).padStart(2, '0');
-            const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-            const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-            const dateStr = `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`;
-            const payload = `${h}:${m}:${s}|28.5|${dateStr}`;
-            const data = new TextEncoder().encode(payload);
-            await charTime.writeValue(data);
-            log(`Time & Date synced: ${h}:${m}:${s} | ${dateStr}`);
+        if (charBattery) {
+          await charBattery.startNotifications().catch(()=>{});
+          charBattery.addEventListener('characteristicvaluechanged', (e) => {
+            const str = new TextDecoder().decode(e.target.value);
+            const parts = str.split('|');
+            if (parts.length >= 2) {
+              const v = parts[0];
+              const pct = parts[1];
+              const usb = parts[2] === '1';
+              const badge = document.getElementById('batteryPill');
+              if (badge) {
+                badge.innerText = usb ? `⚡ USB (${v}V)` : `🔋 ${v}V (${pct}%)`;
+                badge.className = usb ? "badge badge-ok" : "badge badge-warn";
+              }
+              const cv = document.getElementById('logCurVolt');
+              if (cv) cv.innerText = usb ? `5.0V (USB Powered)` : `${v}V (${pct}%)`;
+            }
+          });
         }
 
-        async function updateBrightness(val) {
-            document.getElementById('brVal').innerText = Math.round((val / 255) * 100) + '%';
-            if (!charSettings) return;
-            const data = new TextEncoder().encode(val.toString());
-            await charSettings.writeValue(data);
+        if (charSettings) {
+          await charSettings.startNotifications().catch(()=>{});
+          charSettings.addEventListener('characteristicvaluechanged', (e) => {
+            const msg = new TextDecoder().decode(e.target.value);
+            handleSettingsNotification(msg);
+          });
         }
 
-        // =========================================================================
-        // BOOT MEDIA UPLOADERS
-        // =========================================================================
-        async function uploadBootImage(e) {
-            const file = e.target.files[0];
-            if (!file || !charStream) {
-                log("Connect BLE first before uploading.");
-                return;
-            }
-            log(`Processing Boot Image: ${file.name}...`);
-            const progressWrap = document.getElementById('bootProgressWrap');
-            const progressBar = document.getElementById('bootProgressBar');
-            progressWrap.style.display = 'block';
-            progressBar.style.width = '20%';
+        if (sb) {
+          sb.innerText = "ONLINE ⚡";
+          sb.className = "badge badge-ok";
+        }
+        document.getElementById('btnConnect').innerText = "CONNECTED";
+        log("✅ Online! Telemetry & controls active.");
 
-            const img = new Image();
-            img.src = URL.createObjectURL(file);
-            img.onload = async () => {
-                const canvas = document.createElement('canvas');
-                canvas.width = 240;
-                canvas.height = 240;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, 240, 240);
+        syncTimeAndWeather();
+        setTimeout(() => fetchBatteryLog(), 800);
+      } catch (err) {
+        console.error(err);
+        log(`Error: ${err.message}`);
+        const sb = document.getElementById('statusBadge');
+        if (sb) {
+          sb.innerText = "OFFLINE";
+          sb.className = "badge badge-alert";
+        }
+      }
+    }
 
-                canvas.toBlob(async (blob) => {
-                    const arrayBuffer = await blob.arrayBuffer();
-                    const bytes = new Uint8Array(arrayBuffer);
-                    const CHUNK_SIZE = 480;
-                    const totalLen = bytes.length;
+    function onDisconnected() {
+      log("Device disconnected.");
+      const sb = document.getElementById('statusBadge');
+      if (sb) {
+        sb.innerText = "OFFLINE";
+        sb.className = "badge badge-alert";
+      }
+      document.getElementById('btnConnect').innerText = "PAIR";
+      const tb = document.getElementById('touchBanner');
+      const tt = document.getElementById('touchText');
+      if (tb) tb.className = "touch-hud";
+      if (tt) {
+        tt.innerText = "[ IDLE ]";
+        tt.className = "badge badge-cyan";
+      }
+      charMode = null;
+      charPet = null;
+      charText = null;
+      charTime = null;
+      charSettings = null;
+      charBattery = null;
+      charStream = null;
+      gattServer = null;
+      bleDevice = null;
+    }
 
-                    const firstChunkLen = Math.min(CHUNK_SIZE - 4, totalLen);
-                    const header = new Uint8Array(4 + firstChunkLen);
-                    header[0] = 0xAA;
-                    header[1] = 0x99;
-                    header[2] = (totalLen >> 8) & 0xFF;
-                    header[3] = totalLen & 0xFF;
-                    header.set(bytes.subarray(0, firstChunkLen), 4);
+    let touchResetTimer = null;
+    function setTouchBanner(text, badgeClass = "badge-cyan", autoClearMs = 1500) {
+      const tb = document.getElementById('touchBanner');
+      const tt = document.getElementById('touchText');
+      if (!tb || !tt) return;
+      if (touchResetTimer) clearTimeout(touchResetTimer);
+      
+      tb.className = "touch-hud active";
+      tt.innerText = text;
+      tt.className = `badge ${badgeClass}`;
+      
+      if (autoClearMs > 0) {
+        touchResetTimer = setTimeout(() => {
+          tb.className = "touch-hud";
+          tt.innerText = "[ IDLE ]";
+          tt.className = "badge badge-cyan";
+        }, autoClearMs);
+      }
+    }
 
-                    await charStream.writeValueWithoutResponse(header);
-                    await new Promise(r => setTimeout(r, 25));
+    let currentHudLayout = 0;
+    let currentRobotMood = 0;
+    let currentMatrixTheme = 0;
 
-                    let offset = firstChunkLen;
-                    while (offset < totalLen) {
-                        const chunkEnd = Math.min(offset + CHUNK_SIZE, totalLen);
-                        const chunk = bytes.subarray(offset, chunkEnd);
-                        await charStream.writeValueWithoutResponse(chunk);
-                        offset = chunkEnd;
-                        progressBar.style.width = `${Math.round((offset / totalLen) * 100)}%`;
-                        await new Promise(r => setTimeout(r, 12));
-                    }
+    function handleSettingsNotification(msg) {
+      if (msg === "TOUCH:POKE") {
+        setTouchBanner("👆 POKE TRIGGERED", "badge-cyan", 1500);
+      } else if (msg === "TOUCH:DOUBLE") {
+        setTouchBanner("⚡ DOUBLE-TAP SUB-OPTION", "badge-warn", 1500);
+      } else if (msg === "TOUCH:MODE") {
+        setTouchBanner("⚡ 5-TAP MODE SWITCH", "badge-ok", 2000);
+      } else if (msg.startsWith("ROBOT:STYLE") || msg.startsWith("ROBOT_MOOD:")) {
+        const parts = msg.split(':');
+        const idx = parseInt(parts[1]);
+        if (!isNaN(idx)) highlightRobotMoodUI(idx);
+        setTouchBanner("🤖 ROBOT MOOD UPDATED", "badge-cyan", 1500);
+      } else if (msg.startsWith("HUD:LAYOUT") || msg.startsWith("HUD_LAY:")) {
+        const parts = msg.split(':');
+        const idx = parseInt(parts[1]);
+        if (!isNaN(idx)) highlightHudLayoutUI(idx);
+        setTouchBanner("⚡ HUD LAYOUT UPDATED", "badge-ok", 1500);
+      } else if (msg.startsWith("MATRIX:THEME") || msg.startsWith("MATRIX_THM:")) {
+        const parts = msg.split(':');
+        const idx = parseInt(parts[1]);
+        if (!isNaN(idx)) highlightMatrixThemeUI(idx);
+        setTouchBanner("📟 MATRIX THEME UPDATED", "badge-warn", 1500);
+      } else if (msg === "TOUCH:SHY:HUD" || msg === "TOUCH:SHY") {
+        setTouchBanner("💌 CYBERHUD SECRET MSG (2s HOLD)", "badge-mag", 5000);
+        log("💌 CyberHUD 2s Hold -> Secret Love Overlay Displayed!");
+      } else if (msg === "TOUCH:SHY:ROBOT") {
+        highlightRobotMoodUI(1);
+        setTouchBanner("❤️ ROBOT HEART EYES (2s HOLD)", "badge-mag", 5000);
+        log("🤖 Robot Eyes 2s Hold -> Blushing Cheeks & Heart Eyes Active!");
+      } else if (msg === "TOUCH:SHY:MATRIX") {
+        setTouchBanner("💖 MATRIX LOVE RAIN (2s HOLD)", "badge-mag", 5000);
+        log("📟 Matrix Rain 2s Hold -> Cyber Heart Rain & Love Card Active!");
+      } else if (msg === "TOUCH:SHY:PET" || msg === "TOUCH:HOLD") {
+        highlightEmotionUI(1);
+        setTouchBanner("👉👈 CYBERPET SHY LOVE (2s HOLD)", "badge-mag", 5000);
+        log("🐱 CyberPet 2s Hold -> Shy Love Avatar Active!");
+      } else if (msg.startsWith("TOUCH:REVERT")) {
+        setTouchBanner("🔄 REVERTED (5s ELAPSED)", "badge-ok", 1500);
+        log("🔄 5s elapsed -> Reverted to normal screen.");
+      } else if (msg === "BLE:OFFLINE") {
+        setTouchBanner("💤 BLE RADIO OFF (80MHz)", "badge-dim", 3000);
+      } else if (msg === "BLE:ONLINE") {
+        setTouchBanner("⚡ BLE RADIO ONLINE", "badge-cyan", 3000);
+      } else if (msg === "TOUCH:READY") {
+        setTouchBanner("⚡ RELEASE TO CONFIRM", "badge-cyan", 2500);
+      } else if (msg === "TOUCH:STUCK" || msg === "TOUCH:CANCEL") {
+        setTouchBanner("🛑 HELD >14s: CANCELLED", "badge-alert", 2500);
+      } else if (msg === "SAVED:OK") {
+        setTouchBanner("💾 SAVED AS DEFAULT", "badge-ok", 2000);
+      } else if (msg.startsWith("BAT_LOG|")) {
+        const parts = msg.split('|');
+        if (parts.length >= 8) {
+          const lastSec   = parseInt(parts[1]);
+          const lastStart = (parseInt(parts[2]) / 1000).toFixed(2);
+          const lastEnd   = (parseInt(parts[3]) / 1000).toFixed(2);
+          const curSec    = parseInt(parts[4]);
+          const curVolt   = (parseInt(parts[5]) / 1000).toFixed(2);
+          const isUsb     = parts[6] === '1';
+          const cycles    = parts[7];
+          const allSec    = parts.length >= 9 ? parseInt(parts[8]) : 0;
 
-                    setTimeout(() => { progressWrap.style.display = 'none'; }, 1000);
-                    setBootType(1);
-                    log(`✅ Boot Image Saved (${bytes.length} bytes)!`);
-                }, 'image/jpeg', 0.80);
-            };
+          document.getElementById('logLastRun').innerText = lastSec > 0 ? formatDuration(lastSec) : "No Previous Run";
+          document.getElementById('logLastVolt').innerText = lastSec > 0 ? `${lastStart}V ➔ ${lastEnd}V` : "--";
+          
+          let dropMv = (parseInt(parts[2]) - parseInt(parts[3]));
+          let rateStr = (lastSec > 60 && dropMv > 0) ? `${Math.round((dropMv / lastSec) * 3600)} mV/hr` : "--";
+          const rateElem = document.getElementById('logDischargeRate');
+          if (rateElem) rateElem.innerText = rateStr;
+
+          document.getElementById('logCurRun').innerText = formatDuration(curSec);
+          document.getElementById('logCurVolt').innerText = isUsb ? `5.0V (USB)` : `${curVolt}V`;
+          document.getElementById('logCycles').innerText = `Cycle #${cycles}`;
+          
+          const allElem = document.getElementById('logAllTime');
+          if (allElem) allElem.innerText = allSec > 0 ? formatDuration(allSec) : formatDuration(curSec);
+
+          log(`🔋 Battery Log: Last Run was ${formatDuration(lastSec)} (${lastStart}V ➔ ${lastEnd}V)`);
+        }
+      }
+    }
+
+    async function fetchBatteryLog() {
+      vibrate();
+      if (!charSettings) return;
+      const data = new TextEncoder().encode("BAT:GET_LOG");
+      await charSettings.writeValue(data);
+    }
+
+    async function resetBatteryLog() {
+      vibrate();
+      if (!charSettings) return;
+      if (!confirm("Reset the battery discharge log?")) return;
+      const data = new TextEncoder().encode("BAT:RESET_LOG");
+      await charSettings.writeValue(data);
+      log("Battery discharge log cleared.");
+    }
+
+    async function saveChangesToFlash() {
+      vibrate();
+      if (!charSettings) {
+        alert("Please pair with DIGI_KEYCHAIN over Bluetooth first!");
+        return;
+      }
+      const data = new TextEncoder().encode("SAVE_CONFIG");
+      await charSettings.writeValue(data);
+      log("💾 Flashed current settings to ESP32 NVS memory as permanent default!");
+      alert("✅ Settings Flashed to Memory!\n\nSystem Mode, CyberHUD, Robot Eyes, Matrix Themes, Brightness, Sleep Timeout, Screen Rotation, and Mascots are now saved permanently in ESP32 memory.");
+    }
+
+    async function turnOffBLE() {
+      vibrate();
+      if (!charSettings) {
+        log("Not connected over BLE.");
+        return;
+      }
+      if (!confirm("Turn off Bluetooth on the ESP32 to save power?\n\n(To turn it back on, hold the Touch Sensor for 10 seconds until the blue LED flashes)")) return;
+      try {
+        const data = new TextEncoder().encode("BLE:OFF");
+        await charSettings.writeValue(data);
+      } catch(e) {}
+      log("💤 Bluetooth turned OFF on ESP32. CPU scaled down to 80MHz.");
+      if (gattServer && gattServer.connected) {
+        try { gattServer.disconnect(); } catch(e) {}
+      }
+      onDisconnected();
+    }
+
+    async function enterDeepSleepNow() {
+      vibrate();
+      if (!charSettings) {
+        log("Not connected over BLE.");
+        return;
+      }
+      if (!confirm("Put DIGI KEYCHAIN into Deep Sleep now?\n\n(Tap the Touch Sensor to wake it back up)")) return;
+      try {
+        const data = new TextEncoder().encode("SYS:SLEEP");
+        await charSettings.writeValue(data);
+      } catch(e) {}
+      log("🌙 Deep Sleep initiated. Tap touch sensor to wake up.");
+      if (gattServer && gattServer.connected) {
+        try { gattServer.disconnect(); } catch(e) {}
+      }
+      onDisconnected();
+    }
+
+    async function setMode(modeNum) {
+      vibrate();
+      highlightModeUI(modeNum);
+      if (!charMode) return;
+      const data = new TextEncoder().encode(modeNum.toString());
+      await charMode.writeValue(data);
+      log(`Mode: ${modeNum}`);
+    }
+
+    function highlightModeUI(m) {
+      for (let i = 0; i < 4; i++) {
+        const b = document.getElementById(`modeBtn${i}`);
+        if (b) b.className = (i === m) ? "btn-opt active" : "btn-opt";
+        const p = document.getElementById(`panelMode${i}`);
+        if (p) {
+          if (i === m) p.classList.add('active');
+          else p.classList.remove('active');
+        }
+      }
+    }
+
+    async function setEmotion(emoNum) {
+      vibrate();
+      highlightEmotionUI(emoNum);
+      if (!charPet) return;
+      const data = new TextEncoder().encode(emoNum.toString());
+      await charPet.writeValue(data);
+      log(`Emotion: ${emoNum}`);
+    }
+
+    function highlightEmotionUI(a) {
+      for (let i = 0; i < 7; i++) {
+        const b = document.getElementById(`emoBtn${i}`);
+        if (b) b.className = (i === a) ? "btn-opt active" : "btn-opt";
+      }
+    }
+
+    async function setRobotMood(moodNum) {
+      vibrate();
+      highlightRobotMoodUI(moodNum);
+      if (!charSettings) return;
+      const data = new TextEncoder().encode(`ROBOT_MOOD:${moodNum}`);
+      await charSettings.writeValue(data);
+      log(`Robot Mood: ${moodNum}`);
+    }
+
+    function highlightRobotMoodUI(moodNum) {
+      currentRobotMood = moodNum;
+      for (let i = 0; i < 4; i++) {
+        const b = document.getElementById(`robotMoodBtn${i}`);
+        if (b) b.className = (i === moodNum) ? "btn-opt active" : "btn-opt";
+      }
+    }
+
+    async function setHudLayout(layNum) {
+      vibrate();
+      highlightHudLayoutUI(layNum);
+      await syncHudConfig(layNum);
+    }
+
+    function highlightHudLayoutUI(layNum) {
+      currentHudLayout = layNum;
+      for (let i = 0; i < 3; i++) {
+        const b = document.getElementById(`hudLayBtn${i}`);
+        if (b) b.className = (i === layNum) ? "btn-opt active" : "btn-opt";
+      }
+    }
+
+    async function syncHudConfig(optLay) {
+      const lay = (typeof optLay === 'number') ? optLay : currentHudLayout;
+      const sec = document.getElementById('chkHudSec')?.checked ? 1 : 0;
+      const bat = document.getElementById('chkHudBat')?.checked ? 1 : 0;
+      const dt  = document.getElementById('chkHudDate')?.checked ? 1 : 0;
+      const wav = document.getElementById('chkHudWave')?.checked ? 1 : 0;
+      const txt = document.getElementById('chkHudText')?.checked ? 1 : 0;
+
+      if (!charSettings) return;
+      const data = new TextEncoder().encode(`HUD_CFG:${lay}:${sec}:${bat}:${dt}:${wav}:${txt}`);
+      await charSettings.writeValue(data);
+      log(`CyberHUD Config: Layout=${lay}, Sec=${sec}, Bat=${bat}, Date=${dt}, Wave=${wav}, Text=${txt}`);
+    }
+
+    async function sendHudCustomText() {
+      vibrate();
+      if (!charSettings) return;
+      const text = document.getElementById('txtHudMessage').value;
+      const data = new TextEncoder().encode(`HUD_MSG:${text}`);
+      await charSettings.writeValue(data);
+      log(`HUD Banner: ${text}`);
+    }
+
+    async function sendHudShyText() {
+      vibrate();
+      if (!charSettings) return;
+      const text = document.getElementById('txtHudShyMessage').value;
+      const data = new TextEncoder().encode(`HUD_SHY:${text}`);
+      await charSettings.writeValue(data);
+      log(`CyberHUD Shy Secret: ${text}`);
+    }
+
+    async function setMatrixTheme(thmNum) {
+      vibrate();
+      highlightMatrixThemeUI(thmNum);
+      if (!charSettings) return;
+      const data = new TextEncoder().encode(`MATRIX_THM:${thmNum}`);
+      await charSettings.writeValue(data);
+      log(`Matrix Theme: ${thmNum}`);
+    }
+
+    function highlightMatrixThemeUI(thmNum) {
+      currentMatrixTheme = thmNum;
+      for (let i = 0; i < 4; i++) {
+        const b = document.getElementById(`matrixThmBtn${i}`);
+        if (b) b.className = (i === thmNum) ? "btn-opt active" : "btn-opt";
+      }
+    }
+
+    async function setBootType(bt) {
+      vibrate();
+      if (!charSettings) return;
+      for (let i = 0; i < 4; i++) {
+        const b = document.getElementById(`bootBtn${i}`);
+        if (b) b.className = (i === bt) ? "btn-opt active" : "btn-opt";
+      }
+      const data = new TextEncoder().encode(`BOOT_TYPE:${bt}`);
+      await charSettings.writeValue(data);
+      log(`Boot Type: ${bt}`);
+    }
+
+    async function updateBootDuration(dur) {
+      document.getElementById('bootDurVal').innerText = `${dur} Seconds`;
+      if (!charSettings) return;
+      const data = new TextEncoder().encode(`BOOT_DUR:${dur}`);
+      await charSettings.writeValue(data);
+    }
+
+    async function testBootSplash() {
+      vibrate();
+      if (!charSettings) return;
+      const data = new TextEncoder().encode("BOOT:PREVIEW");
+      await charSettings.writeValue(data);
+      log("Boot preview triggered on Keychain!");
+    }
+
+    async function setRotation(rot) {
+      vibrate();
+      if (!charSettings) return;
+      for (let i = 0; i < 4; i++) {
+        const b = document.getElementById(`rotBtn${i}`);
+        if (b) b.className = (i === rot) ? "btn-opt active" : "btn-opt";
+      }
+      const deg = rot * 90;
+      document.getElementById('angleSlider').value = deg;
+      document.getElementById('angleVal').innerText = deg + '°';
+      const data = new TextEncoder().encode(`ROT:${rot}`);
+      await charSettings.writeValue(data);
+      log(`Rotation: ${deg}°`);
+    }
+
+    async function updateAngleSlider(deg) {
+      document.getElementById('angleVal').innerText = deg + '°';
+      const rot = Math.round(deg / 90) % 4;
+      for (let i = 0; i < 4; i++) {
+        const b = document.getElementById(`rotBtn${i}`);
+        if (b) b.className = (i === rot) ? "btn-opt active" : "btn-opt";
+      }
+      if (!charSettings) return;
+      const data = new TextEncoder().encode(`ROT:${rot}`);
+      await charSettings.writeValue(data);
+    }
+
+    async function updateSleepSlider(idx) {
+      const sec = sleepValues[idx];
+      document.getElementById('sleepVal').innerText = sleepLabels[idx];
+      if (!charSettings) return;
+      const data = new TextEncoder().encode(`SLEEP:${sec}`);
+      await charSettings.writeValue(data);
+      log(`Sleep timeout: ${sleepLabels[idx]}`);
+    }
+
+    async function saveAsDefault() {
+      vibrate();
+      if (!charSettings) return;
+      const data = new TextEncoder().encode("DEF:SET");
+      await charSettings.writeValue(data);
+      log("⭐ Saved default settings!");
+      alert("Default settings saved!");
+    }
+
+    let lastFocusedInput = null;
+    document.addEventListener('focusin', (e) => {
+      if (e.target && (e.target.id === 'txtMessage' || e.target.id === 'txtHudMessage' || e.target.id === 'txtHudShyMessage')) {
+        lastFocusedInput = e.target;
+      }
+    });
+
+    function insertEmoji(em) {
+      vibrate();
+      const input = lastFocusedInput || document.getElementById('txtMessage');
+      if (input) {
+        input.value += (input.value.length > 0 && !input.value.endsWith(' ') ? " " : "") + em;
+        input.focus();
+      }
+    }
+
+    async function sendCustomText() {
+      vibrate();
+      if (!charText) return;
+      const text = document.getElementById('txtMessage').value;
+      const data = new TextEncoder().encode(text);
+      await charText.writeValue(data);
+      log(`Marquee sent: ${text}`);
+    }
+
+    async function syncTimeAndWeather() {
+      vibrate();
+      if (!charTime) return;
+      const d = new Date();
+      const h = String(d.getHours()).padStart(2, '0');
+      const m = String(d.getMinutes()).padStart(2, '0');
+      const s = String(d.getSeconds()).padStart(2, '0');
+      const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+      const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+      const dateStr = `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`;
+      const payload = `${h}:${m}:${s}|28.5|${dateStr}`;
+      const data = new TextEncoder().encode(payload);
+      await charTime.writeValue(data);
+      log(`Time & Date synced: ${h}:${m}:${s} | ${dateStr}`);
+    }
+
+    async function updateBrightness(val) {
+      document.getElementById('brVal').innerText = Math.round((val / 255) * 100) + '%';
+      if (!charSettings) return;
+      const data = new TextEncoder().encode(val.toString());
+      await charSettings.writeValue(data);
+    }
+
+    // =========================================================================
+    // BOOT MEDIA UPLOADERS
+    // =========================================================================
+    async function uploadBootImage(e) {
+      const file = e.target.files[0];
+      if (!file || !charStream) {
+        log("Connect BLE first before uploading.");
+        return;
+      }
+      log(`Processing Boot Image: ${file.name}...`);
+      const progressWrap = document.getElementById('bootProgressWrap');
+      const progressBar = document.getElementById('bootProgressBar');
+      progressWrap.style.display = 'block';
+      progressBar.style.width = '20%';
+
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      img.onload = async () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 240;
+        canvas.height = 240;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, 240, 240);
+
+        canvas.toBlob(async (blob) => {
+          const arrayBuffer = await blob.arrayBuffer();
+          const bytes = new Uint8Array(arrayBuffer);
+          const CHUNK_SIZE = 480;
+          const totalLen = bytes.length;
+
+          const firstChunkLen = Math.min(CHUNK_SIZE - 4, totalLen);
+          const header = new Uint8Array(4 + firstChunkLen);
+          header[0] = 0xAA;
+          header[1] = 0x99;
+          header[2] = (totalLen >> 8) & 0xFF;
+          header[3] = totalLen & 0xFF;
+          header.set(bytes.subarray(0, firstChunkLen), 4);
+
+          await charStream.writeValueWithoutResponse(header);
+          await new Promise(r => setTimeout(r, 25));
+
+          let offset = firstChunkLen;
+          while (offset < totalLen) {
+            const chunkEnd = Math.min(offset + CHUNK_SIZE, totalLen);
+            const chunk = bytes.subarray(offset, chunkEnd);
+            await charStream.writeValueWithoutResponse(chunk);
+            offset = chunkEnd;
+            progressBar.style.width = `${Math.round((offset / totalLen) * 100)}%`;
+            await new Promise(r => setTimeout(r, 12));
+          }
+
+          setTimeout(() => { progressWrap.style.display = 'none'; }, 1000);
+          setBootType(1);
+          log(`✅ Boot Image Saved (${bytes.length} bytes)!`);
+        }, 'image/jpeg', 0.80);
+      };
+    }
+
+    async function uploadBootVideo(e) {
+      const file = e.target.files[0];
+      if (!file || !charStream) {
+        log("Connect BLE first before uploading.");
+        return;
+      }
+      log(`Sampling Boot Video: ${file.name}...`);
+      const progressWrap = document.getElementById('bootProgressWrap');
+      const progressBar = document.getElementById('bootProgressBar');
+      progressWrap.style.display = 'block';
+      progressBar.style.width = '10%';
+
+      const video = document.createElement('video');
+      const canvas = document.createElement('canvas');
+      canvas.width = 240;
+      canvas.height = 240;
+      const ctx = canvas.getContext('2d');
+
+      video.src = URL.createObjectURL(file);
+      video.muted = true;
+      await new Promise((resolve) => { video.onloadedmetadata = () => resolve(); });
+
+      const duration = Math.min(video.duration || 1.0, 1.2);
+      const targetFrames = Math.min(Math.floor(duration * 20), 20);
+      const frameBlobs = [];
+
+      for (let i = 0; i < targetFrames; i++) {
+        video.currentTime = (i / targetFrames) * duration;
+        await new Promise(r => { video.onseeked = () => r(); });
+        ctx.drawImage(video, 0, 0, 240, 240);
+        
+        const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.35));
+        const arrayBuffer = await blob.arrayBuffer();
+        frameBlobs.push(new Uint8Array(arrayBuffer));
+        progressBar.style.width = `${Math.round(((i + 1) / targetFrames) * 30)}%`;
+      }
+
+      log(`Uploading ${frameBlobs.length} frames to flash...`);
+      const initHeader = new Uint8Array([0xBB, 0x99, frameBlobs.length, 20]);
+      await charStream.writeValueWithoutResponse(initHeader);
+      await new Promise(r => setTimeout(r, 40));
+
+      const CHUNK_SIZE = 480;
+      for (let fIdx = 0; fIdx < frameBlobs.length; fIdx++) {
+        const fBytes = frameBlobs[fIdx];
+        const totalLen = fBytes.length;
+
+        const firstChunkLen = Math.min(CHUNK_SIZE - 5, totalLen);
+        const fHeader = new Uint8Array(5 + firstChunkLen);
+        fHeader[0] = 0xCC;
+        fHeader[1] = 0x99;
+        fHeader[2] = fIdx;
+        fHeader[3] = (totalLen >> 8) & 0xFF;
+        fHeader[4] = totalLen & 0xFF;
+        fHeader.set(fBytes.subarray(0, firstChunkLen), 5);
+
+        await charStream.writeValueWithoutResponse(fHeader);
+        await new Promise(r => setTimeout(r, 20));
+
+        let offset = firstChunkLen;
+        while (offset < totalLen) {
+          const chunkEnd = Math.min(offset + CHUNK_SIZE, totalLen);
+          const chunk = fBytes.subarray(offset, chunkEnd);
+          await charStream.writeValueWithoutResponse(chunk);
+          offset = chunkEnd;
+          await new Promise(r => setTimeout(r, 12));
         }
 
-        async function uploadBootVideo(e) {
-            const file = e.target.files[0];
-            if (!file || !charStream) {
-                log("Connect BLE first before uploading.");
-                return;
-            }
-            log(`Sampling Boot Video: ${file.name}...`);
-            const progressWrap = document.getElementById('bootProgressWrap');
-            const progressBar = document.getElementById('bootProgressBar');
-            progressWrap.style.display = 'block';
-            progressBar.style.width = '10%';
+        const pct = 30 + Math.round(((fIdx + 1) / frameBlobs.length) * 70);
+        progressBar.style.width = `${pct}%`;
+      }
 
-            const video = document.createElement('video');
-            const canvas = document.createElement('canvas');
-            canvas.width = 240;
-            canvas.height = 240;
-            const ctx = canvas.getContext('2d');
+      const finishHeader = new Uint8Array([0xDD, 0x99]);
+      await charStream.writeValueWithoutResponse(finishHeader);
 
-            video.src = URL.createObjectURL(file);
-            video.muted = true;
-            await new Promise((resolve) => { video.onloadedmetadata = () => resolve(); });
+      setTimeout(() => { progressWrap.style.display = 'none'; }, 1000);
+      log("✅ Custom Video Boot Animation Saved!");
+    }
 
-            const duration = Math.min(video.duration || 1.0, 1.2);
-            const targetFrames = Math.min(Math.floor(duration * 20), 20);
-            const frameBlobs = [];
+    // =========================================================================
+    // LIVE MEDIA STREAMING: SINGLE IMAGE, VIDEO & ANIMATED GIF
+    // =========================================================================
+    async function uploadLiveImage(e) {
+      const file = e.target.files[0];
+      if (!file || !charStream) {
+        log("Connect BLE first before streaming.");
+        return;
+      }
+      log(`Streaming Image: ${file.name}...`);
+      const progressWrap = document.getElementById('streamProgressWrap');
+      const progressBar = document.getElementById('streamProgressBar');
+      progressWrap.style.display = 'block';
+      progressBar.style.width = '20%';
 
-            for (let i = 0; i < targetFrames; i++) {
-                video.currentTime = (i / targetFrames) * duration;
-                await new Promise(r => { video.onseeked = () => r(); });
-                ctx.drawImage(video, 0, 0, 240, 240);
-                
-                const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.35));
-                const arrayBuffer = await blob.arrayBuffer();
-                frameBlobs.push(new Uint8Array(arrayBuffer));
-                progressBar.style.width = `${Math.round(((i + 1) / targetFrames) * 30)}%`;
-            }
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      img.onload = async () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 240;
+        canvas.height = 240;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, 240, 240);
 
-            log(`Uploading ${frameBlobs.length} frames to flash...`);
-            const initHeader = new Uint8Array([0xBB, 0x99, frameBlobs.length, 20]);
-            await charStream.writeValueWithoutResponse(initHeader);
-            await new Promise(r => setTimeout(r, 40));
+        canvas.toBlob(async (blob) => {
+          const arrayBuffer = await blob.arrayBuffer();
+          const bytes = new Uint8Array(arrayBuffer);
+          const CHUNK_SIZE = 480;
+          const totalLen = bytes.length;
 
-            const CHUNK_SIZE = 480;
-            for (let fIdx = 0; fIdx < frameBlobs.length; fIdx++) {
-                const fBytes = frameBlobs[fIdx];
-                const totalLen = fBytes.length;
+          const firstChunkLen = Math.min(CHUNK_SIZE - 4, totalLen);
+          const header = new Uint8Array(4 + firstChunkLen);
+          header[0] = 0xAA;
+          header[1] = 0x55;
+          header[2] = (totalLen >> 8) & 0xFF;
+          header[3] = totalLen & 0xFF;
+          header.set(bytes.subarray(0, firstChunkLen), 4);
 
-                const firstChunkLen = Math.min(CHUNK_SIZE - 5, totalLen);
-                const fHeader = new Uint8Array(5 + firstChunkLen);
-                fHeader[0] = 0xCC;
-                fHeader[1] = 0x99;
-                fHeader[2] = fIdx;
-                fHeader[3] = (totalLen >> 8) & 0xFF;
-                fHeader[4] = totalLen & 0xFF;
-                fHeader.set(fBytes.subarray(0, firstChunkLen), 5);
+          await charStream.writeValueWithoutResponse(header);
+          await new Promise(r => setTimeout(r, 20));
 
-                await charStream.writeValueWithoutResponse(fHeader);
-                await new Promise(r => setTimeout(r, 20));
+          let offset = firstChunkLen;
+          while (offset < totalLen) {
+            const chunkEnd = Math.min(offset + CHUNK_SIZE, totalLen);
+            const chunk = bytes.subarray(offset, chunkEnd);
+            await charStream.writeValueWithoutResponse(chunk);
+            offset = chunkEnd;
+            progressBar.style.width = `${Math.round((offset / totalLen) * 100)}%`;
+            await new Promise(r => setTimeout(r, 12));
+          }
 
-                let offset = firstChunkLen;
-                while (offset < totalLen) {
-                    const chunkEnd = Math.min(offset + CHUNK_SIZE, totalLen);
-                    const chunk = fBytes.subarray(offset, chunkEnd);
-                    await charStream.writeValueWithoutResponse(chunk);
-                    offset = chunkEnd;
-                    await new Promise(r => setTimeout(r, 12));
-                }
+          setTimeout(() => { progressWrap.style.display = 'none'; }, 1000);
+          log(`✅ Streamed image (${bytes.length} bytes)!`);
+        }, 'image/jpeg', 0.80);
+      };
+    }
 
-                const pct = 30 + Math.round(((fIdx + 1) / frameBlobs.length) * 70);
-                progressBar.style.width = `${pct}%`;
-            }
+    async function uploadLiveVideo(e) {
+      const file = e.target.files[0];
+      if (!file || !charStream) {
+        log("Connect BLE first before streaming.");
+        return;
+      }
+      log(`Sampling Video/GIF: ${file.name}...`);
+      const progressWrap = document.getElementById('streamProgressWrap');
+      const progressBar = document.getElementById('streamProgressBar');
+      progressWrap.style.display = 'block';
+      progressBar.style.width = '10%';
 
-            const finishHeader = new Uint8Array([0xDD, 0x99]);
-            await charStream.writeValueWithoutResponse(finishHeader);
+      const video = document.createElement('video');
+      const canvas = document.createElement('canvas');
+      canvas.width = 240;
+      canvas.height = 240;
+      const ctx = canvas.getContext('2d');
 
-            setTimeout(() => { progressWrap.style.display = 'none'; }, 1000);
-            log("✅ Custom Video Boot Animation Saved!");
+      video.src = URL.createObjectURL(file);
+      video.muted = true;
+      await new Promise((resolve) => { 
+        video.onloadedmetadata = () => resolve();
+        video.onerror = () => resolve();
+      });
+
+      const duration = Math.min(video.duration || 1.2, 1.5);
+      const targetFrames = Math.min(Math.max(Math.floor(duration * 20), 8), 24);
+      const frameBlobs = [];
+
+      for (let i = 0; i < targetFrames; i++) {
+        video.currentTime = (i / targetFrames) * duration;
+        await new Promise(r => { video.onseeked = () => r(); setTimeout(r, 100); });
+        ctx.drawImage(video, 0, 0, 240, 240);
+        
+        const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.35));
+        const arrayBuffer = await blob.arrayBuffer();
+        frameBlobs.push(new Uint8Array(arrayBuffer));
+        progressBar.style.width = `${Math.round(((i + 1) / targetFrames) * 30)}%`;
+      }
+
+      log(`Streaming ${frameBlobs.length} frames over BLE @ 25 FPS...`);
+      const initHeader = new Uint8Array([0xBB, 0x66, frameBlobs.length, 25]);
+      await charStream.writeValueWithoutResponse(initHeader);
+      await new Promise(r => setTimeout(r, 40));
+
+      const CHUNK_SIZE = 480;
+      for (let fIdx = 0; fIdx < frameBlobs.length; fIdx++) {
+        const fBytes = frameBlobs[fIdx];
+        const totalLen = fBytes.length;
+
+        const firstChunkLen = Math.min(CHUNK_SIZE - 5, totalLen);
+        const fHeader = new Uint8Array(5 + firstChunkLen);
+        fHeader[0] = 0xCC;
+        fHeader[1] = 0x77;
+        fHeader[2] = fIdx;
+        fHeader[3] = (totalLen >> 8) & 0xFF;
+        fHeader[4] = totalLen & 0xFF;
+        fHeader.set(fBytes.subarray(0, firstChunkLen), 5);
+
+        await charStream.writeValueWithoutResponse(fHeader);
+        await new Promise(r => setTimeout(r, 20));
+
+        let offset = firstChunkLen;
+        while (offset < totalLen) {
+          const chunkEnd = Math.min(offset + CHUNK_SIZE, totalLen);
+          const chunk = fBytes.subarray(offset, chunkEnd);
+          await charStream.writeValueWithoutResponse(chunk);
+          offset = chunkEnd;
+          await new Promise(r => setTimeout(r, 12));
         }
 
-        // =========================================================================
-        // LIVE MEDIA STREAMING: SINGLE IMAGE, VIDEO & ANIMATED GIF
-        // =========================================================================
-        async function uploadLiveImage(e) {
-            const file = e.target.files[0];
-            if (!file || !charStream) {
-                log("Connect BLE first before streaming.");
-                return;
-            }
-            log(`Streaming Image: ${file.name}...`);
-            const progressWrap = document.getElementById('streamProgressWrap');
-            const progressBar = document.getElementById('streamProgressBar');
-            progressWrap.style.display = 'block';
-            progressBar.style.width = '20%';
+        const pct = 30 + Math.round(((fIdx + 1) / frameBlobs.length) * 70);
+        progressBar.style.width = `${pct}%`;
+      }
 
-            const img = new Image();
-            img.src = URL.createObjectURL(file);
-            img.onload = async () => {
-                const canvas = document.createElement('canvas');
-                canvas.width = 240;
-                canvas.height = 240;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, 240, 240);
+      const playHeader = new Uint8Array([0xDD, 0x88]);
+      await charStream.writeValueWithoutResponse(playHeader);
 
-                canvas.toBlob(async (blob) => {
-                    const arrayBuffer = await blob.arrayBuffer();
-                    const bytes = new Uint8Array(arrayBuffer);
-                    const CHUNK_SIZE = 480;
-                    const totalLen = bytes.length;
-
-                    const firstChunkLen = Math.min(CHUNK_SIZE - 4, totalLen);
-                    const header = new Uint8Array(4 + firstChunkLen);
-                    header[0] = 0xAA;
-                    header[1] = 0x55;
-                    header[2] = (totalLen >> 8) & 0xFF;
-                    header[3] = totalLen & 0xFF;
-                    header.set(bytes.subarray(0, firstChunkLen), 4);
-
-                    await charStream.writeValueWithoutResponse(header);
-                    await new Promise(r => setTimeout(r, 20));
-
-                    let offset = firstChunkLen;
-                    while (offset < totalLen) {
-                        const chunkEnd = Math.min(offset + CHUNK_SIZE, totalLen);
-                        const chunk = bytes.subarray(offset, chunkEnd);
-                        await charStream.writeValueWithoutResponse(chunk);
-                        offset = chunkEnd;
-                        progressBar.style.width = `${Math.round((offset / totalLen) * 100)}%`;
-                        await new Promise(r => setTimeout(r, 12));
-                    }
-
-                    setTimeout(() => { progressWrap.style.display = 'none'; }, 1000);
-                    log(`✅ Streamed image (${bytes.length} bytes)!`);
-                }, 'image/jpeg', 0.80);
-            };
-        }
-
-        async function uploadLiveVideo(e) {
-            const file = e.target.files[0];
-            if (!file || !charStream) {
-                log("Connect BLE first before streaming.");
-                return;
-            }
-            log(`Sampling Video/GIF: ${file.name}...`);
-            const progressWrap = document.getElementById('streamProgressWrap');
-            const progressBar = document.getElementById('streamProgressBar');
-            progressWrap.style.display = 'block';
-            progressBar.style.width = '10%';
-
-            const video = document.createElement('video');
-            const canvas = document.createElement('canvas');
-            canvas.width = 240;
-            canvas.height = 240;
-            const ctx = canvas.getContext('2d');
-
-            video.src = URL.createObjectURL(file);
-            video.muted = true;
-            await new Promise((resolve) => { 
-                video.onloadedmetadata = () => resolve();
-                video.onerror = () => resolve();
-            });
-
-            const duration = Math.min(video.duration || 1.2, 1.5);
-            const targetFrames = Math.min(Math.max(Math.floor(duration * 20), 8), 24);
-            const frameBlobs = [];
-
-            for (let i = 0; i < targetFrames; i++) {
-                video.currentTime = (i / targetFrames) * duration;
-                await new Promise(r => { video.onseeked = () => r(); setTimeout(r, 100); });
-                ctx.drawImage(video, 0, 0, 240, 240);
-                
-                const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.35));
-                const arrayBuffer = await blob.arrayBuffer();
-                frameBlobs.push(new Uint8Array(arrayBuffer));
-                progressBar.style.width = `${Math.round(((i + 1) / targetFrames) * 30)}%`;
-            }
-
-            log(`Streaming ${frameBlobs.length} frames over BLE @ 25 FPS...`);
-            const initHeader = new Uint8Array([0xBB, 0x66, frameBlobs.length, 25]);
-            await charStream.writeValueWithoutResponse(initHeader);
-            await new Promise(r => setTimeout(r, 40));
-
-            const CHUNK_SIZE = 480;
-            for (let fIdx = 0; fIdx < frameBlobs.length; fIdx++) {
-                const fBytes = frameBlobs[fIdx];
-                const totalLen = fBytes.length;
-
-                const firstChunkLen = Math.min(CHUNK_SIZE - 5, totalLen);
-                const fHeader = new Uint8Array(5 + firstChunkLen);
-                fHeader[0] = 0xCC;
-                fHeader[1] = 0x77; // Live Stream Video Tag
-                fHeader[2] = fIdx;
-                fHeader[3] = (totalLen >> 8) & 0xFF;
-                fHeader[4] = totalLen & 0xFF;
-                fHeader.set(fBytes.subarray(0, firstChunkLen), 5);
-
-                await charStream.writeValueWithoutResponse(fHeader);
-                await new Promise(r => setTimeout(r, 20));
-
-                let offset = firstChunkLen;
-                while (offset < totalLen) {
-                    const chunkEnd = Math.min(offset + CHUNK_SIZE, totalLen);
-                    const chunk = fBytes.subarray(offset, chunkEnd);
-                    await charStream.writeValueWithoutResponse(chunk);
-                    offset = chunkEnd;
-                    await new Promise(r => setTimeout(r, 12));
-                }
-
-                const pct = 30 + Math.round(((fIdx + 1) / frameBlobs.length) * 70);
-                progressBar.style.width = `${pct}%`;
-            }
-
-            const playHeader = new Uint8Array([0xDD, 0x88]);
-            await charStream.writeValueWithoutResponse(playHeader);
-
-            setTimeout(() => { progressWrap.style.display = 'none'; }, 1000);
-            log(`🎬 Playing live 25 FPS video loop (${frameBlobs.length} frames)!`);
-        }
-    </script>
+      setTimeout(() => { progressWrap.style.display = 'none'; }, 1000);
+      log(`🎬 Playing live 25 FPS video loop (${frameBlobs.length} frames)!`);
+    }
+  </script>
 </body>
 </html>
