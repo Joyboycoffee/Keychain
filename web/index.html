@@ -1558,7 +1558,7 @@
           </div>
 
           <div class="text-input-wrap">
-            <input type="text" id="txtMessage" value="JOY BOY COFFEE ☕ 🔥" placeholder="Enter marquee text...">
+            <input type="text" id="txtMessage" value="JOY BOY COFFEE :coffee: :fire:" placeholder="Enter marquee text...">
             <button class="btn-primary" style="flex-shrink:0;" onclick="sendCustomText()">
               <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
               SEND
@@ -2357,312 +2357,448 @@
       }
     }
 
+    // =========================================================================
+    // UNIVERSAL MOBILE BLE WRITE ENGINE (ADAPTIVE FLOW CONTROL & FALLBACK)
+    // =========================================================================
+    async function safeBleWrite(char, data, preferWithoutResponse = false) {
+      if (!char) throw new Error("Characteristic not available");
+      
+      if (preferWithoutResponse && char.writeValueWithoutResponse) {
+        try {
+          await char.writeValueWithoutResponse(data);
+          return;
+        } catch (err) {
+          console.warn("writeValueWithoutResponse failed, falling back to withResponse:", err);
+        }
+      }
+      
+      if (char.writeValueWithResponse) {
+        await char.writeValueWithResponse(data);
+      } else if (char.writeValue) {
+        await char.writeValue(data);
+      } else if (char.writeValueWithoutResponse) {
+        await char.writeValueWithoutResponse(data);
+      }
+    }
+
     async function sendCustomText() {
       vibrate();
-      if (!charText) return;
-      const text = document.getElementById('txtMessage').value;
-      const data = new TextEncoder().encode(text);
-      await charText.writeValue(data);
-      log(`Marquee sent: ${text}`);
+      if (!charText) {
+        alert("Please pair with DIGI_KEYCHAIN over Bluetooth first!");
+        return;
+      }
+      const textElem = document.getElementById('txtMessage');
+      const text = textElem ? textElem.value.trim() : "";
+      if (!text) return;
+      
+      try {
+        log(`📡 Sending Marquee text: "${text}"...`);
+        const data = new TextEncoder().encode(text);
+        await safeBleWrite(charText, data, false);
+        log(`✅ Marquee broadcast active on keychain!`);
+        setTouchBanner("MARQUEE: " + (text.length > 12 ? text.substring(0, 12) + "..." : text), "badge-ok", 2500);
+      } catch (err) {
+        console.error(err);
+        log(`❌ Marquee send error: ${err.message}`);
+        alert(`Marquee send error: ${err.message}`);
+      }
     }
 
     async function syncTimeAndWeather() {
       vibrate();
       if (!charTime) return;
-      const d = new Date();
-      const h = String(d.getHours()).padStart(2, '0');
-      const m = String(d.getMinutes()).padStart(2, '0');
-      const s = String(d.getSeconds()).padStart(2, '0');
-      const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-      const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-      const dateStr = `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`;
-      const payload = `${h}:${m}:${s}|28.5|${dateStr}`;
-      const data = new TextEncoder().encode(payload);
-      await charTime.writeValue(data);
-      log(`Time & Date synced: ${h}:${m}:${s} | ${dateStr}`);
+      try {
+        const d = new Date();
+        const h = String(d.getHours()).padStart(2, '0');
+        const m = String(d.getMinutes()).padStart(2, '0');
+        const s = String(d.getSeconds()).padStart(2, '0');
+        const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+        const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+        const dateStr = `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`;
+        const payload = `${h}:${m}:${s}|28.5|${dateStr}`;
+        const data = new TextEncoder().encode(payload);
+        await safeBleWrite(charTime, data, false);
+        log(`Time & Date synced: ${h}:${m}:${s} | ${dateStr}`);
+      } catch (err) {
+        console.warn("Time sync error:", err);
+      }
     }
 
     async function updateBrightness(val) {
       document.getElementById('brVal').innerText = Math.round((val / 255) * 100) + '%';
       if (!charSettings) return;
-      const data = new TextEncoder().encode(val.toString());
-      await charSettings.writeValue(data);
+      try {
+        const data = new TextEncoder().encode(val.toString());
+        await safeBleWrite(charSettings, data, false);
+      } catch (err) {
+        console.warn("Brightness error:", err);
+      }
     }
 
     // =========================================================================
-    // BOOT MEDIA UPLOADERS
+    // BOOT MEDIA UPLOADERS (MOBILE-OPTIMIZED 180B CHUNKING)
     // =========================================================================
     async function uploadBootImage(e) {
       const file = e.target.files[0];
-      if (!file || !charStream) {
-        log("Connect BLE first before uploading.");
+      if (!file) return;
+      if (!charStream) {
+        alert("Please pair with DIGI_KEYCHAIN over Bluetooth first!");
         return;
       }
+      vibrate();
       log(`Processing Boot Image: ${file.name}...`);
       const progressWrap = document.getElementById('bootProgressWrap');
       const progressBar = document.getElementById('bootProgressBar');
-      progressWrap.style.display = 'block';
-      progressBar.style.width = '20%';
+      if (progressWrap) progressWrap.style.display = 'block';
+      if (progressBar) progressBar.style.width = '10%';
 
-      const img = new Image();
-      img.src = URL.createObjectURL(file);
-      img.onload = async () => {
+      try {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = URL.createObjectURL(file);
+        await new Promise((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = () => reject(new Error("Failed to load image file"));
+        });
+
         const canvas = document.createElement('canvas');
         canvas.width = 240;
         canvas.height = 240;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, 240, 240);
 
-        canvas.toBlob(async (blob) => {
-          const arrayBuffer = await blob.arrayBuffer();
-          const bytes = new Uint8Array(arrayBuffer);
-          const CHUNK_SIZE = 480;
-          const totalLen = bytes.length;
+        const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.80));
+        if (!blob) throw new Error("Canvas JPEG compression failed");
 
-          const firstChunkLen = Math.min(CHUNK_SIZE - 4, totalLen);
-          const header = new Uint8Array(4 + firstChunkLen);
-          header[0] = 0xAA;
-          header[1] = 0x99;
-          header[2] = (totalLen >> 8) & 0xFF;
-          header[3] = totalLen & 0xFF;
-          header.set(bytes.subarray(0, firstChunkLen), 4);
+        const arrayBuffer = await blob.arrayBuffer();
+        const bytes = new Uint8Array(arrayBuffer);
+        const totalLen = bytes.length;
+        log(`Prepared 240x240 Boot JPEG (${totalLen} bytes). Writing to flash...`);
 
-          await charStream.writeValueWithoutResponse(header);
-          await new Promise(r => setTimeout(r, 25));
+        const CHUNK_SIZE = 180;
+        const firstPayloadLen = Math.min(CHUNK_SIZE - 4, totalLen);
+        const header = new Uint8Array(4 + firstPayloadLen);
+        header[0] = 0xAA;
+        header[1] = 0x99;
+        header[2] = (totalLen >> 8) & 0xFF;
+        header[3] = totalLen & 0xFF;
+        header.set(bytes.subarray(0, firstPayloadLen), 4);
 
-          let offset = firstChunkLen;
-          while (offset < totalLen) {
-            const chunkEnd = Math.min(offset + CHUNK_SIZE, totalLen);
-            const chunk = bytes.subarray(offset, chunkEnd);
-            await charStream.writeValueWithoutResponse(chunk);
-            offset = chunkEnd;
-            progressBar.style.width = `${Math.round((offset / totalLen) * 100)}%`;
-            await new Promise(r => setTimeout(r, 12));
-          }
+        await safeBleWrite(charStream, header, true);
+        await new Promise(r => setTimeout(r, 25));
 
-          setTimeout(() => { progressWrap.style.display = 'none'; }, 1000);
-          setBootType(1);
-          log(`✅ Boot Image Saved (${bytes.length} bytes)!`);
-        }, 'image/jpeg', 0.80);
-      };
+        let offset = firstPayloadLen;
+        while (offset < totalLen) {
+          const end = Math.min(offset + CHUNK_SIZE, totalLen);
+          const chunk = bytes.subarray(offset, end);
+          await safeBleWrite(charStream, chunk, true);
+          offset = end;
+          const pct = Math.round((offset / totalLen) * 100);
+          if (progressBar) progressBar.style.width = `${pct}%`;
+          await new Promise(r => setTimeout(r, 15));
+        }
+
+        if (progressBar) progressBar.style.width = '100%';
+        setTimeout(() => { if (progressWrap) progressWrap.style.display = 'none'; }, 800);
+        setBootType(1);
+        setTouchBanner("BOOT IMAGE SAVED 💾", "badge-ok", 2500);
+        log(`✅ Boot Image Saved to Flash (${bytes.length} bytes)!`);
+      } catch (err) {
+        console.error(err);
+        log(`❌ Boot Image error: ${err.message}`);
+        alert(`Boot Image error: ${err.message}`);
+        if (progressWrap) progressWrap.style.display = 'none';
+      }
     }
 
     async function uploadBootVideo(e) {
       const file = e.target.files[0];
-      if (!file || !charStream) {
-        log("Connect BLE first before uploading.");
+      if (!file) return;
+      if (!charStream) {
+        alert("Please pair with DIGI_KEYCHAIN over Bluetooth first!");
         return;
       }
+      vibrate();
       log(`Sampling Boot Video: ${file.name}...`);
       const progressWrap = document.getElementById('bootProgressWrap');
       const progressBar = document.getElementById('bootProgressBar');
-      progressWrap.style.display = 'block';
-      progressBar.style.width = '10%';
+      if (progressWrap) progressWrap.style.display = 'block';
+      if (progressBar) progressBar.style.width = '5%';
 
-      const video = document.createElement('video');
-      const canvas = document.createElement('canvas');
-      canvas.width = 240;
-      canvas.height = 240;
-      const ctx = canvas.getContext('2d');
+      try {
+        const video = document.createElement('video');
+        video.muted = true;
+        video.playsInline = true;
+        video.setAttribute('playsinline', 'true');
+        video.setAttribute('webkit-playsinline', 'true');
+        video.crossOrigin = 'anonymous';
+        video.preload = 'auto';
+        video.src = URL.createObjectURL(file);
 
-      video.src = URL.createObjectURL(file);
-      video.muted = true;
-      await new Promise((resolve) => { video.onloadedmetadata = () => resolve(); });
+        await new Promise((resolve, reject) => {
+          video.onloadedmetadata = () => resolve();
+          video.onerror = () => reject(new Error("Video format not supported by browser."));
+          video.load();
+          setTimeout(resolve, 2000);
+        });
 
-      const duration = Math.min(video.duration || 1.0, 1.2);
-      const targetFrames = Math.min(Math.floor(duration * 20), 20);
-      const frameBlobs = [];
+        const canvas = document.createElement('canvas');
+        canvas.width = 240;
+        canvas.height = 240;
+        const ctx = canvas.getContext('2d');
 
-      for (let i = 0; i < targetFrames; i++) {
-        video.currentTime = (i / targetFrames) * duration;
-        await new Promise(r => { video.onseeked = () => r(); });
-        ctx.drawImage(video, 0, 0, 240, 240);
-        
-        const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.35));
-        const arrayBuffer = await blob.arrayBuffer();
-        frameBlobs.push(new Uint8Array(arrayBuffer));
-        progressBar.style.width = `${Math.round(((i + 1) / targetFrames) * 30)}%`;
-      }
+        const duration = Math.min(video.duration || 1.0, 1.2);
+        const targetFrames = Math.min(Math.max(Math.floor(duration * 12), 6), 16);
+        const frameBlobs = [];
 
-      log(`Uploading ${frameBlobs.length} frames to flash...`);
-      const initHeader = new Uint8Array([0xBB, 0x99, frameBlobs.length, 20]);
-      await charStream.writeValueWithoutResponse(initHeader);
-      await new Promise(r => setTimeout(r, 40));
+        log(`Extracting ${targetFrames} boot frames...`);
+        for (let i = 0; i < targetFrames; i++) {
+          video.currentTime = (i / targetFrames) * duration;
+          await new Promise(r => {
+            let done = false;
+            video.onseeked = () => { if (!done) { done = true; r(); } };
+            setTimeout(() => { if (!done) { done = true; r(); } }, 150);
+          });
+          ctx.drawImage(video, 0, 0, 240, 240);
 
-      const CHUNK_SIZE = 480;
-      for (let fIdx = 0; fIdx < frameBlobs.length; fIdx++) {
-        const fBytes = frameBlobs[fIdx];
-        const totalLen = fBytes.length;
-
-        const firstChunkLen = Math.min(CHUNK_SIZE - 5, totalLen);
-        const fHeader = new Uint8Array(5 + firstChunkLen);
-        fHeader[0] = 0xCC;
-        fHeader[1] = 0x99;
-        fHeader[2] = fIdx;
-        fHeader[3] = (totalLen >> 8) & 0xFF;
-        fHeader[4] = totalLen & 0xFF;
-        fHeader.set(fBytes.subarray(0, firstChunkLen), 5);
-
-        await charStream.writeValueWithoutResponse(fHeader);
-        await new Promise(r => setTimeout(r, 20));
-
-        let offset = firstChunkLen;
-        while (offset < totalLen) {
-          const chunkEnd = Math.min(offset + CHUNK_SIZE, totalLen);
-          const chunk = fBytes.subarray(offset, chunkEnd);
-          await charStream.writeValueWithoutResponse(chunk);
-          offset = chunkEnd;
-          await new Promise(r => setTimeout(r, 12));
+          const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.32));
+          const arrayBuffer = await blob.arrayBuffer();
+          frameBlobs.push(new Uint8Array(arrayBuffer));
+          if (progressBar) progressBar.style.width = `${Math.round(((i + 1) / targetFrames) * 30)}%`;
         }
 
-        const pct = 30 + Math.round(((fIdx + 1) / frameBlobs.length) * 70);
-        progressBar.style.width = `${pct}%`;
+        log(`Uploading ${frameBlobs.length} boot animation frames to flash...`);
+        const initHeader = new Uint8Array([0xBB, 0x99, frameBlobs.length, 20]);
+        await safeBleWrite(charStream, initHeader, true);
+        await new Promise(r => setTimeout(r, 40));
+
+        const CHUNK_SIZE = 180;
+        for (let fIdx = 0; fIdx < frameBlobs.length; fIdx++) {
+          const fBytes = frameBlobs[fIdx];
+          const totalLen = fBytes.length;
+
+          const firstPayloadLen = Math.min(CHUNK_SIZE - 5, totalLen);
+          const fHeader = new Uint8Array(5 + firstPayloadLen);
+          fHeader[0] = 0xCC;
+          fHeader[1] = 0x99;
+          fHeader[2] = fIdx;
+          fHeader[3] = (totalLen >> 8) & 0xFF;
+          fHeader[4] = totalLen & 0xFF;
+          fHeader.set(fBytes.subarray(0, firstPayloadLen), 5);
+
+          await safeBleWrite(charStream, fHeader, true);
+          await new Promise(r => setTimeout(r, 15));
+
+          let offset = firstPayloadLen;
+          while (offset < totalLen) {
+            const end = Math.min(offset + CHUNK_SIZE, totalLen);
+            const chunk = fBytes.subarray(offset, end);
+            await safeBleWrite(charStream, chunk, true);
+            offset = end;
+            await new Promise(r => setTimeout(r, 12));
+          }
+
+          const pct = 30 + Math.round(((fIdx + 1) / frameBlobs.length) * 65);
+          if (progressBar) progressBar.style.width = `${pct}%`;
+        }
+
+        const finishHeader = new Uint8Array([0xDD, 0x99]);
+        await safeBleWrite(charStream, finishHeader, true);
+
+        if (progressBar) progressBar.style.width = '100%';
+        setTimeout(() => { if (progressWrap) progressWrap.style.display = 'none'; }, 800);
+        setBootType(2);
+        setTouchBanner("BOOT ANIM SAVED 💾", "badge-ok", 2500);
+        log("✅ Custom Video Boot Animation Saved to Flash!");
+      } catch (err) {
+        console.error(err);
+        log(`❌ Boot Video error: ${err.message}`);
+        alert(`Boot Video error: ${err.message}`);
+        if (progressWrap) progressWrap.style.display = 'none';
       }
-
-      const finishHeader = new Uint8Array([0xDD, 0x99]);
-      await charStream.writeValueWithoutResponse(finishHeader);
-
-      setTimeout(() => { progressWrap.style.display = 'none'; }, 1000);
-      log("✅ Custom Video Boot Animation Saved!");
     }
 
     // =========================================================================
-    // LIVE MEDIA STREAMING: SINGLE IMAGE, VIDEO & ANIMATED GIF
+    // LIVE MEDIA STREAMING: SINGLE IMAGE, VIDEO & ANIMATED GIF (100% MOBILE COMPATIBLE)
     // =========================================================================
     async function uploadLiveImage(e) {
       const file = e.target.files[0];
-      if (!file || !charStream) {
-        log("Connect BLE first before streaming.");
+      if (!file) return;
+      if (!charStream) {
+        alert("Please pair with DIGI_KEYCHAIN over Bluetooth first!");
         return;
       }
+      vibrate();
       log(`Streaming Image: ${file.name}...`);
       const progressWrap = document.getElementById('streamProgressWrap');
       const progressBar = document.getElementById('streamProgressBar');
-      progressWrap.style.display = 'block';
-      progressBar.style.width = '20%';
+      if (progressWrap) progressWrap.style.display = 'block';
+      if (progressBar) progressBar.style.width = '10%';
 
-      const img = new Image();
-      img.src = URL.createObjectURL(file);
-      img.onload = async () => {
+      try {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = URL.createObjectURL(file);
+        await new Promise((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = () => reject(new Error("Failed to parse image file"));
+        });
+
         const canvas = document.createElement('canvas');
         canvas.width = 240;
         canvas.height = 240;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, 240, 240);
 
-        canvas.toBlob(async (blob) => {
-          const arrayBuffer = await blob.arrayBuffer();
-          const bytes = new Uint8Array(arrayBuffer);
-          const CHUNK_SIZE = 480;
-          const totalLen = bytes.length;
+        const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.75));
+        if (!blob) throw new Error("JPEG compression failed");
 
-          const firstChunkLen = Math.min(CHUNK_SIZE - 4, totalLen);
-          const header = new Uint8Array(4 + firstChunkLen);
-          header[0] = 0xAA;
-          header[1] = 0x55;
-          header[2] = (totalLen >> 8) & 0xFF;
-          header[3] = totalLen & 0xFF;
-          header.set(bytes.subarray(0, firstChunkLen), 4);
+        const arrayBuffer = await blob.arrayBuffer();
+        const bytes = new Uint8Array(arrayBuffer);
+        const totalLen = bytes.length;
+        log(`Prepared 240x240 JPEG (${totalLen} bytes). Streaming to screen...`);
 
-          await charStream.writeValueWithoutResponse(header);
-          await new Promise(r => setTimeout(r, 20));
+        const CHUNK_SIZE = 180;
+        const firstPayloadLen = Math.min(CHUNK_SIZE - 4, totalLen);
+        const header = new Uint8Array(4 + firstPayloadLen);
+        header[0] = 0xAA;
+        header[1] = 0x55;
+        header[2] = (totalLen >> 8) & 0xFF;
+        header[3] = totalLen & 0xFF;
+        header.set(bytes.subarray(0, firstPayloadLen), 4);
 
-          let offset = firstChunkLen;
-          while (offset < totalLen) {
-            const chunkEnd = Math.min(offset + CHUNK_SIZE, totalLen);
-            const chunk = bytes.subarray(offset, chunkEnd);
-            await charStream.writeValueWithoutResponse(chunk);
-            offset = chunkEnd;
-            progressBar.style.width = `${Math.round((offset / totalLen) * 100)}%`;
-            await new Promise(r => setTimeout(r, 12));
-          }
+        await safeBleWrite(charStream, header, true);
+        await new Promise(r => setTimeout(r, 20));
 
-          setTimeout(() => { progressWrap.style.display = 'none'; }, 1000);
-          log(`✅ Streamed image (${bytes.length} bytes)!`);
-        }, 'image/jpeg', 0.80);
-      };
+        let offset = firstPayloadLen;
+        while (offset < totalLen) {
+          const end = Math.min(offset + CHUNK_SIZE, totalLen);
+          const chunk = bytes.subarray(offset, end);
+          await safeBleWrite(charStream, chunk, true);
+          offset = end;
+          const pct = Math.round((offset / totalLen) * 100);
+          if (progressBar) progressBar.style.width = `${pct}%`;
+          await new Promise(r => setTimeout(r, 15));
+        }
+
+        if (progressBar) progressBar.style.width = '100%';
+        setTimeout(() => { if (progressWrap) progressWrap.style.display = 'none'; }, 800);
+        setTouchBanner("STREAM: LIVE IMAGE 🖼️", "badge-ok", 3000);
+        log(`✅ Streamed live image (${totalLen} bytes) to Keychain!`);
+      } catch (err) {
+        console.error(err);
+        log(`❌ Image stream error: ${err.message}`);
+        alert(`Stream error: ${err.message}`);
+        if (progressWrap) progressWrap.style.display = 'none';
+      }
     }
 
     async function uploadLiveVideo(e) {
       const file = e.target.files[0];
-      if (!file || !charStream) {
-        log("Connect BLE first before streaming.");
+      if (!file) return;
+      if (!charStream) {
+        alert("Please pair with DIGI_KEYCHAIN over Bluetooth first!");
         return;
       }
+      vibrate();
       log(`Sampling Video/GIF: ${file.name}...`);
       const progressWrap = document.getElementById('streamProgressWrap');
       const progressBar = document.getElementById('streamProgressBar');
-      progressWrap.style.display = 'block';
-      progressBar.style.width = '10%';
+      if (progressWrap) progressWrap.style.display = 'block';
+      if (progressBar) progressBar.style.width = '5%';
 
-      const video = document.createElement('video');
-      const canvas = document.createElement('canvas');
-      canvas.width = 240;
-      canvas.height = 240;
-      const ctx = canvas.getContext('2d');
+      try {
+        const video = document.createElement('video');
+        video.muted = true;
+        video.playsInline = true;
+        video.setAttribute('playsinline', 'true');
+        video.setAttribute('webkit-playsinline', 'true');
+        video.crossOrigin = 'anonymous';
+        video.preload = 'auto';
+        video.src = URL.createObjectURL(file);
 
-      video.src = URL.createObjectURL(file);
-      video.muted = true;
-      await new Promise((resolve) => { 
-        video.onloadedmetadata = () => resolve();
-        video.onerror = () => resolve();
-      });
+        await new Promise((resolve, reject) => {
+          video.onloadedmetadata = () => resolve();
+          video.onerror = () => reject(new Error("Video format not supported by browser."));
+          video.load();
+          setTimeout(resolve, 2000);
+        });
 
-      const duration = Math.min(video.duration || 1.2, 1.5);
-      const targetFrames = Math.min(Math.max(Math.floor(duration * 20), 8), 24);
-      const frameBlobs = [];
+        const canvas = document.createElement('canvas');
+        canvas.width = 240;
+        canvas.height = 240;
+        const ctx = canvas.getContext('2d');
 
-      for (let i = 0; i < targetFrames; i++) {
-        video.currentTime = (i / targetFrames) * duration;
-        await new Promise(r => { video.onseeked = () => r(); setTimeout(r, 100); });
-        ctx.drawImage(video, 0, 0, 240, 240);
-        
-        const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.35));
-        const arrayBuffer = await blob.arrayBuffer();
-        frameBlobs.push(new Uint8Array(arrayBuffer));
-        progressBar.style.width = `${Math.round(((i + 1) / targetFrames) * 30)}%`;
-      }
+        const duration = Math.min(video.duration || 1.2, 1.5);
+        const targetFrames = Math.min(Math.max(Math.floor(duration * 12), 6), 16);
+        const frameBlobs = [];
 
-      log(`Streaming ${frameBlobs.length} frames over BLE @ 25 FPS...`);
-      const initHeader = new Uint8Array([0xBB, 0x66, frameBlobs.length, 25]);
-      await charStream.writeValueWithoutResponse(initHeader);
-      await new Promise(r => setTimeout(r, 40));
+        log(`Extracting ${targetFrames} video frames (duration: ${duration.toFixed(1)}s)...`);
+        for (let i = 0; i < targetFrames; i++) {
+          video.currentTime = (i / targetFrames) * duration;
+          await new Promise(r => {
+            let done = false;
+            video.onseeked = () => { if (!done) { done = true; r(); } };
+            setTimeout(() => { if (!done) { done = true; r(); } }, 150);
+          });
+          ctx.drawImage(video, 0, 0, 240, 240);
 
-      const CHUNK_SIZE = 480;
-      for (let fIdx = 0; fIdx < frameBlobs.length; fIdx++) {
-        const fBytes = frameBlobs[fIdx];
-        const totalLen = fBytes.length;
-
-        const firstChunkLen = Math.min(CHUNK_SIZE - 5, totalLen);
-        const fHeader = new Uint8Array(5 + firstChunkLen);
-        fHeader[0] = 0xCC;
-        fHeader[1] = 0x77;
-        fHeader[2] = fIdx;
-        fHeader[3] = (totalLen >> 8) & 0xFF;
-        fHeader[4] = totalLen & 0xFF;
-        fHeader.set(fBytes.subarray(0, firstChunkLen), 5);
-
-        await charStream.writeValueWithoutResponse(fHeader);
-        await new Promise(r => setTimeout(r, 20));
-
-        let offset = firstChunkLen;
-        while (offset < totalLen) {
-          const chunkEnd = Math.min(offset + CHUNK_SIZE, totalLen);
-          const chunk = fBytes.subarray(offset, chunkEnd);
-          await charStream.writeValueWithoutResponse(chunk);
-          offset = chunkEnd;
-          await new Promise(r => setTimeout(r, 12));
+          const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.32));
+          const arrayBuffer = await blob.arrayBuffer();
+          frameBlobs.push(new Uint8Array(arrayBuffer));
+          if (progressBar) progressBar.style.width = `${Math.round(((i + 1) / targetFrames) * 30)}%`;
         }
 
-        const pct = 30 + Math.round(((fIdx + 1) / frameBlobs.length) * 70);
-        progressBar.style.width = `${pct}%`;
+        let totalBytes = frameBlobs.reduce((acc, f) => acc + f.length, 0);
+        log(`Extracted ${frameBlobs.length} frames (total size: ${totalBytes} bytes). Streaming over BLE @ 25 FPS...`);
+
+        const initHeader = new Uint8Array([0xBB, 0x66, frameBlobs.length, 25]);
+        await safeBleWrite(charStream, initHeader, true);
+        await new Promise(r => setTimeout(r, 30));
+
+        const CHUNK_SIZE = 180;
+        for (let fIdx = 0; fIdx < frameBlobs.length; fIdx++) {
+          const fBytes = frameBlobs[fIdx];
+          const totalLen = fBytes.length;
+
+          const firstPayloadLen = Math.min(CHUNK_SIZE - 5, totalLen);
+          const fHeader = new Uint8Array(5 + firstPayloadLen);
+          fHeader[0] = 0xCC;
+          fHeader[1] = 0x77;
+          fHeader[2] = fIdx;
+          fHeader[3] = (totalLen >> 8) & 0xFF;
+          fHeader[4] = totalLen & 0xFF;
+          fHeader.set(fBytes.subarray(0, firstPayloadLen), 5);
+
+          await safeBleWrite(charStream, fHeader, true);
+          await new Promise(r => setTimeout(r, 15));
+
+          let offset = firstPayloadLen;
+          while (offset < totalLen) {
+            const end = Math.min(offset + CHUNK_SIZE, totalLen);
+            const chunk = fBytes.subarray(offset, end);
+            await safeBleWrite(charStream, chunk, true);
+            offset = end;
+            await new Promise(r => setTimeout(r, 12));
+          }
+
+          const pct = 30 + Math.round(((fIdx + 1) / frameBlobs.length) * 65);
+          if (progressBar) progressBar.style.width = `${pct}%`;
+        }
+
+        const playHeader = new Uint8Array([0xDD, 0x88]);
+        await safeBleWrite(charStream, playHeader, true);
+
+        if (progressBar) progressBar.style.width = '100%';
+        setTimeout(() => { if (progressWrap) progressWrap.style.display = 'none'; }, 800);
+        setTouchBanner("STREAM: 25 FPS VIDEO 🎬", "badge-ok", 3000);
+        log(`🎬 Playing live 25 FPS video loop (${frameBlobs.length} frames)!`);
+      } catch (err) {
+        console.error(err);
+        log(`❌ Video stream error: ${err.message}`);
+        alert(`Stream error: ${err.message}`);
+        if (progressWrap) progressWrap.style.display = 'none';
       }
-
-      const playHeader = new Uint8Array([0xDD, 0x88]);
-      await charStream.writeValueWithoutResponse(playHeader);
-
-      setTimeout(() => { progressWrap.style.display = 'none'; }, 1000);
-      log(`🎬 Playing live 25 FPS video loop (${frameBlobs.length} frames)!`);
     }
   </script>
 </body>

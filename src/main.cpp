@@ -191,6 +191,14 @@ class TextCallback : public NimBLECharacteristicCallbacks {
             isVideoPlaying = false;
             lastActivityTime = millis();
             prefs.putString("msg", customMessage);
+            if (pCharMode) {
+                pCharMode->setValue(std::string("4"));
+                pCharMode->notify();
+            }
+            if (pCharSet) {
+                pCharSet->setValue(std::string("TEXT:OK"));
+                pCharSet->notify();
+            }
             Serial.printf("[BLE] Marquee Text: %s\n", customMessage.c_str());
         }
     }
@@ -468,6 +476,20 @@ class StreamCallback : public NimBLECharacteristicCallbacks {
                     streamBytesReceived = payload;
                 }
             }
+            if (expectedStreamBytes > 0 && streamBytesReceived >= expectedStreamBytes) {
+                newMediaFrameReady = true;
+                currentMode = MODE_STREAM_MEDIA;
+                lastActivityTime = millis();
+                if (pCharMode) {
+                    pCharMode->setValue(std::string("5"));
+                    pCharMode->notify();
+                }
+                if (pCharSet) {
+                    pCharSet->setValue(std::string("STREAM:IMAGE_OK"));
+                    pCharSet->notify();
+                }
+                Serial.printf("[STREAM] Image ready immediately (%d bytes)!\n", (int)streamBytesReceived);
+            }
             return;
         }
 
@@ -543,6 +565,10 @@ class StreamCallback : public NimBLECharacteristicCallbacks {
                         videoPoolWriteOffset += payload;
                         incomingFrameReceived += payload;
                     }
+                    if (incomingFrameReceived >= incomingFrameExpected) {
+                        frameLengths[incomingFrameIdx] = incomingFrameExpected;
+                        incomingFrameIdx = -1;
+                    }
                 }
             }
             return;
@@ -567,6 +593,14 @@ class StreamCallback : public NimBLECharacteristicCallbacks {
                 currentMode = MODE_STREAM_MEDIA;
                 lastVideoFrameTime = millis();
                 lastActivityTime = millis();
+                if (pCharMode) {
+                    pCharMode->setValue(std::string("5"));
+                    pCharMode->notify();
+                }
+                if (pCharSet) {
+                    pCharSet->setValue(std::string("STREAM:VIDEO_OK"));
+                    pCharSet->notify();
+                }
                 Serial.printf("[STREAM] Video/GIF Playback Started (%d frames @ %d FPS)!\n", totalVideoFrames, videoTargetFps);
             }
             return;
@@ -613,6 +647,14 @@ class StreamCallback : public NimBLECharacteristicCallbacks {
                 newMediaFrameReady = true;
                 currentMode = MODE_STREAM_MEDIA;
                 lastActivityTime = millis();
+                if (pCharMode) {
+                    pCharMode->setValue(std::string("5"));
+                    pCharMode->notify();
+                }
+                if (pCharSet) {
+                    pCharSet->setValue(std::string("STREAM:IMAGE_OK"));
+                    pCharSet->notify();
+                }
                 Serial.printf("[STREAM] Image ready (%d bytes)!\n", (int)streamBytesReceived);
             }
         }
@@ -1353,6 +1395,7 @@ void setup() {
     NimBLEDevice::init("DIGI_KEYCHAIN");
     NimBLEDevice::setPower(ESP_PWR_LVL_P9);
     NimBLEDevice::setSecurityAuth(false, false, false);
+    NimBLEDevice::setMTU(512);
 
     NimBLEServer* pServer = NimBLEDevice::createServer();
     pServer->setCallbacks(new ServerCallbacks());
@@ -1365,13 +1408,13 @@ void setup() {
     pCharPet = pService->createCharacteristic(CHAR_PET_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::NOTIFY);
     pCharPet->setCallbacks(new PetCallback());
 
-    auto pCharText = pService->createCharacteristic(CHAR_TEXT_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE);
+    auto pCharText = pService->createCharacteristic(CHAR_TEXT_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR);
     pCharText->setCallbacks(new TextCallback());
 
-    auto pCharTime = pService->createCharacteristic(CHAR_TIME_UUID, NIMBLE_PROPERTY::WRITE);
+    auto pCharTime = pService->createCharacteristic(CHAR_TIME_UUID, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR);
     pCharTime->setCallbacks(new TimeCallback());
 
-    pCharSet = pService->createCharacteristic(CHAR_SETTINGS_UUID, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::NOTIFY);
+    pCharSet = pService->createCharacteristic(CHAR_SETTINGS_UUID, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR | NIMBLE_PROPERTY::NOTIFY);
     pCharSet->setCallbacks(new SettingsCallback());
 
     pCharBattery = pService->createCharacteristic(CHAR_BATTERY_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY);
