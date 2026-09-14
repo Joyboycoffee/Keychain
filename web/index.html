@@ -2535,52 +2535,45 @@
     }
 
     // =========================================================================
-    // UNIVERSAL MOBILE BLE WRITE ENGINE (SEQUENTIAL GATT QUEUE & FLOW CONTROL)
+    // UNIVERSAL MOBILE BLE WRITE ENGINE (DEADLOCK-FREE SEQUENTIAL GATT QUEUE)
     // =========================================================================
     let bleWriteQueue = Promise.resolve();
     let bleThrottleTimers = {};
 
-    function sendBleThrottled(key, fn, delayMs = 30) {
+    function sendBleThrottled(key, fn, delayMs = 35) {
       if (bleThrottleTimers[key]) clearTimeout(bleThrottleTimers[key]);
       bleThrottleTimers[key] = setTimeout(() => {
-        bleWriteQueue = bleWriteQueue.then(async () => {
-          try {
-            await fn();
-          } catch (err) {
-            console.warn(`[BLE Throttle] Error on ${key}:`, err);
-          }
-        }).catch(e => console.warn(e));
+        fn().catch(err => console.warn(`[BLE Throttle] Error on ${key}:`, err));
       }, delayMs);
     }
 
     async function safeBleWrite(char, data, preferWithoutResponse = false) {
       if (!char) throw new Error("Characteristic not available");
       
-      return new Promise((resolve, reject) => {
-        bleWriteQueue = bleWriteQueue.then(async () => {
-          try {
-            if (preferWithoutResponse && char.writeValueWithoutResponse) {
-              try {
-                await char.writeValueWithoutResponse(data);
-                resolve();
-                return;
-              } catch (err) {
-                console.warn("writeValueWithoutResponse failed, falling back to withResponse:", err);
-              }
-            }
-            if (char.writeValueWithResponse) {
-              await char.writeValueWithResponse(data);
-            } else if (char.writeValue) {
-              await char.writeValue(data);
-            } else if (char.writeValueWithoutResponse) {
+      const writeTask = async () => {
+        try {
+          if (preferWithoutResponse && char.writeValueWithoutResponse) {
+            try {
               await char.writeValueWithoutResponse(data);
+              return;
+            } catch (err) {
+              console.warn("writeValueWithoutResponse fallback:", err);
             }
-            resolve();
-          } catch (err) {
-            reject(err);
           }
-        }).catch(reject);
-      });
+          if (char.writeValueWithResponse) {
+            await char.writeValueWithResponse(data);
+          } else if (char.writeValue) {
+            await char.writeValue(data);
+          } else if (char.writeValueWithoutResponse) {
+            await char.writeValueWithoutResponse(data);
+          }
+        } catch (err) {
+          console.warn("[safeBleWrite] Error:", err);
+        }
+      };
+
+      bleWriteQueue = bleWriteQueue.then(writeTask, writeTask);
+      return bleWriteQueue;
     }
 
     async function sendEasterEggMessage() {
@@ -2757,7 +2750,7 @@
       document.getElementById('brVal').innerText = Math.round((val / 255) * 100) + '%';
       if (!charSettings) return;
       sendBleThrottled('brightness', async () => {
-        const data = new TextEncoder().encode(val.toString());
+        const data = new TextEncoder().encode(`BR:${val}`);
         await safeBleWrite(charSettings, data, false);
       }, 35);
     }

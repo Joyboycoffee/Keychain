@@ -143,17 +143,31 @@ void enterDeepSleep();
 // BLE CALLBACKS
 // =========================================================================
 class ServerCallbacks : public NimBLEServerCallbacks {
-    void onConnect(NimBLEServer* pServer) {
+    void onConnect(NimBLEServer* pServer) override {
         bleConnected = true;
         lastActivityTime = millis();
         Serial.printf("\n[BLE] Client Connected! Free Heap: %u bytes\n", (unsigned int)ESP.getFreeHeap());
     }
-    void onDisconnect(NimBLEServer* pServer) {
+    void onConnect(NimBLEServer* pServer, ble_gap_conn_desc* desc) override {
+        bleConnected = true;
+        lastActivityTime = millis();
+        Serial.printf("\n[BLE] Client Connected (desc)! Free Heap: %u bytes\n", (unsigned int)ESP.getFreeHeap());
+    }
+    void onDisconnect(NimBLEServer* pServer) override {
         bleConnected = false;
         lastActivityTime = millis();
         Serial.printf("\n[BLE] Client Disconnected. Free Heap: %u bytes\n", (unsigned int)ESP.getFreeHeap());
         if (bleActive) {
             bleStartTimeMs = millis(); // Refresh pairing window so user can refresh web page and reconnect!
+            NimBLEDevice::startAdvertising();
+        }
+    }
+    void onDisconnect(NimBLEServer* pServer, ble_gap_conn_desc* desc) override {
+        bleConnected = false;
+        lastActivityTime = millis();
+        Serial.printf("\n[BLE] Client Disconnected (desc). Free Heap: %u bytes\n", (unsigned int)ESP.getFreeHeap());
+        if (bleActive) {
+            bleStartTimeMs = millis();
             NimBLEDevice::startAdvertising();
         }
     }
@@ -1334,14 +1348,23 @@ void enterDeepSleep() {
     saveBatteryDischargeLog();
 
     if (bleActive || bleConnected) {
-        stopBLE(false);
+        bleActive = false;
+        bleConnected = false;
+        NimBLEAdvertising* pAdv = NimBLEDevice::getAdvertising();
+        if (pAdv) pAdv->stop();
+        if (NimBLEDevice::getServer()) {
+            NimBLEDevice::getServer()->disconnect(0);
+        }
+        setCpuFrequencyMhz(80);
     }
 
     // Smooth 1.5s fade out animation to pitch black
     fadeOutBrightness(1500);
 
-    // Keep blue LED completely OFF during power down / sleep
+    // Keep blue LED completely OFF during power down / sleep and hold pin state
+    pinMode(PIN_DEBUG_LED, OUTPUT);
     digitalWrite(PIN_DEBUG_LED, HIGH);
+    gpio_hold_en((gpio_num_t)PIN_DEBUG_LED);
 
     // Wait until touch sensor is completely released before sleeping!
     // Require pin to be continuously LOW for at least 250ms
@@ -1563,10 +1586,13 @@ void setup() {
     delay(200);
     Serial.println("\n=== DIGI KEYCHAIN ENGINE v4.3 STARTUP ===");
 
-    // 1. Release Deep Sleep GPIO Hold & Ensure Backlight starts OFF
+    // 1. Release Deep Sleep GPIO Hold & Ensure Backlight & LED start OFF
     gpio_hold_dis((gpio_num_t)PIN_TFT_BL);
+    gpio_hold_dis((gpio_num_t)PIN_DEBUG_LED);
     pinMode(PIN_TFT_BL, OUTPUT);
     digitalWrite(PIN_TFT_BL, LOW);
+    pinMode(PIN_DEBUG_LED, OUTPUT);
+    digitalWrite(PIN_DEBUG_LED, HIGH); // Ensure Blue LED is completely OFF
 
     pinMode(PIN_TOUCH, INPUT_PULLDOWN);
     attachInterrupt(digitalPinToInterrupt(PIN_TOUCH), touchISR, CHANGE);
@@ -1745,18 +1771,20 @@ void setup() {
 void loop() {
     processTouch();
 
-    // Auto BLE power-down if no connection after 60 seconds to save maximum battery
-    if (bleActive && !bleConnected && (millis() - bleStartTimeMs > 60000)) {
-        stopBLE(false);
-    }
+    bool isConnected = bleConnected || (NimBLEDevice::getServer() != nullptr && NimBLEDevice::getServer()->getConnectedCount() > 0);
 
     // Keep resetting activity timer while connected so sleep timer only starts AFTER disconnect
-    if (bleConnected) {
+    if (isConnected) {
         lastActivityTime = millis();
     }
 
+    // Auto BLE power-down if no connection after 60 seconds to save maximum battery
+    if (bleActive && !isConnected && (millis() - bleStartTimeMs > 60000)) {
+        stopBLE(false);
+    }
+
     // Auto Sleep Check (Only when BLE radio is completely OFF, disconnected, and user has been idle)
-    if (!bleActive && !bleConnected && sleepTimeoutMs > 0 && (millis() - lastActivityTime > sleepTimeoutMs)) {
+    if (!bleActive && !isConnected && sleepTimeoutMs > 0 && (millis() - lastActivityTime > sleepTimeoutMs)) {
         enterDeepSleep();
     }
 
