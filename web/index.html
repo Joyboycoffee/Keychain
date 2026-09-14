@@ -211,10 +211,11 @@
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 4px;
-      padding: 10px 12px;
+      padding: 10px 14px;
       position: relative;
       overflow: hidden;
       min-width: 0;
+      gap: 10px;
     }
 
     .hud-card::before {
@@ -225,21 +226,21 @@
       bottom: 0;
       width: 2px;
       background: var(--accent);
-      opacity: 0.7;
+      opacity: 0.85;
     }
 
     .hud-card-info {
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: 3px;
       min-width: 0;
     }
 
     .hud-card-title {
-      font-size: 0.82rem;
+      font-size: 0.90rem;
       font-weight: 700;
       color: var(--beige-light);
-      letter-spacing: 0.5px;
+      letter-spacing: 0.8px;
       display: flex;
       align-items: center;
       gap: 8px;
@@ -247,7 +248,7 @@
     }
 
     .hud-card-meta {
-      font-size: 0.66rem;
+      font-size: 0.68rem;
       color: var(--beige-muted);
       display: flex;
       align-items: center;
@@ -257,21 +258,21 @@
       text-overflow: ellipsis;
     }
 
-    .meta-sep { color: var(--beige-dim); font-size: 0.6rem; }
+    .meta-sep { color: var(--beige-dim); font-size: 0.65rem; }
 
     .hud-tag {
-      font-size: 0.6rem;
-      padding: 1px 5px;
+      font-size: 0.62rem;
+      padding: 2px 6px;
       border-radius: 2px;
       background: var(--surface-raised);
       border: 1px solid var(--border-accent);
-      color: var(--accent);
-      letter-spacing: 0.5px;
+      color: var(--beige-main);
+      letter-spacing: 0.6px;
       text-transform: uppercase;
       font-weight: 700;
     }
 
-    /* CRAZY SLEEK CYBERPUNK BATTERY CELL GAUGE */
+    /* CRAZY SLEEK CYBERPUNK BATTERY CELL GAUGE (EXACT SCREENSHOT MATCH) */
     .battery-meter-container {
       display: flex;
       align-items: center;
@@ -288,13 +289,13 @@
     .bat-housing {
       display: flex;
       align-items: center;
-      gap: 3px;
-      background: #060709;
-      border: 1px solid var(--border-accent);
+      gap: 2.5px;
+      background: #050608;
+      border: 1.5px solid var(--border-accent);
       border-radius: 3px;
-      padding: 3px 4px;
-      height: 22px;
-      box-shadow: inset 0 0 6px rgba(0,0,0,0.8);
+      padding: 3px;
+      height: 24px;
+      box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.9);
     }
 
     .bat-terminal {
@@ -307,8 +308,8 @@
 
     .bat-segment {
       width: 6px;
-      height: 14px;
-      background: #151820;
+      height: 15px;
+      background: #14171e;
       border-radius: 1px;
       transition: all 0.3s ease;
       position: relative;
@@ -337,8 +338,8 @@
     .bat-segment:nth-child(6).charging { animation-delay: 0.85s; }
 
     @keyframes cyber-charge {
-      0%, 100% { background: #151820; box-shadow: none; }
-      50% { background: var(--green); box-shadow: 0 0 6px var(--green); }
+      0%, 100% { background: #14171e; box-shadow: none; }
+      50% { background: var(--accent); box-shadow: 0 0 8px var(--accent-glow); }
     }
 
     @keyframes pulse-low {
@@ -931,7 +932,7 @@
       </div>
     </header>
 
-    <!-- DUAL HUD PODS: BLE COMM LINK & POWER MATRIX -->
+    <!-- DUAL HUD PODS: COMM LINK & POWER MATRIX -->
     <div class="hud-capsule-grid">
       
       <!-- POD 1: BLE LINK & PAIRING CONTROL -->
@@ -955,23 +956,24 @@
         </button>
       </div>
 
-      <!-- POD 2: POWER MATRIX & STEPPED BATTERY GAUGE -->
+      <!-- POD 2: POWER MATRIX & STEPPED BATTERY GAUGE (EXACT SCREENSHOT MATCH) -->
       <div class="hud-card">
         <div class="hud-card-info">
           <div class="hud-card-title">
-            <span id="hud-bat-voltage">4.20 V</span>
+            <span id="hud-bat-voltage">4.07 V</span>
             <span class="hud-tag" id="hud-bat-status">ON BATTERY</span>
           </div>
           <div class="hud-card-meta">
-            <span id="hud-bat-pct" class="text-accent">100%</span>
+            <span id="hud-bat-pct" class="text-accent">87%</span>
+            <span class="meta-sep">|</span>
+            <span id="hud-bat-hours">~17.1H LEFT</span>
             <span class="meta-sep">|</span>
             <span id="hud-bat-type">1S LI-ION</span>
-            <span class="meta-sep">|</span>
-            <span id="hud-bat-sub">LOG ACTIVE</span>
           </div>
         </div>
-        <!-- CRAZY SLEEK STEPPED CYBERPUNK BATTERY GAUGE -->
-        <div class="battery-meter-container" title="Cyberpunk Battery Cell Gauge">
+        
+        <!-- Segmented 6-Cell Cyberpunk Battery Gauge -->
+        <div class="battery-meter-container" title="Cyberpunk Segmented Energy Cell">
           <div class="bat-cell-wrapper">
             <div class="bat-housing">
               <div class="bat-segment active" id="bseg-1"></div>
@@ -979,7 +981,7 @@
               <div class="bat-segment active" id="bseg-3"></div>
               <div class="bat-segment active" id="bseg-4"></div>
               <div class="bat-segment active" id="bseg-5"></div>
-              <div class="bat-segment active" id="bseg-6"></div>
+              <div class="bat-segment" id="bseg-6"></div>
             </div>
             <div class="bat-terminal"></div>
           </div>
@@ -1663,17 +1665,31 @@
       const vElem = document.getElementById('hud-bat-voltage');
       const statElem = document.getElementById('hud-bat-status');
       const pctElem = document.getElementById('hud-bat-pct');
+      const hoursElem = document.getElementById('hud-bat-hours');
       const typeElem = document.getElementById('hud-bat-type');
 
-      if (vElem) vElem.innerText = isUsb ? `5.00 V` : `${voltage} V`;
-      if (pctElem) pctElem.innerText = isUsb ? `USB PWR` : `${pct}%`;
+      const numPct = parseInt(pct) || 0;
+      const numV = parseFloat(voltage) || 4.2;
+
+      if (vElem) vElem.innerText = isUsb ? `5.00 V` : `${numV.toFixed(2)} V`;
+      if (pctElem) pctElem.innerText = isUsb ? `USB PWR` : `${numPct}%`;
+      
       if (statElem) {
         statElem.innerText = isUsb ? `USB CHARGING` : `ON BATTERY`;
         statElem.className = isUsb ? `hud-tag text-accent` : `hud-tag`;
       }
+
+      if (hoursElem) {
+        if (isUsb) {
+          hoursElem.innerText = `CHARGING`;
+        } else {
+          const estHours = ((numPct / 100) * 19.5).toFixed(1);
+          hoursElem.innerText = `~${estHours}H LEFT`;
+        }
+      }
+
       if (typeElem) typeElem.innerText = isUsb ? `5V BUS` : `1S LI-ION`;
 
-      const numPct = parseInt(pct) || 0;
       const activeSegments = Math.max(0, Math.min(6, Math.round((numPct / 100) * 6)));
       for (let i = 1; i <= 6; i++) {
         const seg = document.getElementById(`bseg-${i}`);
@@ -1691,7 +1707,7 @@
       }
 
       const cv = document.getElementById('logCurVolt');
-      if (cv) cv.innerText = isUsb ? `5.0V (USB Powered)` : `${voltage}V (${pct}%)`;
+      if (cv) cv.innerText = isUsb ? `5.0V (USB Powered)` : `${numV.toFixed(2)}V (${numPct}%)`;
     }
 
     async function connectBLE() {
