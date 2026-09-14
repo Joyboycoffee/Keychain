@@ -346,6 +346,8 @@ public:
         int curX = startX;
         int len = text.length();
         int charWidth = 6 * textSize;
+        int emojiWidth = (textSize <= 3) ? 26 : (textSize * 8 + 4);
+        int emojiOffsetY = (textSize <= 3) ? 0 : ((textSize * 8 - 24) / 2);
 
         canvas->setTextColor(textColor, bg);
         canvas->setTextSize(textSize);
@@ -358,8 +360,8 @@ public:
                     String code = text.substring(i, nextColon + 1);
                     EmojiType et = resolveCode(code);
                     if (et != EMOJI_NONE) {
-                        drawEmoji(canvas, et, curX, y);
-                        curX += 26;
+                        drawEmoji(canvas, et, curX, y + emojiOffsetY);
+                        curX += emojiWidth;
                         i = nextColon + 1;
                         continue;
                     }
@@ -413,8 +415,8 @@ public:
                     else if (utfChar == "👀") uEt = EMOJI_EYES;
 
                     if (uEt != EMOJI_NONE) {
-                        drawEmoji(canvas, uEt, curX, y);
-                        curX += 26;
+                        drawEmoji(canvas, uEt, curX, y + emojiOffsetY);
+                        curX += emojiWidth;
                         i += seqLen;
                         continue;
                     }
@@ -425,7 +427,7 @@ public:
             }
 
             char buf[2] = { text[i], '\0' };
-            canvas->drawString(buf, curX, y + 2);
+            canvas->drawString(buf, curX, y);
             curX += charWidth;
             i++;
         }

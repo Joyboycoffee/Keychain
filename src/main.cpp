@@ -35,9 +35,12 @@ uint8_t        screenBrightness = 240;
 uint8_t        screenRotation   = 3;
 uint32_t       sleepTimeoutMs   = 0; // Default to NEVER sleep for battery discharge runs!
 
-// Scrolling Marquee Message State
-String customMessage = "I AM JOY BOY COFFEE :coffee: :fire:";
-int scrollX = 240;
+// Scrolling Marquee Message State & Advanced Controls
+String   customMessage = "I AM JOY BOY COFFEE :coffee: :fire:";
+int      scrollX       = 240;
+uint8_t  msgSpeed      = 3; // 1 to 15 px/frame
+uint8_t  msgSize       = 3; // 1 to 6 (1=8px, 2=16px, 3=24px, 4=32px, 5=40px, 6=48px full word!)
+uint8_t  msgDirection  = 0; // 0 = Right-to-Left (<-), 1 = Left-to-Right (->)
 
 // Battery Telemetry & Discharge Run Logger
 float    currentBatVoltage   = 4.20f;
@@ -415,7 +418,55 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
         else if (cmd == "EGG:TRIGGER" || cmd == "EGG:PREVIEW") {
             triggerEasterEgg();
         }
-        // 16. Save All Changes to Flash Memory: "SAVE_CONFIG" or "SAVE_CHANGES"
+        // 16. Marquee Speed: "MSG_SPD:<1..15>"
+        else if (cmd.startsWith("MSG_SPD:")) {
+            int spd = cmd.substring(8).toInt();
+            if (spd >= 1 && spd <= 15) {
+                msgSpeed = spd;
+                prefs.putUChar("msg_spd", msgSpeed);
+                Serial.printf("[SETTINGS] Marquee Speed: %d px/frame\n", msgSpeed);
+            }
+        }
+        // 17. Marquee Text Size: "MSG_SZ:<1..6>"
+        else if (cmd.startsWith("MSG_SZ:")) {
+            int sz = cmd.substring(7).toInt();
+            if (sz >= 1 && sz <= 6) {
+                msgSize = sz;
+                prefs.putUChar("msg_sz", msgSize);
+                Serial.printf("[SETTINGS] Marquee Size: %d\n", msgSize);
+            }
+        }
+        // 18. Marquee Direction: "MSG_DIR:<0|1>" (0=RTL, 1=LTR)
+        else if (cmd.startsWith("MSG_DIR:")) {
+            int dir = cmd.substring(8).toInt();
+            msgDirection = (dir == 1) ? 1 : 0;
+            prefs.putUChar("msg_dir", msgDirection);
+            Serial.printf("[SETTINGS] Marquee Direction: %s\n", (msgDirection == 1) ? "Left-to-Right" : "Right-to-Left");
+        }
+        // 19. Marquee Full Config: "MSG_CFG:<spd>:<sz>:<dir>"
+        else if (cmd.startsWith("MSG_CFG:")) {
+            String cfg = cmd.substring(8);
+            int idx1 = cfg.indexOf(':');
+            int idx2 = cfg.indexOf(':', idx1 + 1);
+            if (idx1 != -1) {
+                int spd = cfg.substring(0, idx1).toInt();
+                if (spd >= 1 && spd <= 15) msgSpeed = spd;
+                if (idx2 != -1) {
+                    int sz = cfg.substring(idx1 + 1, idx2).toInt();
+                    int dir = cfg.substring(idx2 + 1).toInt();
+                    if (sz >= 1 && sz <= 6) msgSize = sz;
+                    msgDirection = (dir == 1) ? 1 : 0;
+                } else {
+                    int sz = cfg.substring(idx1 + 1).toInt();
+                    if (sz >= 1 && sz <= 6) msgSize = sz;
+                }
+                prefs.putUChar("msg_spd", msgSpeed);
+                prefs.putUChar("msg_sz", msgSize);
+                prefs.putUChar("msg_dir", msgDirection);
+                Serial.printf("[SETTINGS] Marquee Config: Spd=%d, Size=%d, Dir=%d\n", msgSpeed, msgSize, msgDirection);
+            }
+        }
+        // 20. Save All Changes to Flash Memory: "SAVE_CONFIG" or "SAVE_CHANGES"
         else if (cmd == "SAVE_CONFIG" || cmd == "SAVE_CHANGES") {
             defaultMode = currentMode;
             memePet.defaultEmotion = memePet.currentEmotion;
@@ -438,6 +489,9 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
             prefs.putUChar("boot_type", (uint8_t)bootSplashType);
             prefs.putUChar("boot_dur", bootDurationSec);
             prefs.putString("msg", customMessage);
+            prefs.putUChar("msg_spd", msgSpeed);
+            prefs.putUChar("msg_sz", msgSize);
+            prefs.putUChar("msg_dir", msgDirection);
             if (pCharSet) {
                 pCharSet->setValue(std::string("SAVED:OK"));
                 pCharSet->notify();
@@ -1477,6 +1531,12 @@ void setup() {
     sleepTimeoutMs = prefs.getUInt("sleep", 0); // 0 = Never sleep by default
     customMessage = prefs.getString("msg", "I AM JOY BOY COFFEE :coffee: :fire:");
     easterEggMessage = prefs.getString("egg_msg", "YOU ARE AWESOME :sparkles: :heart: :fire:");
+    msgSpeed = prefs.getUChar("msg_spd", 3);
+    msgSize = prefs.getUChar("msg_sz", 3);
+    msgDirection = prefs.getUChar("msg_dir", 0);
+    if (msgSpeed < 1 || msgSpeed > 15) msgSpeed = 3;
+    if (msgSize < 1 || msgSize > 6) msgSize = 3;
+    if (msgDirection > 1) msgDirection = 0;
 
     // Battery Discharge Logger State from NVS
     lastSavedRunSec  = prefs.getUInt("l_run", 0);
@@ -1567,15 +1627,20 @@ void setup() {
             case MODE_MATRIX_RAIN: matrixRain.update(); break;
             case MODE_TEXT_SCROLL: {
                 canvas.fillScreen(TFT_BLACK);
-                canvas.drawRoundRect(2, 2, 236, 236, 8, 0x07FF);
+                canvas.drawRoundRect(2, 2, 236, 236, 8, 0xF77D);
                 canvas.drawRoundRect(4, 4, 232, 232, 6, 0x18E3);
-                canvas.setTextColor(0x07FF, TFT_BLACK);
+                canvas.drawFastHLine(14, 34, 212, 0x2104);
+                canvas.drawFastHLine(14, 206, 212, 0x2104);
+                canvas.setTextColor(0xF77D, TFT_BLACK);
                 canvas.setTextSize(1);
-                canvas.drawCenterString("MARQUEE BROADCAST", 120, 18);
-                EmojiRenderer::renderTextWithEmojis(&canvas, customMessage, scrollX, 96, 3, 0xFFFF, 0x0000);
-                canvas.setTextColor(0x8410, TFT_BLACK);
+                canvas.drawCenterString("MARQUEE BROADCAST", 120, 16);
+                int fontHeight = 8 * msgSize;
+                int textY = (240 - fontHeight) / 2;
+                if (msgSize == 1) textY = 116;
+                EmojiRenderer::renderTextWithEmojis(&canvas, customMessage, scrollX, textY, msgSize, 0xF77D, 0x0000);
+                canvas.setTextColor(0xFD00, TFT_BLACK);
                 canvas.setTextSize(1);
-                canvas.drawCenterString("DIGI KEYCHAIN", 120, 205);
+                canvas.drawCenterString("DIGI KEYCHAIN // HUD", 120, 214);
                 break;
             }
             default: break;
@@ -1631,8 +1696,8 @@ void loop() {
             // Render Secret Easter Egg Prompt Card
             canvas.fillScreen(0x0000);
 
-            // Glitch / Neon Dynamic Double Frame
-            uint16_t borderColor = ((millis() / 150) % 2 == 0) ? 0xF81F : 0x07FF;
+            // Tactical Warm Beige & Amber Gold Theme Double Frame
+            uint16_t borderColor = ((millis() / 200) % 2 == 0) ? 0xF77D : 0xFD00;
             canvas.drawRoundRect(4, 4, 232, 232, 8, borderColor);
             canvas.drawRoundRect(6, 6, 228, 228, 6, 0x18E3);
 
@@ -1647,15 +1712,15 @@ void loop() {
             canvas.setTextSize(1);
             canvas.drawCenterString("EASTER EGG UNLOCKED 🔓", 120, 22);
 
-            // Animated Center Text with Emojis
-            int endX = EmojiRenderer::renderTextWithEmojis(&canvas, easterEggMessage, easterEggScrollX, 102, 3, 0xFFE0, 0x0000);
+            // Animated Center Text with Emojis in Warm Beige & Amber
+            int endX = EmojiRenderer::renderTextWithEmojis(&canvas, easterEggMessage, easterEggScrollX, 102, 3, 0xF77D, 0x0000);
             easterEggScrollX -= 3;
             if (endX < 10) {
                 easterEggScrollX = 240;
             }
 
-            // Bottom Subtitle
-            canvas.setTextColor(0x07E0, 0x0000);
+            // Bottom Subtitle in Tactical Amber Gold
+            canvas.setTextColor(0xFD00, 0x0000);
             canvas.setTextSize(1);
             canvas.drawCenterString("YOU FOUND THE SECRET! ✨", 120, 204);
 
@@ -1663,11 +1728,24 @@ void loop() {
             EmojiRenderer::drawEmoji(&canvas, EMOJI_SPARKLES, 10, 14);
             EmojiRenderer::drawEmoji(&canvas, EMOJI_SPARKLES, 206, 14);
 
-            // On-Screen Touch Visualizer Overlay if active
+            // Dynamic Auto-Sizing Tactical HUD Pill Overlay if touch feedback is active
             if (millis() < touchVisualEndTime) {
-                int pulseR = (millis() / 40) % 10 + 4;
-                canvas.drawCircle(222, 18, pulseR, touchVisualColor);
-                canvas.fillCircle(222, 18, 4, touchVisualColor);
+                canvas.setTextSize(1);
+                int textW = canvas.textWidth(touchVisualText.c_str());
+                int pillW = textW + 18;
+                if (pillW < 50) pillW = 50;
+                if (pillW > 224) pillW = 224;
+                int pillH = 22;
+                int pillX = (240 - pillW) / 2;
+                int pillY = 8;
+
+                canvas.fillRoundRect(pillX - 1, pillY - 1, pillW + 2, pillH + 2, 6, 0x0000);
+                canvas.fillRoundRect(pillX, pillY, pillW, pillH, 5, 0x10A2);
+                canvas.drawRoundRect(pillX, pillY, pillW, pillH, 5, touchVisualColor);
+                canvas.drawFastVLine(pillX + 4, pillY + 6, 10, touchVisualColor);
+                canvas.drawFastVLine(pillX + pillW - 5, pillY + 6, 10, touchVisualColor);
+                canvas.setTextColor(touchVisualColor, 0x10A2);
+                canvas.drawCenterString(touchVisualText.c_str(), pillX + pillW / 2, pillY + 7);
             }
 
             canvas.pushSprite(0, 0);
@@ -1696,22 +1774,47 @@ void loop() {
 
         case MODE_TEXT_SCROLL: {
             canvas.fillScreen(TFT_BLACK);
-            canvas.drawRoundRect(2, 2, 236, 236, 8, 0x07FF);
+            
+            // Warm Beige & Obsidian Cyber Frame
+            canvas.drawRoundRect(2, 2, 236, 236, 8, 0xF77D);
             canvas.drawRoundRect(4, 4, 232, 232, 6, 0x18E3);
 
-            canvas.setTextColor(0x07FF, TFT_BLACK);
-            canvas.setTextSize(1);
-            canvas.drawCenterString("MARQUEE BROADCAST", 120, 18);
+            // Cyber Grid / Accent Ticks
+            canvas.drawFastHLine(14, 34, 212, 0x2104);
+            canvas.drawFastHLine(14, 206, 212, 0x2104);
 
-            int endX = EmojiRenderer::renderTextWithEmojis(&canvas, customMessage, scrollX, 96, 3, 0xFFFF, 0x0000);
-            scrollX -= 3;
-            if (endX < 0) {
-                scrollX = 240;
+            // Top Header in Warm Beige
+            canvas.setTextColor(0xF77D, TFT_BLACK);
+            canvas.setTextSize(1);
+            canvas.drawCenterString("MARQUEE BROADCAST", 120, 16);
+
+            // Calculate vertical center based on msgSize
+            int fontHeight = 8 * msgSize;
+            int textY = (240 - fontHeight) / 2;
+            if (msgSize == 1) textY = 116;
+
+            int endX = EmojiRenderer::renderTextWithEmojis(&canvas, customMessage, scrollX, textY, msgSize, 0xF77D, 0x0000);
+            int textLenPx = endX - scrollX;
+            if (textLenPx < 10) textLenPx = 10;
+
+            if (msgDirection == 0) {
+                // Right to Left (<-)
+                scrollX -= msgSpeed;
+                if (endX < 0) {
+                    scrollX = 240;
+                }
+            } else {
+                // Left to Right (->)
+                scrollX += msgSpeed;
+                if (scrollX > 240) {
+                    scrollX = -textLenPx;
+                }
             }
 
-            canvas.setTextColor(0x8410, TFT_BLACK);
+            // Bottom Tag in Tactical Amber Gold & Obsidian
+            canvas.setTextColor(0xFD00, TFT_BLACK);
             canvas.setTextSize(1);
-            canvas.drawCenterString("DIGI KEYCHAIN", 120, 205);
+            canvas.drawCenterString("DIGI KEYCHAIN // HUD", 120, 214);
             break;
         }
 
@@ -1736,18 +1839,29 @@ void loop() {
     }
 
     // =====================================================================
-    // ON-SCREEN TOUCH VISUALIZER OVERLAY
+    // ON-SCREEN TOUCH VISUALIZER OVERLAY (DYNAMIC AUTO-SIZING HUD TOAST PILL)
     // =====================================================================
     if (millis() < touchVisualEndTime) {
-        int pulseR = (millis() / 40) % 10 + 4;
-        canvas.drawCircle(222, 18, pulseR, touchVisualColor);
-        canvas.fillCircle(222, 18, 4, touchVisualColor);
-
-        canvas.fillRoundRect(134, 6, 82, 22, 4, 0x0000);
-        canvas.drawRoundRect(134, 6, 82, 22, 4, touchVisualColor);
-        canvas.setTextColor(touchVisualColor, 0x0000);
         canvas.setTextSize(1);
-        canvas.drawCenterString(touchVisualText.c_str(), 175, 13);
+        int textW = canvas.textWidth(touchVisualText.c_str());
+        int pillW = textW + 18;
+        if (pillW < 50) pillW = 50;
+        if (pillW > 224) pillW = 224; // Screen width is 240, keeps 8px clean margins
+        int pillH = 22;
+        int pillX = (240 - pillW) / 2; // Centered
+        int pillY = 8;
+
+        // Obsidian Backdrop & Crisp Theme Border
+        canvas.fillRoundRect(pillX - 1, pillY - 1, pillW + 2, pillH + 2, 6, 0x0000);
+        canvas.fillRoundRect(pillX, pillY, pillW, pillH, 5, 0x10A2);
+        canvas.drawRoundRect(pillX, pillY, pillW, pillH, 5, touchVisualColor);
+
+        // Subtle side accent ticks
+        canvas.drawFastVLine(pillX + 4, pillY + 6, 10, touchVisualColor);
+        canvas.drawFastVLine(pillX + pillW - 5, pillY + 6, 10, touchVisualColor);
+
+        canvas.setTextColor(touchVisualColor, 0x10A2);
+        canvas.drawCenterString(touchVisualText.c_str(), pillX + pillW / 2, pillY + 7);
     }
 
     // Push Double Buffer to Physical ST7789 Screen

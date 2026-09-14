@@ -1598,6 +1598,45 @@
             </button>
           </div>
 
+          <!-- ADVANCED MARQUEE CONTROLS: SPEED, SCALE & DIRECTION -->
+          <div style="background:var(--surface-raised); border:1px solid var(--border); border-radius:4px; padding:10px 12px; margin-top:6px; display:flex; flex-direction:column; gap:10px;">
+            <div class="setting-item" style="padding:0;">
+              <div class="setting-label-row">
+                <span class="setting-name">SCROLL SPEED</span>
+                <span class="setting-val" id="marqueeSpeedVal">3 px/f</span>
+              </div>
+              <input type="range" id="marqueeSpeed" min="1" max="12" value="3" oninput="updateMarqueeSpeed(this.value)">
+            </div>
+
+            <div class="setting-item" style="padding:0;">
+              <div class="setting-label-row">
+                <span class="setting-name">TEXT SIZE / SCALE</span>
+                <span class="setting-val" id="marqueeSizeVal">Size 3 (24px)</span>
+              </div>
+              <input type="range" id="marqueeSize" min="1" max="6" value="3" oninput="updateMarqueeSize(this.value)">
+              <div style="display:flex; justify-content:space-between; font-size:0.58rem; color:var(--beige-dim); margin-top:2px;">
+                <span>1 (8px)</span><span>2 (16px)</span><span>3 (24px)</span><span>4 (32px)</span><span>5 (40px)</span><span>6 (48px - Big Word)</span>
+              </div>
+            </div>
+
+            <div class="setting-item" style="padding:0;">
+              <div class="setting-label-row">
+                <span class="setting-name">FLOW DIRECTION</span>
+                <span class="setting-val" id="marqueeDirVal">RIGHT TO LEFT (←)</span>
+              </div>
+              <div class="hud-chip-grid" style="grid-template-columns: 1fr 1fr; margin-top:4px;">
+                <div class="hud-chip active" id="btnDirRTL" onclick="setMarqueeDirection(0)">
+                  <div class="hud-chip-name">← RIGHT TO LEFT</div>
+                  <div class="hud-chip-desc">Standard Marquee</div>
+                </div>
+                <div class="hud-chip" id="btnDirLTR" onclick="setMarqueeDirection(1)">
+                  <div class="hud-chip-name">LEFT TO RIGHT →</div>
+                  <div class="hud-chip-desc">Reverse Flow</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="card-header" style="margin-top:4px;">
             <div class="card-title" style="font-size:0.70rem; color:var(--beige-muted);">
               <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/></svg>
@@ -2455,6 +2494,58 @@
       }
     }
 
+    // =========================================================================
+    // MARQUEE BROADCAST CONTROLS (SPEED, SIZE, DIRECTION)
+    // =========================================================================
+    let curMarqueeSpeed = 3;
+    let curMarqueeSize = 3;
+    let curMarqueeDir = 0;
+
+    async function updateMarqueeSpeed(val) {
+      curMarqueeSpeed = parseInt(val, 10);
+      const label = document.getElementById('marqueeSpeedVal');
+      if (label) label.innerText = `${curMarqueeSpeed} px/f`;
+      if (!charSettings) return;
+      try {
+        const data = new TextEncoder().encode(`MSG_SPD:${curMarqueeSpeed}`);
+        await safeBleWrite(charSettings, data, false);
+      } catch (err) {
+        console.warn("Marquee speed sync error:", err);
+      }
+    }
+
+    async function updateMarqueeSize(val) {
+      curMarqueeSize = parseInt(val, 10);
+      const label = document.getElementById('marqueeSizeVal');
+      const sizeNames = ["", "Size 1 (8px)", "Size 2 (16px)", "Size 3 (24px)", "Size 4 (32px)", "Size 5 (40px)", "Size 6 (48px - Big Word)"];
+      if (label) label.innerText = sizeNames[curMarqueeSize] || `Size ${curMarqueeSize}`;
+      if (!charSettings) return;
+      try {
+        const data = new TextEncoder().encode(`MSG_SZ:${curMarqueeSize}`);
+        await safeBleWrite(charSettings, data, false);
+      } catch (err) {
+        console.warn("Marquee size sync error:", err);
+      }
+    }
+
+    async function setMarqueeDirection(dir) {
+      vibrate();
+      curMarqueeDir = dir;
+      const btnRTL = document.getElementById('btnDirRTL');
+      const btnLTR = document.getElementById('btnDirLTR');
+      const label = document.getElementById('marqueeDirVal');
+      if (btnRTL) btnRTL.classList.toggle('active', dir === 0);
+      if (btnLTR) btnLTR.classList.toggle('active', dir === 1);
+      if (label) label.innerText = (dir === 0) ? "RIGHT TO LEFT (←)" : "LEFT TO RIGHT (→)";
+      if (!charSettings) return;
+      try {
+        const data = new TextEncoder().encode(`MSG_DIR:${dir}`);
+        await safeBleWrite(charSettings, data, false);
+      } catch (err) {
+        console.warn("Marquee dir sync error:", err);
+      }
+    }
+
     async function sendCustomText() {
       vibrate();
       if (!charText) {
@@ -2476,6 +2567,33 @@
         log(`❌ Marquee send error: ${err.message}`);
         alert(`Marquee send error: ${err.message}`);
       }
+    }
+
+    // High-Quality Aspect-Ratio Preserving Center-Crop Helper (Cover Mode)
+    function renderHighQualityCover(source, ctx, targetW = 240, targetH = 240) {
+      const srcW = source.videoWidth || source.naturalWidth || source.width;
+      const srcH = source.videoHeight || source.naturalHeight || source.height;
+      if (!srcW || !srcH) {
+        ctx.drawImage(source, 0, 0, targetW, targetH);
+        return;
+      }
+      const srcAspect = srcW / srcH;
+      const dstAspect = targetW / targetH;
+      let sx, sy, sw, sh;
+      if (srcAspect > dstAspect) {
+        sh = srcH;
+        sw = srcH * dstAspect;
+        sx = (srcW - sw) / 2;
+        sy = 0;
+      } else {
+        sw = srcW;
+        sh = srcW / dstAspect;
+        sx = 0;
+        sy = (srcH - sh) / 2;
+      }
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(source, sx, sy, sw, sh, 0, 0, targetW, targetH);
     }
 
     async function syncTimeAndWeather() {
@@ -2856,9 +2974,9 @@
 
           ctx.fillStyle = '#000000';
           ctx.fillRect(0, 0, 240, 240);
-          ctx.drawImage(gifCanvas, 0, 0, 240, 240);
+          renderHighQualityCover(gifCanvas, ctx, 240, 240);
 
-          const blob = await new Promise(r => targetCanvas.toBlob(r, 'image/jpeg', 0.32));
+          const blob = await new Promise(r => targetCanvas.toBlob(r, 'image/jpeg', 0.45));
           const buf = await blob.arrayBuffer();
           frameBlobs.push(new Uint8Array(buf));
           if (onProgress) onProgress(i + 1, frameCount);
@@ -2894,9 +3012,9 @@
           });
           ctx.fillStyle = '#000000';
           ctx.fillRect(0, 0, 240, 240);
-          ctx.drawImage(video, 0, 0, 240, 240);
+          renderHighQualityCover(video, ctx, 240, 240);
 
-          const blob = await new Promise(r => targetCanvas.toBlob(r, 'image/jpeg', 0.32));
+          const blob = await new Promise(r => targetCanvas.toBlob(r, 'image/jpeg', 0.45));
           const buf = await blob.arrayBuffer();
           frameBlobs.push(new Uint8Array(buf));
           if (onProgress) onProgress(i + 1, frameCount);
@@ -2936,15 +3054,17 @@
         canvas.width = 240;
         canvas.height = 240;
         const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, 240, 240);
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, 240, 240);
+        renderHighQualityCover(img, ctx, 240, 240);
 
-        const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.80));
+        const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.92));
         if (!blob) throw new Error("Canvas JPEG compression failed");
 
         const arrayBuffer = await blob.arrayBuffer();
         const bytes = new Uint8Array(arrayBuffer);
         const totalLen = bytes.length;
-        log(`Prepared 240x240 Boot JPEG (${totalLen} bytes). Writing to flash...`);
+        log(`Prepared 240x240 HD Boot JPEG (${totalLen} bytes). Writing to flash...`);
 
         const CHUNK_SIZE = 180;
         const firstPayloadLen = Math.min(CHUNK_SIZE - 4, totalLen);
@@ -2973,7 +3093,7 @@
         setTimeout(() => { if (progressWrap) progressWrap.style.display = 'none'; }, 800);
         setBootType(1);
         setTouchBanner("BOOT IMAGE SAVED 💾", "badge-ok", 2500);
-        log(`✅ Boot Image Saved to Flash (${bytes.length} bytes)!`);
+        log(`✅ HD Boot Image Saved to Flash (${bytes.length} bytes)!`);
       } catch (err) {
         console.error(err);
         log(`❌ Boot Image error: ${err.message}`);
@@ -3082,15 +3202,17 @@
         canvas.width = 240;
         canvas.height = 240;
         const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, 240, 240);
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, 240, 240);
+        renderHighQualityCover(img, ctx, 240, 240);
 
-        const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.75));
+        const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.92));
         if (!blob) throw new Error("JPEG compression failed");
 
         const arrayBuffer = await blob.arrayBuffer();
         const bytes = new Uint8Array(arrayBuffer);
         const totalLen = bytes.length;
-        log(`Prepared 240x240 JPEG (${totalLen} bytes). Streaming to screen...`);
+        log(`Prepared 240x240 HD JPEG (${totalLen} bytes). Streaming to screen...`);
 
         const CHUNK_SIZE = 180;
         const firstPayloadLen = Math.min(CHUNK_SIZE - 4, totalLen);
