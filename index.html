@@ -1613,9 +1613,9 @@
                 <span class="setting-name">TEXT SIZE / SCALE</span>
                 <span class="setting-val" id="marqueeSizeVal">Size 3 (24px)</span>
               </div>
-              <input type="range" id="marqueeSize" min="1" max="6" value="3" oninput="updateMarqueeSize(this.value)">
+              <input type="range" id="marqueeSize" min="1" max="12" value="3" oninput="updateMarqueeSize(this.value)">
               <div style="display:flex; justify-content:space-between; font-size:0.58rem; color:var(--beige-dim); margin-top:2px;">
-                <span>1 (8px)</span><span>2 (16px)</span><span>3 (24px)</span><span>4 (32px)</span><span>5 (40px)</span><span>6 (48px - Big Word)</span>
+                <span>1 (8px)</span><span>3 (24px)</span><span>6 (48px)</span><span>9 (72px)</span><span>12 (96px Mega)</span>
               </div>
             </div>
 
@@ -2433,27 +2433,52 @@
     }
 
     // =========================================================================
-    // UNIVERSAL MOBILE BLE WRITE ENGINE (ADAPTIVE FLOW CONTROL & FALLBACK)
+    // UNIVERSAL MOBILE BLE WRITE ENGINE (SEQUENTIAL GATT QUEUE & FLOW CONTROL)
     // =========================================================================
+    let bleWriteQueue = Promise.resolve();
+    let bleThrottleTimers = {};
+
+    function sendBleThrottled(key, fn, delayMs = 30) {
+      if (bleThrottleTimers[key]) clearTimeout(bleThrottleTimers[key]);
+      bleThrottleTimers[key] = setTimeout(() => {
+        bleWriteQueue = bleWriteQueue.then(async () => {
+          try {
+            await fn();
+          } catch (err) {
+            console.warn(`[BLE Throttle] Error on ${key}:`, err);
+          }
+        }).catch(e => console.warn(e));
+      }, delayMs);
+    }
+
     async function safeBleWrite(char, data, preferWithoutResponse = false) {
       if (!char) throw new Error("Characteristic not available");
       
-      if (preferWithoutResponse && char.writeValueWithoutResponse) {
-        try {
-          await char.writeValueWithoutResponse(data);
-          return;
-        } catch (err) {
-          console.warn("writeValueWithoutResponse failed, falling back to withResponse:", err);
-        }
-      }
-      
-      if (char.writeValueWithResponse) {
-        await char.writeValueWithResponse(data);
-      } else if (char.writeValue) {
-        await char.writeValue(data);
-      } else if (char.writeValueWithoutResponse) {
-        await char.writeValueWithoutResponse(data);
-      }
+      return new Promise((resolve, reject) => {
+        bleWriteQueue = bleWriteQueue.then(async () => {
+          try {
+            if (preferWithoutResponse && char.writeValueWithoutResponse) {
+              try {
+                await char.writeValueWithoutResponse(data);
+                resolve();
+                return;
+              } catch (err) {
+                console.warn("writeValueWithoutResponse failed, falling back to withResponse:", err);
+              }
+            }
+            if (char.writeValueWithResponse) {
+              await char.writeValueWithResponse(data);
+            } else if (char.writeValue) {
+              await char.writeValue(data);
+            } else if (char.writeValueWithoutResponse) {
+              await char.writeValueWithoutResponse(data);
+            }
+            resolve();
+          } catch (err) {
+            reject(err);
+          }
+        }).catch(reject);
+      });
     }
 
     async function sendEasterEggMessage() {
@@ -2501,31 +2526,41 @@
     let curMarqueeSize = 3;
     let curMarqueeDir = 0;
 
-    async function updateMarqueeSpeed(val) {
+    function updateMarqueeSpeed(val) {
       curMarqueeSpeed = parseInt(val, 10);
       const label = document.getElementById('marqueeSpeedVal');
       if (label) label.innerText = `${curMarqueeSpeed} px/f`;
       if (!charSettings) return;
-      try {
+      sendBleThrottled('marqueeSpeed', async () => {
         const data = new TextEncoder().encode(`MSG_SPD:${curMarqueeSpeed}`);
         await safeBleWrite(charSettings, data, false);
-      } catch (err) {
-        console.warn("Marquee speed sync error:", err);
-      }
+      }, 35);
     }
 
-    async function updateMarqueeSize(val) {
+    function updateMarqueeSize(val) {
       curMarqueeSize = parseInt(val, 10);
       const label = document.getElementById('marqueeSizeVal');
-      const sizeNames = ["", "Size 1 (8px)", "Size 2 (16px)", "Size 3 (24px)", "Size 4 (32px)", "Size 5 (40px)", "Size 6 (48px - Big Word)"];
+      const sizeNames = [
+        "",
+        "Size 1 (8px)",
+        "Size 2 (16px)",
+        "Size 3 (24px)",
+        "Size 4 (32px)",
+        "Size 5 (40px)",
+        "Size 6 (48px)",
+        "Size 7 (56px)",
+        "Size 8 (64px)",
+        "Size 9 (72px)",
+        "Size 10 (80px)",
+        "Size 11 (88px)",
+        "Size 12 (96px - Mega Giant)"
+      ];
       if (label) label.innerText = sizeNames[curMarqueeSize] || `Size ${curMarqueeSize}`;
       if (!charSettings) return;
-      try {
+      sendBleThrottled('marqueeSize', async () => {
         const data = new TextEncoder().encode(`MSG_SZ:${curMarqueeSize}`);
         await safeBleWrite(charSettings, data, false);
-      } catch (err) {
-        console.warn("Marquee size sync error:", err);
-      }
+      }, 35);
     }
 
     async function setMarqueeDirection(dir) {
@@ -2616,15 +2651,13 @@
       }
     }
 
-    async function updateBrightness(val) {
+    function updateBrightness(val) {
       document.getElementById('brVal').innerText = Math.round((val / 255) * 100) + '%';
       if (!charSettings) return;
-      try {
+      sendBleThrottled('brightness', async () => {
         const data = new TextEncoder().encode(val.toString());
         await safeBleWrite(charSettings, data, false);
-      } catch (err) {
-        console.warn("Brightness error:", err);
-      }
+      }, 35);
     }
 
     // =========================================================================

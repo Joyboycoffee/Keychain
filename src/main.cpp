@@ -39,7 +39,7 @@ uint32_t       sleepTimeoutMs   = 0; // Default to NEVER sleep for battery disch
 String   customMessage = "I AM JOY BOY COFFEE :coffee: :fire:";
 int      scrollX       = 240;
 uint8_t  msgSpeed      = 3; // 1 to 15 px/frame
-uint8_t  msgSize       = 3; // 1 to 6 (1=8px, 2=16px, 3=24px, 4=32px, 5=40px, 6=48px full word!)
+uint8_t  msgSize       = 3; // 1 to 12 (1=8px, 2=16px, 3=24px, 4=32px, 5=40px, 6=48px, ... 12=96px Mega)
 uint8_t  msgDirection  = 0; // 0 = Right-to-Left (<-), 1 = Left-to-Right (->)
 
 // Battery Telemetry & Discharge Run Logger
@@ -89,7 +89,7 @@ uint32_t touchVisualEndTime  = 0;
 String   easterEggMessage    = "YOU ARE AWESOME :sparkles: :heart: :fire:";
 bool     isEasterEggActive   = false;
 uint32_t easterEggStartTime  = 0;
-uint32_t easterEggDurationMs = 6500;
+uint32_t easterEggDurationMs = 60000;
 int      easterEggScrollX    = 240;
 
 // Dynamic Image / Video Stream Buffers
@@ -427,10 +427,10 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
                 Serial.printf("[SETTINGS] Marquee Speed: %d px/frame\n", msgSpeed);
             }
         }
-        // 17. Marquee Text Size: "MSG_SZ:<1..6>"
+        // 17. Marquee Text Size: "MSG_SZ:<1..12>"
         else if (cmd.startsWith("MSG_SZ:")) {
             int sz = cmd.substring(7).toInt();
-            if (sz >= 1 && sz <= 6) {
+            if (sz >= 1 && sz <= 12) {
                 msgSize = sz;
                 prefs.putUChar("msg_sz", msgSize);
                 Serial.printf("[SETTINGS] Marquee Size: %d\n", msgSize);
@@ -454,11 +454,11 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
                 if (idx2 != -1) {
                     int sz = cfg.substring(idx1 + 1, idx2).toInt();
                     int dir = cfg.substring(idx2 + 1).toInt();
-                    if (sz >= 1 && sz <= 6) msgSize = sz;
+                    if (sz >= 1 && sz <= 12) msgSize = sz;
                     msgDirection = (dir == 1) ? 1 : 0;
                 } else {
                     int sz = cfg.substring(idx1 + 1).toInt();
-                    if (sz >= 1 && sz <= 6) msgSize = sz;
+                    if (sz >= 1 && sz <= 12) msgSize = sz;
                 }
                 prefs.putUChar("msg_spd", msgSpeed);
                 prefs.putUChar("msg_sz", msgSize);
@@ -874,8 +874,8 @@ void startBLE(bool notifyVisual) {
     if (pAdv) pAdv->start();
     bleStartTimeMs = millis();
     lastActivityTime = millis();
-    if (notifyVisual) triggerTouchVisual("BLE ON (35s) ⚡", 0x07FF, 2000, "BLE:ONLINE");
-    Serial.println("[BLE] BLE Radio Activated! 35s pairing window started. CPU @ 160MHz.");
+    if (notifyVisual) triggerTouchVisual("BLE ON (60s) ⚡", 0x07FF, 2000, "BLE:ONLINE");
+    Serial.println("[BLE] BLE Radio Activated! 60s pairing window started. CPU @ 160MHz.");
 }
 
 void stopBLE(bool notifyVisual) {
@@ -1186,6 +1186,16 @@ void processTouch() {
     if (isrTapCount == 1 && !isDown && (now - isrLastTapEndTime > 350)) {
         isrTapCount = 0;
         lastActivityTime = now;
+        if (isEasterEggActive) {
+            isEasterEggActive = false;
+            if (pCharSet) {
+                pCharSet->setValue(std::string("TOUCH:REVERT"));
+                pCharSet->notify();
+            }
+            triggerTouchVisual("DISMISSED 🔄", 0x07FF, 700, "TOUCH:REVERT");
+            Serial.println("[TOUCH] Single Tap during Easter Egg -> Dismissed.");
+            return;
+        }
         if (!shyLoveTriggered && !hold10sReady && !hold14sCancelled) {
             if (currentMode == MODE_CYBERPET) {
                 memePet.triggerTap();
@@ -1535,7 +1545,7 @@ void setup() {
     msgSize = prefs.getUChar("msg_sz", 3);
     msgDirection = prefs.getUChar("msg_dir", 0);
     if (msgSpeed < 1 || msgSpeed > 15) msgSpeed = 3;
-    if (msgSize < 1 || msgSize > 6) msgSize = 3;
+    if (msgSize < 1 || msgSize > 12) msgSize = 3;
     if (msgDirection > 1) msgDirection = 0;
 
     // Battery Discharge Logger State from NVS
@@ -1659,8 +1669,8 @@ void setup() {
 void loop() {
     processTouch();
 
-    // Auto BLE power-down if no connection after 35 seconds to save maximum battery
-    if (bleActive && !bleConnected && (millis() - bleStartTimeMs > 35000)) {
+    // Auto BLE power-down if no connection after 60 seconds to save maximum battery
+    if (bleActive && !bleConnected && (millis() - bleStartTimeMs > 60000)) {
         stopBLE(false);
     }
 

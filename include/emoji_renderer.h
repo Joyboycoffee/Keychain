@@ -38,266 +38,324 @@ enum EmojiType {
 };
 
 class EmojiRenderer {
+private:
+    inline static int sc(int val, float s) {
+        int res = (int)(val * s + 0.5f);
+        return (res < 1 && val > 0) ? 1 : res;
+    }
+
+    inline static void fCircle(LGFX_Sprite* c, int x, int y, int cx, int cy, int r, uint16_t col, float s) {
+        int rad = sc(r, s);
+        if (rad < 1) rad = 1;
+        c->fillCircle(x + sc(cx, s), y + sc(cy, s), rad, col);
+    }
+
+    inline static void fRect(LGFX_Sprite* c, int x, int y, int rx, int ry, int w, int h, uint16_t col, float s) {
+        c->fillRect(x + sc(rx, s), y + sc(ry, s), sc(w, s), sc(h, s), col);
+    }
+
+    inline static void fRRect(LGFX_Sprite* c, int x, int y, int rx, int ry, int w, int h, int r, uint16_t col, float s) {
+        int rw = sc(w, s);
+        int rh = sc(h, s);
+        int rad = sc(r, s);
+        if (rad > rw / 2) rad = rw / 2;
+        if (rad > rh / 2) rad = rh / 2;
+        if (rad < 1) rad = 1;
+        c->fillRoundRect(x + sc(rx, s), y + sc(ry, s), rw, rh, rad, col);
+    }
+
+    inline static void dRRect(LGFX_Sprite* c, int x, int y, int rx, int ry, int w, int h, int r, uint16_t col, float s) {
+        int rw = sc(w, s);
+        int rh = sc(h, s);
+        int rad = sc(r, s);
+        if (rad > rw / 2) rad = rw / 2;
+        if (rad > rh / 2) rad = rh / 2;
+        if (rad < 1) rad = 1;
+        c->drawRoundRect(x + sc(rx, s), y + sc(ry, s), rw, rh, rad, col);
+    }
+
+    inline static void fTri(LGFX_Sprite* c, int x, int y, int x0, int y0, int x1, int y1, int x2, int y2, uint16_t col, float s) {
+        c->fillTriangle(x + sc(x0, s), y + sc(y0, s), x + sc(x1, s), y + sc(y1, s), x + sc(x2, s), y + sc(y2, s), col);
+    }
+
+    inline static void dTri(LGFX_Sprite* c, int x, int y, int x0, int y0, int x1, int y1, int x2, int y2, uint16_t col, float s) {
+        c->drawTriangle(x + sc(x0, s), y + sc(y0, s), x + sc(x1, s), y + sc(y1, s), x + sc(x2, s), y + sc(y2, s), col);
+    }
+
+    inline static void fHLine(LGFX_Sprite* c, int x, int y, int lx, int ly, int w, uint16_t col, float s) {
+        c->drawFastHLine(x + sc(lx, s), y + sc(ly, s), sc(w, s), col);
+        if (s >= 2.0f) {
+            c->drawFastHLine(x + sc(lx, s), y + sc(ly, s) + 1, sc(w, s), col);
+        }
+    }
+
+    inline static void fVLine(LGFX_Sprite* c, int x, int y, int lx, int ly, int h, uint16_t col, float s) {
+        c->drawFastVLine(x + sc(lx, s), y + sc(ly, s), sc(h, s), col);
+        if (s >= 2.0f) {
+            c->drawFastVLine(x + sc(lx, s) + 1, y + sc(ly, s), sc(h, s), col);
+        }
+    }
+
 public:
-    static void drawEmoji(LGFX_Sprite* canvas, EmojiType type, int x, int y) {
+    static void drawEmoji(LGFX_Sprite* canvas, EmojiType type, int x, int y, float s = 1.0f) {
         if (!canvas) return;
 
         switch (type) {
             case EMOJI_COFFEE: // ☕ Coffee Cup
-                canvas->fillRoundRect(x + 2, y + 6, 16, 14, 3, 0xD440);
-                canvas->fillRect(x + 3, y + 7, 14, 3, 0x5180);
-                canvas->drawRoundRect(x + 16, y + 8, 6, 10, 2, 0xD440);
-                canvas->drawFastVLine(x + 5, y + 1, 3, 0xFFFF);
-                canvas->drawFastVLine(x + 9, y + 0, 4, 0xFFFF);
-                canvas->drawFastVLine(x + 13, y + 2, 3, 0xFFFF);
+                fRRect(canvas, x, y, 2, 6, 16, 14, 3, 0xD440, s);
+                fRect(canvas, x, y, 3, 7, 14, 3, 0x5180, s);
+                dRRect(canvas, x, y, 16, 8, 6, 10, 2, 0xD440, s);
+                fVLine(canvas, x, y, 5, 1, 3, 0xFFFF, s);
+                fVLine(canvas, x, y, 9, 0, 4, 0xFFFF, s);
+                fVLine(canvas, x, y, 13, 2, 3, 0xFFFF, s);
                 break;
 
             case EMOJI_HEART: // ❤️ Red Heart
-                canvas->fillCircle(x + 6, y + 7, 5, 0xF800);
-                canvas->fillCircle(x + 16, y + 7, 5, 0xF800);
-                canvas->fillTriangle(x + 1, y + 8, x + 21, y + 8, x + 11, y + 20, 0xF800);
-                canvas->fillCircle(x + 5, y + 6, 2, 0xFBE4);
+                fCircle(canvas, x, y, 6, 7, 5, 0xF800, s);
+                fCircle(canvas, x, y, 16, 7, 5, 0xF800, s);
+                fTri(canvas, x, y, 1, 8, 21, 8, 11, 20, 0xF800, s);
+                fCircle(canvas, x, y, 5, 6, 2, 0xFBE4, s);
                 break;
 
             case EMOJI_HEART_SPARKLE: // 💖 Pink Sparkle Heart
-                canvas->fillCircle(x + 6, y + 7, 5, 0xF81F);
-                canvas->fillCircle(x + 16, y + 7, 5, 0xF81F);
-                canvas->fillTriangle(x + 1, y + 8, x + 21, y + 8, x + 11, y + 20, 0xF81F);
-                canvas->fillCircle(x + 18, y + 4, 2, 0xFFFF);
-                canvas->fillCircle(x + 4, y + 16, 1, 0xFFE0);
+                fCircle(canvas, x, y, 6, 7, 5, 0xF81F, s);
+                fCircle(canvas, x, y, 16, 7, 5, 0xF81F, s);
+                fTri(canvas, x, y, 1, 8, 21, 8, 11, 20, 0xF81F, s);
+                fCircle(canvas, x, y, 18, 4, 2, 0xFFFF, s);
+                fCircle(canvas, x, y, 4, 16, 1, 0xFFE0, s);
                 break;
 
             case EMOJI_FIRE: // 🔥 Flame
-                canvas->fillTriangle(x + 11, y + 1, x + 3, y + 21, x + 19, y + 21, 0xF800);
-                canvas->fillTriangle(x + 11, y + 6, x + 5, y + 21, x + 17, y + 21, 0xFD20);
-                canvas->fillTriangle(x + 11, y + 11, x + 7, y + 21, x + 15, y + 21, 0xFFE0);
+                fTri(canvas, x, y, 11, 1, 3, 21, 19, 21, 0xF800, s);
+                fTri(canvas, x, y, 11, 6, 5, 21, 17, 21, 0xFD20, s);
+                fTri(canvas, x, y, 11, 11, 7, 21, 15, 21, 0xFFE0, s);
                 break;
 
             case EMOJI_ZAP: // ⚡ Lightning Bolt
-                canvas->fillTriangle(x + 13, y + 1, x + 5, y + 11, x + 12, y + 11, 0xFFE0);
-                canvas->fillTriangle(x + 11, y + 9, x + 18, y + 9, x + 9, y + 21, 0xFFE0);
-                canvas->fillCircle(x + 11, y + 10, 2, 0xFFFF);
+                fTri(canvas, x, y, 13, 1, 5, 11, 12, 11, 0xFFE0, s);
+                fTri(canvas, x, y, 11, 9, 18, 9, 9, 21, 0xFFE0, s);
+                fCircle(canvas, x, y, 11, 10, 2, 0xFFFF, s);
                 break;
 
             case EMOJI_STAR: // ⭐ Gold Star
-                canvas->fillTriangle(x + 11, y + 1, x + 2, y + 19, x + 20, y + 19, 0xFFE0);
-                canvas->fillTriangle(x + 11, y + 19, x + 2, y + 7, x + 20, y + 7, 0xFFE0);
-                canvas->fillCircle(x + 11, y + 11, 4, 0xFFFF);
+                fTri(canvas, x, y, 11, 1, 2, 19, 20, 19, 0xFFE0, s);
+                fTri(canvas, x, y, 11, 19, 2, 7, 20, 7, 0xFFE0, s);
+                fCircle(canvas, x, y, 11, 11, 4, 0xFFFF, s);
                 break;
 
             case EMOJI_SPARKLES: // ✨ Sparkles
-                canvas->fillCircle(x + 8, y + 8, 3, 0x07FF);
-                canvas->drawFastHLine(x + 2, y + 8, 13, 0x07FF);
-                canvas->drawFastVLine(x + 8, y + 2, 13, 0x07FF);
-                canvas->fillCircle(x + 17, y + 16, 2, 0xFFE0);
-                canvas->drawFastHLine(x + 13, y + 16, 9, 0xFFE0);
-                canvas->drawFastVLine(x + 17, y + 12, 9, 0xFFE0);
+                fCircle(canvas, x, y, 8, 8, 3, 0x07FF, s);
+                fHLine(canvas, x, y, 2, 8, 13, 0x07FF, s);
+                fVLine(canvas, x, y, 8, 2, 13, 0x07FF, s);
+                fCircle(canvas, x, y, 17, 16, 2, 0xFFE0, s);
+                fHLine(canvas, x, y, 13, 16, 9, 0xFFE0, s);
+                fVLine(canvas, x, y, 17, 12, 9, 0xFFE0, s);
                 break;
 
             case EMOJI_ROCKET: // 🚀 Rocket
-                canvas->fillTriangle(x + 16, y + 2, x + 6, y + 12, x + 18, y + 18, 0xFFFF);
-                canvas->fillTriangle(x + 16, y + 2, x + 12, y + 6, x + 18, y + 8, 0xF800);
-                canvas->fillCircle(x + 12, y + 10, 2, 0x07FF);
-                canvas->fillTriangle(x + 4, y + 14, x + 8, y + 16, x + 2, y + 20, 0xFD20);
+                fTri(canvas, x, y, 16, 2, 6, 12, 18, 18, 0xFFFF, s);
+                fTri(canvas, x, y, 16, 2, 12, 6, 18, 8, 0xF800, s);
+                fCircle(canvas, x, y, 12, 10, 2, 0x07FF, s);
+                fTri(canvas, x, y, 4, 14, 8, 16, 2, 20, 0xFD20, s);
                 break;
 
             case EMOJI_CROWN: // 👑 Gold Crown
-                canvas->fillRect(x + 3, y + 14, 16, 5, 0xFFE0);
-                canvas->fillTriangle(x + 3, y + 14, x + 5, y + 6, x + 9, y + 14, 0xFFE0);
-                canvas->fillTriangle(x + 8, y + 14, x + 11, y + 4, x + 14, y + 14, 0xFFE0);
-                canvas->fillTriangle(x + 13, y + 14, x + 17, y + 6, x + 19, y + 14, 0xFFE0);
-                canvas->fillCircle(x + 5, y + 5, 2, 0xF800);
-                canvas->fillCircle(x + 11, y + 3, 2, 0x07FF);
-                canvas->fillCircle(x + 17, y + 5, 2, 0xF800);
+                fRect(canvas, x, y, 3, 14, 16, 5, 0xFFE0, s);
+                fTri(canvas, x, y, 3, 14, 5, 6, 9, 14, 0xFFE0, s);
+                fTri(canvas, x, y, 8, 14, 11, 4, 14, 14, 0xFFE0, s);
+                fTri(canvas, x, y, 13, 14, 17, 6, 19, 14, 0xFFE0, s);
+                fCircle(canvas, x, y, 5, 5, 2, 0xF800, s);
+                fCircle(canvas, x, y, 11, 3, 2, 0x07FF, s);
+                fCircle(canvas, x, y, 17, 5, 2, 0xF800, s);
                 break;
 
             case EMOJI_DIAMOND: // 💎 Blue Diamond
-                canvas->fillTriangle(x + 5, y + 6, x + 17, y + 6, x + 11, y + 19, 0x07FF);
-                canvas->fillTriangle(x + 5, y + 6, x + 17, y + 6, x + 11, y + 2, 0x07FF);
-                canvas->drawTriangle(x + 5, y + 6, x + 17, y + 6, x + 11, y + 19, 0xFFFF);
-                canvas->fillCircle(x + 11, y + 6, 2, 0xFFFF);
+                fTri(canvas, x, y, 5, 6, 17, 6, 11, 19, 0x07FF, s);
+                fTri(canvas, x, y, 5, 6, 17, 6, 11, 2, 0x07FF, s);
+                dTri(canvas, x, y, 5, 6, 17, 6, 11, 19, 0xFFFF, s);
+                fCircle(canvas, x, y, 11, 6, 2, 0xFFFF, s);
                 break;
 
             case EMOJI_ROBOT: // 🤖 Robot Face
-                canvas->fillRoundRect(x + 4, y + 6, 14, 13, 3, 0x07FF);
-                canvas->fillCircle(x + 8, y + 11, 2, 0xFFFF);
-                canvas->fillCircle(x + 14, y + 11, 2, 0xFFFF);
-                canvas->drawFastHLine(x + 8, y + 15, 6, 0x0000);
-                canvas->drawFastVLine(x + 11, y + 2, 4, 0x07FF);
-                canvas->fillCircle(x + 11, y + 2, 2, 0xF800);
+                fRRect(canvas, x, y, 4, 6, 14, 13, 3, 0x07FF, s);
+                fCircle(canvas, x, y, 8, 11, 2, 0xFFFF, s);
+                fCircle(canvas, x, y, 14, 11, 2, 0xFFFF, s);
+                fHLine(canvas, x, y, 8, 15, 6, 0x0000, s);
+                fVLine(canvas, x, y, 11, 2, 4, 0x07FF, s);
+                fCircle(canvas, x, y, 11, 2, 2, 0xF800, s);
                 break;
 
             case EMOJI_ALIEN: // 👾 Alien Space Invader
-                canvas->fillRoundRect(x + 3, y + 5, 16, 12, 2, 0xF81F);
-                canvas->fillCircle(x + 7, y + 9, 2, 0x0000);
-                canvas->fillCircle(x + 15, y + 9, 2, 0x0000);
-                canvas->fillRect(x + 7, y + 17, 3, 3, 0xF81F);
-                canvas->fillRect(x + 12, y + 17, 3, 3, 0xF81F);
-                canvas->fillRect(x + 1, y + 8, 3, 4, 0xF81F);
-                canvas->fillRect(x + 18, y + 8, 3, 4, 0xF81F);
+                fRRect(canvas, x, y, 3, 5, 16, 12, 2, 0xF81F, s);
+                fCircle(canvas, x, y, 7, 9, 2, 0x0000, s);
+                fCircle(canvas, x, y, 15, 9, 2, 0x0000, s);
+                fRect(canvas, x, y, 7, 17, 3, 3, 0xF81F, s);
+                fRect(canvas, x, y, 12, 17, 3, 3, 0xF81F, s);
+                fRect(canvas, x, y, 1, 8, 3, 4, 0xF81F, s);
+                fRect(canvas, x, y, 18, 8, 3, 4, 0xF81F, s);
                 break;
 
             case EMOJI_GAME: // 🎮 Gamepad
-                canvas->fillRoundRect(x + 3, y + 6, 16, 11, 4, 0x4208);
-                canvas->drawFastHLine(x + 6, y + 11, 4, 0x07FF);
-                canvas->drawFastVLine(x + 7, y + 9, 4, 0x07FF);
-                canvas->fillCircle(x + 14, y + 10, 1, 0xF800);
-                canvas->fillCircle(x + 16, y + 12, 1, 0xFFE0);
+                fRRect(canvas, x, y, 3, 6, 16, 11, 4, 0x4208, s);
+                fHLine(canvas, x, y, 6, 11, 4, 0x07FF, s);
+                fVLine(canvas, x, y, 7, 9, 4, 0x07FF, s);
+                fCircle(canvas, x, y, 14, 10, 1, 0xF800, s);
+                fCircle(canvas, x, y, 16, 12, 1, 0xFFE0, s);
                 break;
 
             case EMOJI_MUSIC: // 🎵 Musical Notes
-                canvas->fillCircle(x + 6, y + 16, 3, 0x07E0);
-                canvas->fillCircle(x + 15, y + 13, 3, 0x07E0);
-                canvas->drawFastVLine(x + 8, y + 4, 12, 0x07E0);
-                canvas->drawFastVLine(x + 17, y + 2, 11, 0x07E0);
-                canvas->fillRect(x + 8, y + 2, 10, 3, 0x07E0);
+                fCircle(canvas, x, y, 6, 16, 3, 0x07E0, s);
+                fCircle(canvas, x, y, 15, 13, 3, 0x07E0, s);
+                fVLine(canvas, x, y, 8, 4, 12, 0x07E0, s);
+                fVLine(canvas, x, y, 17, 2, 11, 0x07E0, s);
+                fRect(canvas, x, y, 8, 2, 10, 3, 0x07E0, s);
                 break;
 
             case EMOJI_PIZZA: // 🍕 Pizza Slice
-                canvas->fillTriangle(x + 3, y + 4, x + 19, y + 4, x + 11, y + 20, 0xFD20);
-                canvas->fillRect(x + 2, y + 3, 18, 3, 0xD440);
-                canvas->fillCircle(x + 10, y + 9, 2, 0xF800);
-                canvas->fillCircle(x + 7, y + 13, 1, 0xF800);
-                canvas->fillCircle(x + 14, y + 13, 1, 0xF800);
+                fTri(canvas, x, y, 3, 4, 19, 4, 11, 20, 0xFD20, s);
+                fRect(canvas, x, y, 2, 3, 18, 3, 0xD440, s);
+                fCircle(canvas, x, y, 10, 9, 2, 0xF800, s);
+                fCircle(canvas, x, y, 7, 13, 1, 0xF800, s);
+                fCircle(canvas, x, y, 14, 13, 1, 0xF800, s);
                 break;
 
             case EMOJI_BURGER: // 🍔 Burger
-                canvas->fillRoundRect(x + 3, y + 4, 16, 6, 3, 0xFD20); // Top bun
-                canvas->fillRect(x + 2, y + 10, 18, 2, 0x07E0);       // Lettuce
-                canvas->fillRect(x + 3, y + 12, 16, 3, 0x8200);       // Patty
-                canvas->fillRoundRect(x + 3, y + 15, 16, 4, 2, 0xFD20); // Bottom bun
+                fRRect(canvas, x, y, 3, 4, 16, 6, 3, 0xFD20, s);
+                fRect(canvas, x, y, 2, 10, 18, 2, 0x07E0, s);
+                fRect(canvas, x, y, 3, 12, 16, 3, 0x8200, s);
+                fRRect(canvas, x, y, 3, 15, 16, 4, 2, 0xFD20, s);
                 break;
 
             case EMOJI_CAT: // 🐱 Cat Face
-                canvas->fillCircle(x + 11, y + 12, 8, 0xFD20);
-                canvas->fillTriangle(x + 3, y + 7, x + 7, y + 1, x + 9, y + 7, 0xFD20);
-                canvas->fillTriangle(x + 13, y + 7, x + 15, y + 1, x + 19, y + 7, 0xFD20);
-                canvas->fillCircle(x + 8, y + 11, 1, 0x0000);
-                canvas->fillCircle(x + 14, y + 11, 1, 0x0000);
-                canvas->fillTriangle(x + 10, y + 14, x + 12, y + 14, x + 11, y + 16, 0xF81F);
+                fCircle(canvas, x, y, 11, 12, 8, 0xFD20, s);
+                fTri(canvas, x, y, 3, 7, 7, 1, 9, 7, 0xFD20, s);
+                fTri(canvas, x, y, 13, 7, 15, 1, 19, 7, 0xFD20, s);
+                fCircle(canvas, x, y, 8, 11, 1, 0x0000, s);
+                fCircle(canvas, x, y, 14, 11, 1, 0x0000, s);
+                fTri(canvas, x, y, 10, 14, 12, 14, 11, 16, 0xF81F, s);
                 break;
 
             case EMOJI_DOG: // 🐶 Dog Face
-                canvas->fillCircle(x + 11, y + 12, 8, 0xD545);
-                canvas->fillRoundRect(x + 1, y + 7, 4, 9, 2, 0x8200);  // Ear L
-                canvas->fillRoundRect(x + 17, y + 7, 4, 9, 2, 0x8200); // Ear R
-                canvas->fillCircle(x + 8, y + 11, 1, 0x0000);
-                canvas->fillCircle(x + 14, y + 11, 1, 0x0000);
-                canvas->fillCircle(x + 11, y + 14, 2, 0x0000);
+                fCircle(canvas, x, y, 11, 12, 8, 0xD545, s);
+                fRRect(canvas, x, y, 1, 7, 4, 9, 2, 0x8200, s);
+                fRRect(canvas, x, y, 17, 7, 4, 9, 2, 0x8200, s);
+                fCircle(canvas, x, y, 8, 11, 1, 0x0000, s);
+                fCircle(canvas, x, y, 14, 11, 1, 0x0000, s);
+                fCircle(canvas, x, y, 11, 14, 2, 0x0000, s);
                 break;
 
             case EMOJI_BUNNY: // 🐰 Bunny Face
-                canvas->fillCircle(x + 11, y + 13, 7, 0xFFFF);
-                canvas->fillRoundRect(x + 6, y + 1, 3, 9, 2, 0xFFFF);
-                canvas->fillRoundRect(x + 13, y + 1, 3, 9, 2, 0xFFFF);
-                canvas->fillRoundRect(x + 7, y + 3, 1, 6, 1, 0xF81F);
-                canvas->fillRoundRect(x + 14, y + 3, 1, 6, 1, 0xF81F);
-                canvas->fillCircle(x + 8, y + 12, 1, 0x0000);
-                canvas->fillCircle(x + 14, y + 12, 1, 0x0000);
-                canvas->fillCircle(x + 11, y + 15, 1, 0xF81F);
+                fCircle(canvas, x, y, 11, 13, 7, 0xFFFF, s);
+                fRRect(canvas, x, y, 6, 1, 3, 9, 2, 0xFFFF, s);
+                fRRect(canvas, x, y, 13, 1, 3, 9, 2, 0xFFFF, s);
+                fRRect(canvas, x, y, 7, 3, 1, 6, 1, 0xF81F, s);
+                fRRect(canvas, x, y, 14, 3, 1, 6, 1, 0xF81F, s);
+                fCircle(canvas, x, y, 8, 12, 1, 0x0000, s);
+                fCircle(canvas, x, y, 14, 12, 1, 0x0000, s);
+                fCircle(canvas, x, y, 11, 15, 1, 0xF81F, s);
                 break;
 
             case EMOJI_BANANA: // 🍌 Banana
-                canvas->fillCircle(x + 11, y + 11, 8, 0xFFE0);
-                canvas->fillCircle(x + 14, y + 8, 7, 0x0000);
-                canvas->fillRect(x + 4, y + 4, 3, 3, 0x5180);
+                fCircle(canvas, x, y, 11, 11, 8, 0xFFE0, s);
+                fCircle(canvas, x, y, 14, 8, 7, 0x0000, s);
+                fRect(canvas, x, y, 4, 4, 3, 3, 0x5180, s);
                 break;
 
             case EMOJI_SKULL: // 💀 Skull
-                canvas->fillRoundRect(x + 5, y + 4, 12, 11, 4, 0xFFFF);
-                canvas->fillRect(x + 7, y + 14, 8, 5, 0xFFFF);
-                canvas->fillCircle(x + 8, y + 9, 2, 0x0000);
-                canvas->fillCircle(x + 14, y + 9, 2, 0x0000);
-                canvas->drawFastVLine(x + 9, y + 15, 4, 0x0000);
-                canvas->drawFastVLine(x + 11, y + 15, 4, 0x0000);
-                canvas->drawFastVLine(x + 13, y + 15, 4, 0x0000);
+                fRRect(canvas, x, y, 5, 4, 12, 11, 4, 0xFFFF, s);
+                fRect(canvas, x, y, 7, 14, 8, 5, 0xFFFF, s);
+                fCircle(canvas, x, y, 8, 9, 2, 0x0000, s);
+                fCircle(canvas, x, y, 14, 9, 2, 0x0000, s);
+                fVLine(canvas, x, y, 9, 15, 4, 0x0000, s);
+                fVLine(canvas, x, y, 11, 15, 4, 0x0000, s);
+                fVLine(canvas, x, y, 13, 15, 4, 0x0000, s);
                 break;
 
             case EMOJI_CRY: // 😭 Crying Face
-                canvas->fillCircle(x + 11, y + 11, 10, 0xFFE0);
-                canvas->drawFastHLine(x + 5, y + 9, 4, 0x0000);
-                canvas->drawFastHLine(x + 13, y + 9, 4, 0x0000);
-                canvas->fillRoundRect(x + 8, y + 14, 6, 4, 1, 0x0000);
-                canvas->fillRoundRect(x + 5, y + 10, 3, 10, 1, 0x07FF);
-                canvas->fillRoundRect(x + 14, y + 10, 3, 10, 1, 0x07FF);
+                fCircle(canvas, x, y, 11, 11, 10, 0xFFE0, s);
+                fHLine(canvas, x, y, 5, 9, 4, 0x0000, s);
+                fHLine(canvas, x, y, 13, 9, 4, 0x0000, s);
+                fRRect(canvas, x, y, 8, 14, 6, 4, 1, 0x0000, s);
+                fRRect(canvas, x, y, 5, 10, 3, 10, 1, 0x07FF, s);
+                fRRect(canvas, x, y, 14, 10, 3, 10, 1, 0x07FF, s);
                 break;
 
             case EMOJI_COOL: // 😎 Sunglasses Face
-                canvas->fillCircle(x + 11, y + 11, 10, 0xFFE0);
-                canvas->fillRoundRect(x + 4, y + 7, 6, 6, 2, 0x0000);
-                canvas->fillRoundRect(x + 12, y + 7, 6, 6, 2, 0x0000);
-                canvas->drawFastHLine(x + 9, y + 8, 4, 0x0000);
-                canvas->drawFastHLine(x + 8, y + 16, 6, 0x0000);
+                fCircle(canvas, x, y, 11, 11, 10, 0xFFE0, s);
+                fRRect(canvas, x, y, 4, 7, 6, 6, 2, 0x0000, s);
+                fRRect(canvas, x, y, 12, 7, 6, 6, 2, 0x0000, s);
+                fHLine(canvas, x, y, 9, 8, 4, 0x0000, s);
+                fHLine(canvas, x, y, 8, 16, 6, 0x0000, s);
                 break;
 
             case EMOJI_DEVIL: // 😈 Purple Devil
-                canvas->fillCircle(x + 11, y + 12, 8, 0x981F);
-                canvas->fillTriangle(x + 4, y + 7, x + 6, y + 1, x + 8, y + 6, 0x981F);
-                canvas->fillTriangle(x + 14, y + 6, x + 16, y + 1, x + 18, y + 7, 0x981F);
-                canvas->fillCircle(x + 8, y + 11, 1, 0xFFFF);
-                canvas->fillCircle(x + 14, y + 11, 1, 0xFFFF);
-                canvas->drawFastHLine(x + 8, y + 15, 6, 0x0000);
+                fCircle(canvas, x, y, 11, 12, 8, 0x981F, s);
+                fTri(canvas, x, y, 4, 7, 6, 1, 8, 6, 0x981F, s);
+                fTri(canvas, x, y, 14, 6, 16, 1, 18, 7, 0x981F, s);
+                fCircle(canvas, x, y, 8, 11, 1, 0xFFFF, s);
+                fCircle(canvas, x, y, 14, 11, 1, 0xFFFF, s);
+                fHLine(canvas, x, y, 8, 15, 6, 0x0000, s);
                 break;
 
             case EMOJI_POOP: // 💩 Poop
-                canvas->fillRoundRect(x + 4, y + 6, 14, 13, 5, 0x8200);
-                canvas->fillCircle(x + 11, y + 4, 4, 0x8200);
-                canvas->fillCircle(x + 8, y + 10, 2, 0xFFFF);
-                canvas->fillCircle(x + 14, y + 10, 2, 0xFFFF);
-                canvas->fillCircle(x + 8, y + 10, 1, 0x0000);
-                canvas->fillCircle(x + 14, y + 10, 1, 0x0000);
-                canvas->drawFastHLine(x + 8, y + 14, 6, 0x0000);
+                fRRect(canvas, x, y, 4, 6, 14, 13, 5, 0x8200, s);
+                fCircle(canvas, x, y, 11, 4, 4, 0x8200, s);
+                fCircle(canvas, x, y, 8, 10, 2, 0xFFFF, s);
+                fCircle(canvas, x, y, 14, 10, 2, 0xFFFF, s);
+                fCircle(canvas, x, y, 8, 10, 1, 0x0000, s);
+                fCircle(canvas, x, y, 14, 10, 1, 0x0000, s);
+                fHLine(canvas, x, y, 8, 14, 6, 0x0000, s);
                 break;
 
             case EMOJI_100: // 💯 100 Points
                 canvas->setTextColor(0xF800, 0x0000);
-                canvas->setTextSize(2);
-                canvas->drawString("100", x + 1, y + 2);
-                canvas->drawFastHLine(x + 2, y + 18, 18, 0xF800);
-                canvas->drawFastHLine(x + 2, y + 20, 18, 0xF800);
+                canvas->setTextSize(s >= 2.0f ? (int)(2.0f * s) : (s < 0.7f ? 1 : 2));
+                canvas->drawString("100", x + sc(1, s), y + sc(2, s));
+                fHLine(canvas, x, y, 2, 18, 18, 0xF800, s);
+                fHLine(canvas, x, y, 2, 20, 18, 0xF800, s);
                 break;
 
             case EMOJI_THUMBSUP: // 👍 Thumbs Up
-                canvas->fillRoundRect(x + 4, y + 10, 12, 9, 3, 0xFD20);
-                canvas->fillRoundRect(x + 4, y + 3, 5, 10, 2, 0xFD20);
+                fRRect(canvas, x, y, 4, 10, 12, 9, 3, 0xFD20, s);
+                fRRect(canvas, x, y, 4, 3, 5, 10, 2, 0xFD20, s);
                 break;
 
             case EMOJI_MOON: // 🌙 Crescent Moon
-                canvas->fillCircle(x + 11, y + 11, 9, 0xFFE0);
-                canvas->fillCircle(x + 16, y + 9, 8, 0x0000);
+                fCircle(canvas, x, y, 11, 11, 9, 0xFFE0, s);
+                fCircle(canvas, x, y, 16, 9, 8, 0x0000, s);
                 break;
 
             case EMOJI_FLOWER: // 🌸 Cherry Blossom / Flower
-                canvas->fillCircle(x + 11, y + 6, 4, 0xF81F);
-                canvas->fillCircle(x + 6, y + 11, 4, 0xF81F);
-                canvas->fillCircle(x + 16, y + 11, 4, 0xF81F);
-                canvas->fillCircle(x + 8, y + 16, 4, 0xF81F);
-                canvas->fillCircle(x + 14, y + 16, 4, 0xF81F);
-                canvas->fillCircle(x + 11, y + 11, 3, 0xFFE0);
+                fCircle(canvas, x, y, 11, 6, 4, 0xF81F, s);
+                fCircle(canvas, x, y, 6, 11, 4, 0xF81F, s);
+                fCircle(canvas, x, y, 16, 11, 4, 0xF81F, s);
+                fCircle(canvas, x, y, 8, 16, 4, 0xF81F, s);
+                fCircle(canvas, x, y, 14, 16, 4, 0xF81F, s);
+                fCircle(canvas, x, y, 11, 11, 3, 0xFFE0, s);
                 break;
 
             case EMOJI_BEAR: // 🧸 Teddy Bear
-                canvas->fillCircle(x + 11, y + 13, 7, 0x8200);
-                canvas->fillCircle(x + 5, y + 7, 3, 0x8200);
-                canvas->fillCircle(x + 17, y + 7, 3, 0x8200);
-                canvas->fillCircle(x + 9, y + 11, 1, 0x0000);
-                canvas->fillCircle(x + 13, y + 11, 1, 0x0000);
-                canvas->fillCircle(x + 11, y + 14, 2, 0x5180);
+                fCircle(canvas, x, y, 11, 13, 7, 0x8200, s);
+                fCircle(canvas, x, y, 5, 7, 3, 0x8200, s);
+                fCircle(canvas, x, y, 17, 7, 3, 0x8200, s);
+                fCircle(canvas, x, y, 9, 11, 1, 0x0000, s);
+                fCircle(canvas, x, y, 13, 11, 1, 0x0000, s);
+                fCircle(canvas, x, y, 11, 14, 2, 0x5180, s);
                 break;
 
             case EMOJI_TADA: // 🎉 Party Popper
-                canvas->fillTriangle(x + 2, y + 18, x + 14, y + 18, x + 8, y + 8, 0xFD20);
-                canvas->fillCircle(x + 6, y + 4, 2, 0xF81F);
-                canvas->fillCircle(x + 14, y + 4, 2, 0x07FF);
-                canvas->fillCircle(x + 18, y + 10, 2, 0x07E0);
-                canvas->fillCircle(x + 12, y + 10, 2, 0xFFE0);
+                fTri(canvas, x, y, 2, 18, 14, 18, 8, 8, 0xFD20, s);
+                fCircle(canvas, x, y, 6, 4, 2, 0xF81F, s);
+                fCircle(canvas, x, y, 14, 4, 2, 0x07FF, s);
+                fCircle(canvas, x, y, 18, 10, 2, 0x07E0, s);
+                fCircle(canvas, x, y, 12, 10, 2, 0xFFE0, s);
                 break;
 
             case EMOJI_EYES: // 👀 Eyes
-                canvas->fillCircle(x + 6, y + 11, 5, 0xFFFF);
-                canvas->fillCircle(x + 16, y + 11, 5, 0xFFFF);
-                canvas->fillCircle(x + 7, y + 11, 2, 0x0000);
-                canvas->fillCircle(x + 17, y + 11, 2, 0x0000);
+                fCircle(canvas, x, y, 6, 11, 5, 0xFFFF, s);
+                fCircle(canvas, x, y, 16, 11, 5, 0xFFFF, s);
+                fCircle(canvas, x, y, 7, 11, 2, 0x0000, s);
+                fCircle(canvas, x, y, 17, 11, 2, 0x0000, s);
                 break;
 
             default:
@@ -346,8 +404,8 @@ public:
         int curX = startX;
         int len = text.length();
         int charWidth = 6 * textSize;
-        int emojiWidth = (textSize <= 3) ? 26 : (textSize * 8 + 4);
-        int emojiOffsetY = (textSize <= 3) ? 0 : ((textSize * 8 - 24) / 2);
+        float s = (float)textSize / 3.0f;
+        int emojiWidth = (int)(24.0f * s) + (textSize <= 2 ? 2 : (textSize <= 4 ? 4 : (textSize <= 8 ? 6 : 8)));
 
         canvas->setTextColor(textColor, bg);
         canvas->setTextSize(textSize);
@@ -360,7 +418,7 @@ public:
                     String code = text.substring(i, nextColon + 1);
                     EmojiType et = resolveCode(code);
                     if (et != EMOJI_NONE) {
-                        drawEmoji(canvas, et, curX, y + emojiOffsetY);
+                        drawEmoji(canvas, et, curX, y, s);
                         curX += emojiWidth;
                         i = nextColon + 1;
                         continue;
@@ -415,7 +473,7 @@ public:
                     else if (utfChar == "👀") uEt = EMOJI_EYES;
 
                     if (uEt != EMOJI_NONE) {
-                        drawEmoji(canvas, uEt, curX, y + emojiOffsetY);
+                        drawEmoji(canvas, uEt, curX, y, s);
                         curX += emojiWidth;
                         i += seqLen;
                         continue;
