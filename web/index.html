@@ -2011,6 +2011,12 @@
         log("✅ Online! Telemetry & controls active.");
 
         syncTimeAndWeather();
+        setTimeout(async () => {
+          if (charSettings) {
+            const data = new TextEncoder().encode("CFG:GET");
+            await safeBleWrite(charSettings, data, false);
+          }
+        }, 350);
         setTimeout(() => fetchBatteryLog(), 800);
       } catch (err) {
         console.error(err);
@@ -2080,7 +2086,99 @@
     let currentMatrixTheme = 0;
 
     function handleSettingsNotification(msg) {
-      if (msg === "TOUCH:POKE") {
+      if (msg.startsWith("CFG_DASH|")) {
+        const p = msg.split('|');
+        if (p.length >= 14) {
+          const mode       = parseInt(p[1]);
+          const emo        = parseInt(p[2]);
+          const hudLay     = parseInt(p[3]);
+          const robotMood  = parseInt(p[4]);
+          const matrixThm  = parseInt(p[5]);
+          const br         = parseInt(p[6]);
+          const rot        = parseInt(p[7]);
+          const sleepSec   = parseInt(p[8]);
+          const bootType   = parseInt(p[9]);
+          const bootDur    = parseInt(p[10]);
+          const msgSpd     = parseInt(p[11]);
+          const msgSz      = parseInt(p[12]);
+          const msgDir     = parseInt(p[13]);
+
+          highlightModeUI(mode);
+          highlightEmotionUI(emo);
+          highlightHudLayoutUI(hudLay);
+          highlightRobotMoodUI(robotMood);
+          highlightMatrixThemeUI(matrixThm);
+
+          // Update Brightness UI
+          const brSlider = document.getElementById('brSlider');
+          const brVal = document.getElementById('brVal');
+          if (brSlider) brSlider.value = br;
+          if (brVal) brVal.innerText = `${Math.round((br / 255) * 100)}%`;
+
+          // Update Auto Sleep Slider UI
+          let sleepIdx = sleepValues.indexOf(sleepSec);
+          if (sleepIdx === -1) {
+            if (sleepSec === 0) sleepIdx = 5;
+            else if (sleepSec <= 15) sleepIdx = 0;
+            else if (sleepSec <= 30) sleepIdx = 1;
+            else if (sleepSec <= 60) sleepIdx = 2;
+            else if (sleepSec <= 120) sleepIdx = 3;
+            else sleepIdx = 4;
+          }
+          const sleepSlider = document.getElementById('sleepSlider');
+          const sleepVal = document.getElementById('sleepVal');
+          if (sleepSlider) sleepSlider.value = sleepIdx;
+          if (sleepVal) sleepVal.innerText = sleepLabels[sleepIdx];
+
+          // Update Rotation UI
+          const angleSlider = document.getElementById('angleSlider');
+          const angleVal = document.getElementById('angleVal');
+          if (angleSlider) angleSlider.value = rot * 90;
+          if (angleVal) angleVal.innerText = `${rot * 90}°`;
+          for (let i = 0; i < 4; i++) {
+            const b = document.getElementById(`rotBtn${i}`);
+            if (b) b.className = (i === rot) ? "btn-opt active" : "btn-opt";
+          }
+
+          // Update Boot Splash UI
+          for (let i = 0; i < 4; i++) {
+            const b = document.getElementById(`bootBtn${i}`);
+            if (b) b.className = (i === bootType) ? "btn-opt active" : "btn-opt";
+          }
+          const bootDurSlider = document.getElementById('bootDurSlider');
+          const bootDurVal = document.getElementById('bootDurVal');
+          if (bootDurSlider) bootDurSlider.value = bootDur;
+          if (bootDurVal) bootDurVal.innerText = `${bootDur} Seconds`;
+
+          // Update Marquee UI
+          curMarqueeSpeed = msgSpd;
+          curMarqueeSize = msgSz;
+          curMarqueeDir = msgDir;
+          const spdSlider = document.getElementById('marqueeSpeed');
+          const spdVal = document.getElementById('marqueeSpeedVal');
+          if (spdSlider) spdSlider.value = msgSpd;
+          if (spdVal) spdVal.innerText = `${msgSpd} px/f`;
+
+          const szSlider = document.getElementById('marqueeSize');
+          const szVal = document.getElementById('marqueeSizeVal');
+          const sizeNames = [
+            "",
+            "Size 1 (8px)", "Size 2 (16px)", "Size 3 (24px)", "Size 4 (32px)", "Size 5 (40px)", "Size 6 (48px)",
+            "Size 7 (56px)", "Size 8 (64px)", "Size 9 (72px)", "Size 10 (80px)", "Size 11 (88px)", "Size 12 (96px - Mega Giant)"
+          ];
+          if (szSlider) szSlider.value = msgSz;
+          if (szVal) szVal.innerText = sizeNames[msgSz] || `Size ${msgSz}`;
+
+          const btnRTL = document.getElementById('btnDirRTL');
+          const btnLTR = document.getElementById('btnDirLTR');
+          const dirVal = document.getElementById('marqueeDirVal');
+          if (btnRTL) btnRTL.classList.toggle('active', msgDir === 0);
+          if (btnLTR) btnLTR.classList.toggle('active', msgDir === 1);
+          if (dirVal) dirVal.innerText = (msgDir === 0) ? "RIGHT TO LEFT (←)" : "LEFT TO RIGHT (→)";
+
+          log(`⚙️ Synchronized settings: Brightness ${Math.round((br / 255) * 100)}%, Sleep ${sleepLabels[sleepIdx]}`);
+        }
+      } else if (msg === "TOUCH:POKE") {
         setTouchBanner("👆 POKE TRIGGERED", "badge-cyan", 1500);
       } else if (msg === "TOUCH:DOUBLE") {
         setTouchBanner("⚡ DOUBLE-TAP SUB-OPTION", "badge-warn", 1500);
@@ -2186,7 +2284,7 @@
         return;
       }
       const data = new TextEncoder().encode("SAVE_CONFIG");
-      await charSettings.writeValue(data);
+      await safeBleWrite(charSettings, data, false);
       log("💾 Flashed current settings to ESP32 NVS memory as permanent default!");
       alert("✅ Settings Flashed to Memory!\n\nSystem Mode, CyberHUD, Robot Eyes, Matrix Themes, Brightness, Sleep Timeout, Screen Rotation, and Mascots are now saved permanently in ESP32 memory.");
     }
@@ -2382,11 +2480,11 @@
       document.getElementById('angleSlider').value = deg;
       document.getElementById('angleVal').innerText = deg + '°';
       const data = new TextEncoder().encode(`ROT:${rot}`);
-      await charSettings.writeValue(data);
+      await safeBleWrite(charSettings, data, false);
       log(`Rotation: ${deg}°`);
     }
 
-    async function updateAngleSlider(deg) {
+    function updateAngleSlider(deg) {
       document.getElementById('angleVal').innerText = deg + '°';
       const rot = Math.round(deg / 90) % 4;
       for (let i = 0; i < 4; i++) {
@@ -2394,24 +2492,28 @@
         if (b) b.className = (i === rot) ? "btn-opt active" : "btn-opt";
       }
       if (!charSettings) return;
-      const data = new TextEncoder().encode(`ROT:${rot}`);
-      await charSettings.writeValue(data);
+      sendBleThrottled('rot', async () => {
+        const data = new TextEncoder().encode(`ROT:${rot}`);
+        await safeBleWrite(charSettings, data, false);
+      }, 35);
     }
 
-    async function updateSleepSlider(idx) {
+    function updateSleepSlider(idx) {
       const sec = sleepValues[idx];
       document.getElementById('sleepVal').innerText = sleepLabels[idx];
       if (!charSettings) return;
-      const data = new TextEncoder().encode(`SLEEP:${sec}`);
-      await charSettings.writeValue(data);
-      log(`Sleep timeout: ${sleepLabels[idx]}`);
+      sendBleThrottled('sleep', async () => {
+        const data = new TextEncoder().encode(`SLEEP:${sec}`);
+        await safeBleWrite(charSettings, data, false);
+        log(`Sleep timeout: ${sleepLabels[idx]}`);
+      }, 35);
     }
 
     async function saveAsDefault() {
       vibrate();
       if (!charSettings) return;
       const data = new TextEncoder().encode("DEF:SET");
-      await charSettings.writeValue(data);
+      await safeBleWrite(charSettings, data, false);
       log("⭐ Saved default settings!");
       alert("Default settings saved!");
     }

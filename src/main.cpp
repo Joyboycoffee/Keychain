@@ -497,7 +497,31 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
                 pCharSet->notify();
             }
             triggerTouchVisual("SAVED DEFAULTS 💾", 0x07E0, 1500, "SAVED:OK");
-            Serial.println("[SETTINGS] Settings flashed to NVS memory as permanent default!");
+            Serial.printf("[SETTINGS] Settings flashed to NVS memory: Brightness=%d, Sleep=%u ms\n", screenBrightness, (unsigned int)sleepTimeoutMs);
+        }
+        // 21. Query Full Config Dashboard: "CFG:GET" or "GET_CONFIG"
+        else if (cmd == "CFG:GET" || cmd == "GET_CONFIG") {
+            char cfgMsg[256];
+            uint32_t sleepSec = sleepTimeoutMs / 1000;
+            snprintf(cfgMsg, sizeof(cfgMsg), "CFG_DASH|%d|%d|%d|%d|%d|%d|%d|%u|%d|%d|%d|%d|%d",
+                     (int)currentMode,
+                     (int)memePet.currentEmotion,
+                     (int)cyberHUD.currentLayout,
+                     (int)robotEyes.currentStyle,
+                     (int)matrixRain.currentTheme,
+                     (int)screenBrightness,
+                     (int)screenRotation,
+                     (unsigned int)sleepSec,
+                     (int)bootSplashType,
+                     (int)bootDurationSec,
+                     (int)msgSpeed,
+                     (int)msgSize,
+                     (int)msgDirection);
+            if (pCharSet) {
+                pCharSet->setValue(std::string(cfgMsg));
+                pCharSet->notify();
+            }
+            Serial.printf("[SETTINGS] Sent Full Config Dashboard: %s\n", cfgMsg);
         }
         // 14. Turn Off BLE Radio / Save Power / Sleep: "BLE:OFF"
         else if (cmd == "BLE:OFF") {
@@ -514,7 +538,16 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
             Serial.println("[SETTINGS] Web requested immediate deep sleep.");
             enterDeepSleep();
         }
-        // 16. Brightness Value: "10".."255"
+        // 16. Brightness Value: "BR:<10..255>" or "10".."255"
+        else if (cmd.startsWith("BR:")) {
+            int br = cmd.substring(3).toInt();
+            if (br >= 10 && br <= 255) {
+                screenBrightness = br;
+                tft.setBrightness(screenBrightness);
+                prefs.putUChar("br", screenBrightness);
+                Serial.printf("[SETTINGS] Brightness: %d\n", br);
+            }
+        }
         else {
             int br = cmd.toInt();
             if (br >= 10 && br <= 255) {
@@ -1537,7 +1570,9 @@ void setup() {
     bootSplashType = (BootSplashType)prefs.getUChar("boot_type", (uint8_t)BOOT_JOYBOY_INTRO);
     bootDurationSec = prefs.getUChar("boot_dur", 2);
     screenBrightness = prefs.getUChar("br", 240);
+    if (screenBrightness < 10) screenBrightness = 240;
     screenRotation = prefs.getUChar("rot", 3);
+    if (screenRotation > 3) screenRotation = 3;
     sleepTimeoutMs = prefs.getUInt("sleep", 0); // 0 = Never sleep by default
     customMessage = prefs.getString("msg", "I AM JOY BOY COFFEE :coffee: :fire:");
     easterEggMessage = prefs.getString("egg_msg", "YOU ARE AWESOME :sparkles: :heart: :fire:");
@@ -1547,6 +1582,8 @@ void setup() {
     if (msgSpeed < 1 || msgSpeed > 15) msgSpeed = 3;
     if (msgSize < 1 || msgSize > 12) msgSize = 3;
     if (msgDirection > 1) msgDirection = 0;
+    Serial.printf("[SETTINGS] Restored: Brightness=%d, Sleep=%u ms, Rotation=%d, Mode=%d\n",
+                  screenBrightness, (unsigned int)sleepTimeoutMs, screenRotation, (int)currentMode);
 
     // Battery Discharge Logger State from NVS
     lastSavedRunSec  = prefs.getUInt("l_run", 0);
