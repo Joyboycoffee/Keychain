@@ -65,6 +65,20 @@
       line-height: 1.4;
     }
 
+    /* GLOBAL SVG SIZING (PREVENTS ACCIDENTAL BLOWUPS) */
+    svg {
+      flex-shrink: 0;
+    }
+    button svg, label svg, .btn-opt svg, .btn-primary svg, .btn-danger svg, .nav-item svg, .tab-btn svg, .card-title svg {
+      width: 14px;
+      height: 14px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      display: inline-block;
+      vertical-align: middle;
+    }
+
     /* VIEW MODES */
     .app-container {
       max-width: 900px;
@@ -266,13 +280,24 @@
       border-radius: 2px;
       background: var(--surface-raised);
       border: 1px solid var(--border-accent);
-      color: var(--beige-main);
+      color: var(--beige-muted);
       letter-spacing: 0.6px;
       text-transform: uppercase;
       font-weight: 700;
     }
 
-    /* CRAZY SLEEK CYBERPUNK BATTERY CELL GAUGE (EXACT SCREENSHOT MATCH) */
+    .hud-tag.active-battery {
+      color: var(--beige-main);
+      border-color: var(--accent);
+    }
+
+    .hud-tag.charging {
+      color: var(--green);
+      border-color: var(--green);
+      background: var(--green-bg);
+    }
+
+    /* CRAZY SLEEK CYBERPUNK BATTERY CELL GAUGE */
     .battery-meter-container {
       display: flex;
       align-items: center;
@@ -620,8 +645,6 @@
       background: var(--border-accent);
     }
 
-    button svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; flex-shrink: 0; }
-
     .btn-primary {
       background: var(--accent);
       color: #090a0c !important;
@@ -664,6 +687,89 @@
       border-color: var(--accent);
       color: var(--beige-light);
       box-shadow: 0 0 8px var(--accent-glow);
+    }
+
+    /* SLEEK TACTICAL DROPZONES & UPLOAD CARDS */
+    .upload-deck {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      width: 100%;
+    }
+
+    @media (max-width: 520px) {
+      .upload-deck {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .upload-dropzone {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      background: var(--bg);
+      border: 1px dashed var(--border-accent);
+      border-radius: 4px;
+      padding: 16px 12px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-align: center;
+      user-select: none;
+      min-width: 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .upload-dropzone:hover {
+      border-color: var(--accent);
+      background: var(--surface-raised);
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+
+    .upload-dropzone:active {
+      transform: scale(0.98);
+      border-color: var(--beige-light);
+    }
+
+    .upload-icon-box {
+      width: 36px;
+      height: 36px;
+      border-radius: 4px;
+      background: var(--surface-raised);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 2px;
+      transition: all 0.15s;
+    }
+
+    .upload-dropzone:hover .upload-icon-box {
+      border-color: var(--accent);
+      background: #1e222a;
+      box-shadow: 0 0 8px var(--accent-glow);
+    }
+
+    .upload-icon-box svg {
+      width: 18px;
+      height: 18px;
+      stroke: var(--accent);
+    }
+
+    .upload-title {
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: var(--beige-light);
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+    }
+
+    .upload-hint {
+      font-size: 0.63rem;
+      color: var(--beige-muted);
+      letter-spacing: 0.3px;
     }
 
     /* CONTEXT PANELS */
@@ -956,31 +1062,31 @@
         </button>
       </div>
 
-      <!-- POD 2: POWER MATRIX & STEPPED BATTERY GAUGE (EXACT SCREENSHOT MATCH) -->
+      <!-- POD 2: POWER MATRIX & STEPPED BATTERY GAUGE (DISCONNECTED BY DEFAULT) -->
       <div class="hud-card">
         <div class="hud-card-info">
           <div class="hud-card-title">
-            <span id="hud-bat-voltage">4.07 V</span>
-            <span class="hud-tag" id="hud-bat-status">ON BATTERY</span>
+            <span id="hud-bat-voltage">-- V</span>
+            <span class="hud-tag" id="hud-bat-status">STANDBY</span>
           </div>
           <div class="hud-card-meta">
-            <span id="hud-bat-pct" class="text-accent">87%</span>
+            <span id="hud-bat-pct" class="text-accent">--%</span>
             <span class="meta-sep">|</span>
-            <span id="hud-bat-hours">~17.1H LEFT</span>
+            <span id="hud-bat-hours">~--H LEFT</span>
             <span class="meta-sep">|</span>
             <span id="hud-bat-type">1S LI-ION</span>
           </div>
         </div>
         
-        <!-- Segmented 6-Cell Cyberpunk Battery Gauge -->
+        <!-- Segmented 6-Cell Cyberpunk Battery Gauge (Starts Inactive) -->
         <div class="battery-meter-container" title="Cyberpunk Segmented Energy Cell">
           <div class="bat-cell-wrapper">
             <div class="bat-housing">
-              <div class="bat-segment active" id="bseg-1"></div>
-              <div class="bat-segment active" id="bseg-2"></div>
-              <div class="bat-segment active" id="bseg-3"></div>
-              <div class="bat-segment active" id="bseg-4"></div>
-              <div class="bat-segment active" id="bseg-5"></div>
+              <div class="bat-segment" id="bseg-1"></div>
+              <div class="bat-segment" id="bseg-2"></div>
+              <div class="bat-segment" id="bseg-3"></div>
+              <div class="bat-segment" id="bseg-4"></div>
+              <div class="bat-segment" id="bseg-5"></div>
               <div class="bat-segment" id="bseg-6"></div>
             </div>
             <div class="bat-terminal"></div>
@@ -1272,22 +1378,29 @@
             <input type="range" id="bootDurSlider" min="1" max="4" value="2" oninput="updateBootDuration(this.value)">
           </div>
 
-          <div style="display:flex; flex-direction:column; gap:8px;">
-            <div style="display:flex; gap:8px;">
-              <label class="btn-opt" style="flex:1; text-align:center;">
+          <!-- SLEEK UPLOAD CARDS -->
+          <div class="upload-deck">
+            <label class="upload-dropzone">
+              <div class="upload-icon-box">
                 <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                UPLOAD PIC
-                <input type="file" accept="image/*" style="display:none;" onchange="uploadBootImage(event)">
-              </label>
-              <label class="btn-opt" style="flex:1; text-align:center;">
+              </div>
+              <div class="upload-title">FLASH BOOT PIC</div>
+              <div class="upload-hint">PNG / JPG • 240x240 Auto-fit</div>
+              <input type="file" accept="image/*" style="display:none;" onchange="uploadBootImage(event)">
+            </label>
+
+            <label class="upload-dropzone">
+              <div class="upload-icon-box">
                 <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
-                UPLOAD VIDEO
-                <input type="file" accept="video/*,image/gif" style="display:none;" onchange="uploadBootVideo(event)">
-              </label>
-            </div>
-            <div id="bootProgressWrap" class="progress-bar-wrap">
-              <div id="bootProgressBar" class="progress-bar"></div>
-            </div>
+              </div>
+              <div class="upload-title">FLASH BOOT VIDEO</div>
+              <div class="upload-hint">MP4 / GIF • 20 FPS Loop</div>
+              <input type="file" accept="video/*,image/gif" style="display:none;" onchange="uploadBootVideo(event)">
+            </label>
+          </div>
+
+          <div id="bootProgressWrap" class="progress-bar-wrap">
+            <div id="bootProgressBar" class="progress-bar"></div>
           </div>
         </div>
       </section>
@@ -1516,16 +1629,23 @@
             </div>
           </div>
 
-          <div class="btn-grid">
-            <label class="btn-opt" style="text-align:center; padding:12px;">
-              <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-              STREAM STATIC IMAGE
+          <!-- SLEEK UPLOAD CARDS -->
+          <div class="upload-deck">
+            <label class="upload-dropzone">
+              <div class="upload-icon-box">
+                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              </div>
+              <div class="upload-title">STREAM STATIC IMAGE</div>
+              <div class="upload-hint">PNG / JPG / WebP • Real-time</div>
               <input type="file" accept="image/*" style="display:none;" onchange="uploadLiveImage(event)">
             </label>
 
-            <label class="btn-primary" style="text-align:center; padding:12px;">
-              <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-              STREAM 25 FPS VIDEO / GIF
+            <label class="upload-dropzone">
+              <div class="upload-icon-box">
+                <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              </div>
+              <div class="upload-title">STREAM 25 FPS VIDEO / GIF</div>
+              <div class="upload-hint">Video / GIF • Live Loop Stream</div>
               <input type="file" accept="video/*,image/gif" style="display:none;" onchange="uploadLiveVideo(event)">
             </label>
           </div>
@@ -1669,14 +1789,14 @@
       const typeElem = document.getElementById('hud-bat-type');
 
       const numPct = parseInt(pct) || 0;
-      const numV = parseFloat(voltage) || 4.2;
+      const numV = parseFloat(voltage) || 0;
 
       if (vElem) vElem.innerText = isUsb ? `5.00 V` : `${numV.toFixed(2)} V`;
       if (pctElem) pctElem.innerText = isUsb ? `USB PWR` : `${numPct}%`;
       
       if (statElem) {
         statElem.innerText = isUsb ? `USB CHARGING` : `ON BATTERY`;
-        statElem.className = isUsb ? `hud-tag text-accent` : `hud-tag`;
+        statElem.className = isUsb ? `hud-tag charging` : `hud-tag active-battery`;
       }
 
       if (hoursElem) {
@@ -1708,6 +1828,31 @@
 
       const cv = document.getElementById('logCurVolt');
       if (cv) cv.innerText = isUsb ? `5.0V (USB Powered)` : `${numV.toFixed(2)}V (${numPct}%)`;
+    }
+
+    function resetBatteryHUDToOffline() {
+      const vElem = document.getElementById('hud-bat-voltage');
+      const statElem = document.getElementById('hud-bat-status');
+      const pctElem = document.getElementById('hud-bat-pct');
+      const hoursElem = document.getElementById('hud-bat-hours');
+      const typeElem = document.getElementById('hud-bat-type');
+
+      if (vElem) vElem.innerText = `-- V`;
+      if (statElem) {
+        statElem.innerText = `STANDBY`;
+        statElem.className = `hud-tag`;
+      }
+      if (pctElem) pctElem.innerText = `--%`;
+      if (hoursElem) hoursElem.innerText = `~--H LEFT`;
+      if (typeElem) typeElem.innerText = `1S LI-ION`;
+
+      for (let i = 1; i <= 6; i++) {
+        const seg = document.getElementById(`bseg-${i}`);
+        if (seg) seg.className = 'bat-segment';
+      }
+
+      const cv = document.getElementById('logCurVolt');
+      if (cv) cv.innerText = `--`;
     }
 
     async function connectBLE() {
@@ -1803,6 +1948,7 @@
           sb.innerText = "OFFLINE";
           sb.className = "badge badge-alert";
         }
+        resetBatteryHUDToOffline();
       }
     }
 
@@ -1816,6 +1962,8 @@
       document.getElementById('btnConnect').innerText = "PAIR";
       const connName = document.getElementById('hud-conn-name');
       if (connName) connName.innerText = "DISCONNECTED";
+
+      resetBatteryHUDToOffline();
 
       const tb = document.getElementById('touchBanner');
       const tt = document.getElementById('touchText');
