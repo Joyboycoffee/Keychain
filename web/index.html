@@ -3112,7 +3112,7 @@
             ctx.fillRect(0, 0, 240, 240);
             renderHighQualityCover(gifCanvas, ctx, 240, 240);
 
-            const blob = await new Promise(r => targetCanvas.toBlob(r, 'image/jpeg', 0.70));
+            const blob = await new Promise(r => targetCanvas.toBlob(r, 'image/jpeg', 0.58));
             const buf = await blob.arrayBuffer();
             frameBlobs.push(new Uint8Array(buf));
             sampledCount++;
@@ -3153,7 +3153,7 @@
           ctx.fillRect(0, 0, 240, 240);
           renderHighQualityCover(video, ctx, 240, 240);
 
-          const blob = await new Promise(r => targetCanvas.toBlob(r, 'image/jpeg', 0.70));
+          const blob = await new Promise(r => targetCanvas.toBlob(r, 'image/jpeg', 0.58));
           const buf = await blob.arrayBuffer();
           frameBlobs.push(new Uint8Array(buf));
           if (onProgress) onProgress(i + 1, frameCount);
@@ -3197,7 +3197,7 @@
         ctx.fillRect(0, 0, 240, 240);
         renderHighQualityCover(img, ctx, 240, 240);
 
-        const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.92));
+        const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.85));
         if (!blob) throw new Error("Canvas JPEG compression failed");
 
         const arrayBuffer = await blob.arrayBuffer();
@@ -3205,7 +3205,7 @@
         const totalLen = bytes.length;
         log(`Prepared 240x240 HD Boot JPEG (${totalLen} bytes). Writing to flash...`);
 
-        const CHUNK_SIZE = 180;
+        const CHUNK_SIZE = 240;
         const firstPayloadLen = Math.min(CHUNK_SIZE - 3, totalLen);
         const header = new Uint8Array(3 + firstPayloadLen);
         header[0] = 0x20; // CMD_BOOT_IMG_START
@@ -3223,11 +3223,11 @@
           const chunkPacket = new Uint8Array(1 + chunkData.length);
           chunkPacket[0] = 0x21; // CMD_BOOT_IMG_CHUNK
           chunkPacket.set(chunkData, 1);
-          await safeBleWrite(charStream, chunkPacket, false);
+          await safeBleWrite(charStream, chunkPacket, true);
           offset = end;
           const pct = Math.round((offset / totalLen) * 100);
           if (progressBar) progressBar.style.width = `${pct}%`;
-          await new Promise(r => setTimeout(r, 10));
+          await new Promise(r => setTimeout(r, 5));
         }
 
         if (progressBar) progressBar.style.width = '100%';
@@ -3265,9 +3265,9 @@
         log(`Uploading ${frameBlobs.length} crisp boot animation frames to flash...`);
         const initHeader = new Uint8Array([0x30, frameBlobs.length, 20]); // CMD_BOOT_VID_INIT
         await safeBleWrite(charStream, initHeader, false);
-        await new Promise(r => setTimeout(r, 25));
+        await new Promise(r => setTimeout(r, 20));
 
-        const CHUNK_SIZE = 180;
+        const CHUNK_SIZE = 240;
         for (let fIdx = 0; fIdx < frameBlobs.length; fIdx++) {
           const fBytes = frameBlobs[fIdx];
           const totalLen = fBytes.length;
@@ -3281,7 +3281,7 @@
           fHeader.set(fBytes.subarray(0, firstPayloadLen), 4);
 
           await safeBleWrite(charStream, fHeader, false);
-          await new Promise(r => setTimeout(r, 10));
+          await new Promise(r => setTimeout(r, 8));
 
           let offset = firstPayloadLen;
           while (offset < totalLen) {
@@ -3290,9 +3290,9 @@
             const chunkPacket = new Uint8Array(1 + chunkData.length);
             chunkPacket[0] = 0x32; // CMD_BOOT_VID_CHUNK
             chunkPacket.set(chunkData, 1);
-            await safeBleWrite(charStream, chunkPacket, false);
+            await safeBleWrite(charStream, chunkPacket, true);
             offset = end;
-            await new Promise(r => setTimeout(r, 8));
+            await new Promise(r => setTimeout(r, 5));
           }
 
           const pct = 30 + Math.round(((fIdx + 1) / frameBlobs.length) * 65);
@@ -3349,7 +3349,7 @@
         ctx.fillRect(0, 0, 240, 240);
         renderHighQualityCover(img, ctx, 240, 240);
 
-        const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.92));
+        const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.85));
         if (!blob) throw new Error("JPEG compression failed");
 
         const arrayBuffer = await blob.arrayBuffer();
@@ -3357,7 +3357,7 @@
         const totalLen = bytes.length;
         log(`Prepared 240x240 HD JPEG (${totalLen} bytes). Streaming to screen...`);
 
-        const CHUNK_SIZE = 180;
+        const CHUNK_SIZE = 240;
         const firstPayloadLen = Math.min(CHUNK_SIZE - 3, totalLen);
         const header = new Uint8Array(3 + firstPayloadLen);
         header[0] = 0x10; // CMD_LIVE_IMG_START
@@ -3375,11 +3375,11 @@
           const chunkPacket = new Uint8Array(1 + chunkData.length);
           chunkPacket[0] = 0x11; // CMD_LIVE_IMG_CHUNK
           chunkPacket.set(chunkData, 1);
-          await safeBleWrite(charStream, chunkPacket, false);
+          await safeBleWrite(charStream, chunkPacket, true);
           offset = end;
           const pct = Math.round((offset / totalLen) * 100);
           if (progressBar) progressBar.style.width = `${pct}%`;
-          await new Promise(r => setTimeout(r, 10));
+          await new Promise(r => setTimeout(r, 5));
         }
 
         if (progressBar) progressBar.style.width = '100%';
@@ -3418,9 +3418,9 @@
 
         const initHeader = new Uint8Array([0x40, frameBlobs.length, 25]); // CMD_LIVE_VID_INIT
         await safeBleWrite(charStream, initHeader, false);
-        await new Promise(r => setTimeout(r, 25));
+        await new Promise(r => setTimeout(r, 20));
 
-        const CHUNK_SIZE = 180;
+        const CHUNK_SIZE = 240;
         for (let fIdx = 0; fIdx < frameBlobs.length; fIdx++) {
           const fBytes = frameBlobs[fIdx];
           const totalLen = fBytes.length;
@@ -3433,8 +3433,9 @@
           fHeader[3] = totalLen & 0xFF;
           fHeader.set(fBytes.subarray(0, firstPayloadLen), 4);
 
+          // Write frame header with response to guarantee clean frame boundary sync
           await safeBleWrite(charStream, fHeader, false);
-          await new Promise(r => setTimeout(r, 10));
+          await new Promise(r => setTimeout(r, 8));
 
           let offset = firstPayloadLen;
           while (offset < totalLen) {
@@ -3443,9 +3444,9 @@
             const chunkPacket = new Uint8Array(1 + chunkData.length);
             chunkPacket[0] = 0x42; // CMD_LIVE_VID_CHUNK
             chunkPacket.set(chunkData, 1);
-            await safeBleWrite(charStream, chunkPacket, false);
+            await safeBleWrite(charStream, chunkPacket, true);
             offset = end;
-            await new Promise(r => setTimeout(r, 8));
+            await new Promise(r => setTimeout(r, 5));
           }
 
           const pct = 30 + Math.round(((fIdx + 1) / frameBlobs.length) * 65);

@@ -99,13 +99,10 @@ size_t   streamBytesReceived = 0;
 size_t   expectedStreamBytes = 0;
 bool     newMediaFrameReady  = false;
 
-// 25 FPS Video / GIF Dynamic Stream Pool
-#define MAX_VIDEO_FRAMES 32
-#define VIDEO_POOL_MAX_SIZE 102400
-uint8_t* pVideoPool          = nullptr;
-size_t   videoPoolWriteOffset = 0;
-size_t   frameOffsets[MAX_VIDEO_FRAMES];
-size_t   frameLengths[MAX_VIDEO_FRAMES];
+// 25 FPS Video / GIF Dynamic Stream Engine (LittleFS Flash Backed)
+File     liveVideoWriteFile;
+File     liveVideoReadFile;
+uint8_t  streamVideoFrameBuf[12288];
 int      totalVideoFrames     = 0;
 int      currentVideoFrame    = 0;
 uint8_t  videoTargetFps       = 25;
@@ -733,66 +730,71 @@ class StreamCallback : public NimBLECharacteristicCallbacks {
         // -------------------------------------------------------------
         if (opcode == 0x40 && len >= 3) {
             totalVideoFrames = bytes[1];
-            if (totalVideoFrames > MAX_VIDEO_FRAMES) totalVideoFrames = MAX_VIDEO_FRAMES;
             videoTargetFps = bytes[2] > 0 ? bytes[2] : 25;
-            videoPoolWriteOffset = 0;
             currentVideoFrame = 0;
             isVideoPlaying = false;
             incomingFrameIdx = -1;
-            memset(frameOffsets, 0, sizeof(frameOffsets));
-            memset(frameLengths, 0, sizeof(frameLengths));
 
-            if (!pVideoPool) pVideoPool = (uint8_t*)malloc(VIDEO_POOL_MAX_SIZE);
-            Serial.printf("[STREAM] Live Video Init: %d frames @ %d FPS (Pool Allocated)\n", totalVideoFrames, videoTargetFps);
+            if (liveVideoReadFile) liveVideoReadFile.close();
+            if (liveVideoWriteFile) liveVideoWriteFile.close();
+            LittleFS.remove("/live_video.bin");
+            liveVideoWriteFile = LittleFS.open("/live_video.bin", "w");
+            if (liveVideoWriteFile) {
+                liveVideoWriteFile.write(totalVideoFrames);
+                liveVideoWriteFile.write(videoTargetFps);
+            }
+            Serial.printf("[STREAM] Live Video Init: %d frames @ %d FPS (Writing to LittleFS)...\n", totalVideoFrames, videoTargetFps);
             return;
         }
 
-        if (opcode == 0x41 && len >= 4 && pVideoPool) {
+        if (opcode == 0x41 && len >= 4 && liveVideoWriteFile) {
             incomingFrameIdx = bytes[1];
             incomingFrameExpected = (bytes[2] << 8) | bytes[3];
             incomingFrameReceived = 0;
 
-            if (incomingFrameIdx < MAX_VIDEO_FRAMES && (videoPoolWriteOffset + incomingFrameExpected) <= VIDEO_POOL_MAX_SIZE) {
-                frameOffsets[incomingFrameIdx] = videoPoolWriteOffset;
-                frameLengths[incomingFrameIdx] = 0;
-                if (len > 4) {
-                    size_t payload = len - 4;
-                    memcpy(pVideoPool + videoPoolWriteOffset, bytes + 4, payload);
-                    videoPoolWriteOffset += payload;
-                    incomingFrameReceived += payload;
-                }
-                if (incomingFrameReceived >= incomingFrameExpected) {
-                    frameLengths[incomingFrameIdx] = incomingFrameExpected;
-                    incomingFrameIdx = -1;
-                }
+            liveVideoWriteFile.write(bytes[2]); // hi len
+            liveVideoWriteFile.write(bytes[3]); // lo len
+
+            if (len > 4) {
+                size_t payload = len - 4;
+                liveVideoWriteFile.write(bytes + 4, payload);
+                incomingFrameReceived += payload;
+            }
+            if (incomingFrameReceived >= incomingFrameExpected) {
+                incomingFrameIdx = -1;
             }
             return;
         }
 
-        if (opcode == 0x42 && len > 1 && incomingFrameIdx >= 0 && pVideoPool) {
+        if (opcode == 0x42 && len > 1 && incomingFrameIdx >= 0 && liveVideoWriteFile) {
             size_t payload = len - 1;
-            if (videoPoolWriteOffset + payload <= VIDEO_POOL_MAX_SIZE) {
-                memcpy(pVideoPool + videoPoolWriteOffset, bytes + 1, payload);
-                videoPoolWriteOffset += payload;
-                incomingFrameReceived += payload;
-                if (incomingFrameReceived >= incomingFrameExpected) {
-                    frameLengths[incomingFrameIdx] = incomingFrameExpected;
-                    incomingFrameIdx = -1;
-                }
+            liveVideoWriteFile.write(bytes + 1, payload);
+            incomingFrameReceived += payload;
+            if (incomingFrameReceived >= incomingFrameExpected) {
+                incomingFrameIdx = -1;
             }
             return;
         }
 
         if (opcode == 0x43) {
-            isVideoPlaying = true;
-            currentVideoFrame = 0;
-            currentMode = MODE_STREAM_MEDIA;
-            streamStartTime = millis();
-            lastVideoFrameTime = millis();
-            lastActivityTime = millis();
-            if (pCharMode) { pCharMode->setValue(std::string("5")); pCharMode->notify(); }
-            if (pCharSet) { pCharSet->setValue(std::string("STREAM:VIDEO_OK")); pCharSet->notify(); }
-            Serial.printf("[STREAM] Live Video Playback Started (%d frames @ %d FPS)!\n", totalVideoFrames, videoTargetFps);
+            if (liveVideoWriteFile) liveVideoWriteFile.close();
+            if (liveVideoReadFile) liveVideoReadFile.close();
+
+            liveVideoReadFile = LittleFS.open("/live_video.bin", "r");
+            if (liveVideoReadFile) {
+                liveVideoReadFile.seek(2); // Skip header to frame 0
+                currentVideoFrame = 0;
+                isVideoPlaying = true;
+                currentMode = MODE_STREAM_MEDIA;
+                streamStartTime = millis();
+                lastVideoFrameTime = millis();
+                lastActivityTime = millis();
+                if (pCharMode) { pCharMode->setValue(std::string("5")); pCharMode->notify(); }
+                if (pCharSet) { pCharSet->setValue(std::string("STREAM:VIDEO_OK")); pCharSet->notify(); }
+                Serial.printf("[STREAM] Live Video Playback Started from LittleFS (%d frames @ %d FPS)!\n", totalVideoFrames, videoTargetFps);
+            } else {
+                Serial.println("[STREAM] Error: Failed to open /live_video.bin for reading!");
+            }
             return;
         }
 
@@ -1938,15 +1940,28 @@ void loop() {
         }
 
         case MODE_STREAM_MEDIA: {
-            if (isVideoPlaying && totalVideoFrames > 0 && pVideoPool) {
+            if (isVideoPlaying && totalVideoFrames > 0 && liveVideoReadFile) {
                 uint32_t now = millis();
                 uint32_t frameInterval = 1000 / videoTargetFps;
                 if (now - lastVideoFrameTime >= frameInterval) {
                     lastVideoFrameTime = now;
-                    if (frameLengths[currentVideoFrame] > 0) {
-                        uint8_t* fData = pVideoPool + frameOffsets[currentVideoFrame];
-                        size_t fLen = frameLengths[currentVideoFrame];
-                        canvas.drawJpg(fData, fLen, 0, 0, 240, 240);
+                    if (liveVideoReadFile.available() < 2) {
+                        liveVideoReadFile.seek(2); // Rewind back to frame 0
+                        currentVideoFrame = 0;
+                    }
+                    if (liveVideoReadFile.available() >= 2) {
+                        uint8_t hi = liveVideoReadFile.read();
+                        uint8_t lo = liveVideoReadFile.read();
+                        size_t fLen = (hi << 8) | lo;
+                        if (fLen > 0 && fLen <= sizeof(streamVideoFrameBuf) && fLen <= (size_t)liveVideoReadFile.available()) {
+                            size_t bytesRead = liveVideoReadFile.read(streamVideoFrameBuf, fLen);
+                            if (bytesRead == fLen) {
+                                canvas.drawJpg(streamVideoFrameBuf, fLen, 0, 0, 240, 240);
+                            }
+                        } else {
+                            liveVideoReadFile.seek(2);
+                            currentVideoFrame = 0;
+                        }
                     }
                     currentVideoFrame = (currentVideoFrame + 1) % totalVideoFrames;
                 }
