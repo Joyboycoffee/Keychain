@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>DIGI KEYCHAIN // CONTROL TERMINAL</title>
   <style>
     :root {
@@ -48,10 +48,16 @@
       -webkit-tap-highlight-color: transparent;
     }
 
-    body {
+    html, body {
+      width: 100%;
+      max-width: 100vw;
+      overflow-x: hidden;
       background-color: var(--bg);
       color: var(--beige-main);
-      padding: 12px;
+    }
+
+    body {
+      padding: 10px;
       display: flex;
       justify-content: center;
       min-height: 100vh;
@@ -65,8 +71,9 @@
       width: 100%;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 10px;
       padding-bottom: 75px;
+      min-width: 0;
     }
 
     body.view-desktop .app-container {
@@ -78,8 +85,16 @@
       display: none !important;
     }
 
+    body.view-desktop .tabs-bar {
+      display: flex !important;
+    }
+
     body.view-mobile .tabs-bar {
       display: none !important;
+    }
+
+    body.view-mobile .mobile-nav {
+      display: flex !important;
     }
 
     @media (min-width: 920px) {
@@ -111,43 +126,40 @@
       align-items: center;
       background: var(--surface);
       border: 1px solid var(--border);
-      padding: 10px 14px;
+      padding: 8px 12px;
       border-radius: 4px;
       position: sticky;
       top: 0;
       z-index: 100;
+      width: 100%;
     }
 
     .brand {
       display: flex;
       align-items: center;
       gap: 8px;
+      min-width: 0;
     }
 
     .brand-title {
-      font-size: 0.92rem;
+      font-size: 0.88rem;
       font-weight: 700;
-      letter-spacing: 1.5px;
+      letter-spacing: 1.2px;
       color: var(--beige-light);
       display: flex;
       align-items: center;
       gap: 6px;
+      white-space: nowrap;
     }
 
     .brand-badge {
-      font-size: 0.65rem;
+      font-size: 0.62rem;
       background: var(--surface-raised);
       border: 1px solid var(--border-accent);
       color: var(--beige-muted);
       padding: 1px 5px;
       border-radius: 2px;
       letter-spacing: 0.5px;
-    }
-
-    .header-actions {
-      display: flex;
-      align-items: center;
-      gap: 6px;
     }
 
     .view-mode-selector {
@@ -157,6 +169,7 @@
       border-radius: 3px;
       padding: 2px;
       gap: 2px;
+      flex-shrink: 0;
     }
 
     .view-btn {
@@ -177,7 +190,163 @@
       color: var(--bg);
     }
 
-    /* HARDWARE TOUCH SENSOR HUD */
+    /* DUAL HUD CAPSULE GRID */
+    .hud-capsule-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 8px;
+      width: 100%;
+    }
+
+    @media (max-width: 600px) {
+      .hud-capsule-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .hud-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 10px 12px;
+      position: relative;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    .hud-card::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: var(--accent);
+      opacity: 0.7;
+    }
+
+    .hud-card-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .hud-card-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--beige-light);
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .hud-card-meta {
+      font-size: 0.66rem;
+      color: var(--beige-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .meta-sep { color: var(--beige-dim); font-size: 0.6rem; }
+
+    .hud-tag {
+      font-size: 0.6rem;
+      padding: 1px 5px;
+      border-radius: 2px;
+      background: var(--surface-raised);
+      border: 1px solid var(--border-accent);
+      color: var(--accent);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    /* CRAZY SLEEK CYBERPUNK BATTERY CELL GAUGE */
+    .battery-meter-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .bat-cell-wrapper {
+      display: flex;
+      align-items: center;
+      position: relative;
+    }
+
+    .bat-housing {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      background: #060709;
+      border: 1px solid var(--border-accent);
+      border-radius: 3px;
+      padding: 3px 4px;
+      height: 22px;
+      box-shadow: inset 0 0 6px rgba(0,0,0,0.8);
+    }
+
+    .bat-terminal {
+      width: 3px;
+      height: 10px;
+      background: var(--border-accent);
+      border-radius: 0 2px 2px 0;
+      margin-left: -1px;
+    }
+
+    .bat-segment {
+      width: 6px;
+      height: 14px;
+      background: #151820;
+      border-radius: 1px;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .bat-segment.active {
+      background: var(--accent);
+      box-shadow: 0 0 6px var(--accent-glow);
+    }
+
+    .bat-segment.active.low {
+      background: var(--red) !important;
+      box-shadow: 0 0 6px rgba(223, 115, 93, 0.4) !important;
+      animation: pulse-low 1.4s infinite alternate;
+    }
+
+    .bat-segment.charging {
+      animation: cyber-charge 1.6s infinite ease-in-out;
+    }
+
+    .bat-segment:nth-child(1).charging { animation-delay: 0.1s; }
+    .bat-segment:nth-child(2).charging { animation-delay: 0.25s; }
+    .bat-segment:nth-child(3).charging { animation-delay: 0.4s; }
+    .bat-segment:nth-child(4).charging { animation-delay: 0.55s; }
+    .bat-segment:nth-child(5).charging { animation-delay: 0.7s; }
+    .bat-segment:nth-child(6).charging { animation-delay: 0.85s; }
+
+    @keyframes cyber-charge {
+      0%, 100% { background: #151820; box-shadow: none; }
+      50% { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    }
+
+    @keyframes pulse-low {
+      0% { opacity: 0.4; }
+      100% { opacity: 1; }
+    }
+
+    /* HARDWARE TOUCH SENSOR TACTICAL HUD */
     .touch-hud {
       display: flex;
       align-items: center;
@@ -186,8 +355,22 @@
       border: 1px solid var(--border);
       border-radius: 4px;
       padding: 8px 12px;
-      font-size: 0.75rem;
+      position: relative;
+      overflow: hidden;
       transition: all 0.2s ease;
+      width: 100%;
+      min-width: 0;
+    }
+
+    .touch-hud::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: var(--cyan);
+      opacity: 0.7;
     }
 
     .touch-hud.active {
@@ -196,21 +379,45 @@
       box-shadow: 0 0 10px var(--accent-glow);
     }
 
-    .touch-hud-label {
-      font-size: 0.68rem;
+    .touch-hud.active::before {
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+    }
+
+    .touch-hud-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .touch-hud-title {
+      font-size: 0.76rem;
       font-weight: 700;
-      color: var(--beige-muted);
-      text-transform: uppercase;
-      letter-spacing: 1px;
+      color: var(--beige-light);
+      letter-spacing: 0.8px;
       display: flex;
       align-items: center;
       gap: 6px;
+      white-space: nowrap;
     }
 
-    .touch-hud-label svg {
+    .touch-hud-title svg {
       width: 14px;
       height: 14px;
       stroke: var(--accent);
+      flex-shrink: 0;
+    }
+
+    .touch-hud-meta {
+      font-size: 0.65rem;
+      color: var(--beige-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     /* TABS */
@@ -221,12 +428,13 @@
       border-radius: 4px;
       overflow-x: auto;
       scrollbar-width: none;
+      width: 100%;
     }
     .tabs-bar::-webkit-scrollbar { display: none; }
 
     .tab-btn {
       flex: 1;
-      min-width: 90px;
+      min-width: 80px;
       padding: 10px 8px;
       background: transparent;
       color: var(--beige-muted);
@@ -252,7 +460,7 @@
       background: var(--surface-raised);
     }
 
-    .tab-content { display: none; flex-direction: column; gap: 12px; }
+    .tab-content { display: none; flex-direction: column; gap: 10px; width: 100%; min-width: 0; }
     .tab-content.active { display: flex; }
 
     /* CARDS */
@@ -260,10 +468,13 @@
       background-color: var(--surface);
       border: 1px solid var(--border);
       border-radius: 4px;
-      padding: 14px;
+      padding: 12px 14px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 10px;
+      width: 100%;
+      min-width: 0;
+      overflow: hidden;
     }
 
     .card-header {
@@ -273,26 +484,31 @@
       border-bottom: 1px solid var(--border);
       padding-bottom: 8px;
       margin-bottom: 2px;
+      min-width: 0;
+      gap: 6px;
     }
 
     .card-title {
-      font-size: 0.78rem;
+      font-size: 0.76rem;
       font-weight: 700;
-      letter-spacing: 1px;
+      letter-spacing: 0.8px;
       color: var(--beige-light);
       text-transform: uppercase;
       display: flex;
       align-items: center;
       gap: 6px;
+      white-space: nowrap;
+      min-width: 0;
     }
 
-    .card-title svg { width: 14px; height: 14px; stroke: var(--accent); fill: none; stroke-width: 2; }
+    .card-title svg { width: 14px; height: 14px; stroke: var(--accent); fill: none; stroke-width: 2; flex-shrink: 0; }
 
     /* TELEMETRY GRID & STAT TILES */
     .telemetry-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
       gap: 8px;
+      width: 100%;
     }
 
     @media (min-width: 600px) {
@@ -305,26 +521,35 @@
       background: var(--bg);
       border: 1px solid var(--border);
       border-radius: 3px;
-      padding: 10px;
+      padding: 9px 10px;
       display: flex;
       flex-direction: column;
       gap: 4px;
+      min-width: 0;
+      overflow: hidden;
     }
 
     .stat-label {
-      font-size: 0.65rem;
+      font-size: 0.63rem;
       color: var(--beige-dim);
       text-transform: uppercase;
-      letter-spacing: 1px;
+      letter-spacing: 0.8px;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      gap: 4px;
     }
 
     .stat-value {
-      font-size: 0.95rem;
+      font-size: 0.92rem;
       font-weight: 700;
       color: var(--beige-light);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .badge {
@@ -333,10 +558,12 @@
       gap: 4px;
       padding: 2px 6px;
       border-radius: 2px;
-      font-size: 0.68rem;
+      font-size: 0.65rem;
       font-weight: 700;
       letter-spacing: 0.5px;
       text-transform: uppercase;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
 
     .badge-ok { background: var(--green-bg); color: var(--green); border: 1px solid var(--green); }
@@ -348,19 +575,27 @@
     /* ACTION BUTTONS */
     .btn-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
       gap: 8px;
+      width: 100%;
+    }
+
+    @media (max-width: 480px) {
+      .btn-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 6px;
+      }
     }
 
     button {
       background: var(--surface-raised);
       color: var(--beige-main);
       border: 1px solid var(--border);
-      padding: 10px 12px;
+      padding: 9px 10px;
       border-radius: 3px;
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       font-weight: 700;
-      letter-spacing: 0.8px;
+      letter-spacing: 0.6px;
       text-transform: uppercase;
       cursor: pointer;
       display: inline-flex;
@@ -369,6 +604,8 @@
       gap: 6px;
       transition: all 0.12s;
       user-select: none;
+      min-width: 0;
+      white-space: nowrap;
     }
 
     button:hover {
@@ -382,7 +619,7 @@
       background: var(--border-accent);
     }
 
-    button svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
+    button svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; flex-shrink: 0; }
 
     .btn-primary {
       background: var(--accent);
@@ -411,12 +648,14 @@
       border: 1px solid var(--border);
       color: var(--beige-main);
       font-weight: 600;
-      font-size: 0.75rem;
-      padding: 10px 8px;
+      font-size: 0.72rem;
+      padding: 9px 8px;
       border-radius: 3px;
       cursor: pointer;
       text-align: center;
       transition: all 0.15s ease;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .btn-opt.active {
@@ -434,7 +673,7 @@
     .context-panel.active {
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 10px;
     }
 
     /* FORMS & SLIDERS */
@@ -445,7 +684,7 @@
     }
 
     label {
-      font-size: 0.68rem;
+      font-size: 0.66rem;
       font-weight: 700;
       color: var(--beige-muted);
       text-transform: uppercase;
@@ -454,17 +693,21 @@
 
     .text-input-wrap {
       display: flex;
-      gap: 8px;
+      gap: 6px;
+      width: 100%;
+      min-width: 0;
     }
 
     input[type="text"], input[type="number"], input[type="password"] {
       width: 100%;
+      min-width: 0;
+      flex: 1;
       background: var(--bg);
       border: 1px solid var(--border);
-      padding: 9px 10px;
+      padding: 8px 10px;
       border-radius: 3px;
       color: var(--beige-light);
-      font-size: 0.78rem;
+      font-size: 0.75rem;
       font-family: var(--font-mono);
       outline: none;
     }
@@ -477,7 +720,14 @@
     .checkbox-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 8px;
+      gap: 6px;
+      width: 100%;
+    }
+
+    @media (max-width: 480px) {
+      .checkbox-grid {
+        grid-template-columns: 1fr;
+      }
     }
 
     .checkbox-row {
@@ -490,6 +740,7 @@
       border-radius: 3px;
       cursor: pointer;
       user-select: none;
+      min-width: 0;
     }
 
     .checkbox-row input[type="checkbox"] {
@@ -497,25 +748,30 @@
       width: 14px;
       height: 14px;
       cursor: pointer;
+      flex-shrink: 0;
     }
 
     .checkbox-row label {
       cursor: pointer;
       color: var(--beige-main);
-      font-size: 0.72rem;
+      font-size: 0.70rem;
       margin: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .slider-wrap {
       display: flex;
       flex-direction: column;
       gap: 6px;
+      width: 100%;
     }
 
     .slider-head {
       display: flex;
       justify-content: space-between;
-      font-size: 0.72rem;
+      font-size: 0.70rem;
       color: var(--beige-muted);
     }
 
@@ -545,6 +801,8 @@
       overflow-x: auto;
       padding-bottom: 4px;
       scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+      width: 100%;
     }
     .emoji-row::-webkit-scrollbar { display: none; }
 
@@ -552,8 +810,8 @@
       background: var(--bg);
       border: 1px solid var(--border);
       border-radius: 3px;
-      padding: 6px 12px;
-      font-size: 1.15rem;
+      padding: 5px 10px;
+      font-size: 1.1rem;
       cursor: pointer;
       flex-shrink: 0;
       transition: all 0.12s;
@@ -574,6 +832,7 @@
       border-radius: 2px;
       overflow: hidden;
       display: none;
+      width: 100%;
     }
 
     .progress-bar {
@@ -589,12 +848,13 @@
       background: #050608;
       border: 1px solid var(--border);
       border-radius: 3px;
-      padding: 10px 12px;
-      font-size: 0.72rem;
+      padding: 8px 10px;
+      font-size: 0.70rem;
       color: var(--green);
-      max-height: 110px;
+      max-height: 95px;
       overflow-y: auto;
-      line-height: 1.45;
+      line-height: 1.4;
+      word-break: break-all;
     }
 
     /* MOBILE NAV */
@@ -607,16 +867,17 @@
       background: var(--surface);
       border-top: 1px solid var(--border);
       z-index: 100;
-      padding: 4px;
+      padding: 4px 6px;
+      padding-bottom: max(4px, env(safe-area-inset-bottom));
     }
 
     .nav-item {
       flex: 1;
-      padding: 8px 2px;
+      padding: 7px 2px;
       background: transparent;
       border: none;
       color: var(--beige-dim);
-      font-size: 0.62rem;
+      font-size: 0.60rem;
       font-weight: 700;
       letter-spacing: 0.5px;
       display: flex;
@@ -654,7 +915,7 @@
 
   <div class="app-container">
 
-    <!-- HEADER -->
+    <!-- HEADER (CLEAN, MINIMAL, ZERO CLUTTER) -->
     <header class="header">
       <div class="brand">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2">
@@ -663,28 +924,86 @@
         <div class="brand-title">DIGI KEYCHAIN <span class="brand-badge">ESP32-C3</span></div>
       </div>
       
-      <div class="header-actions">
-        <div id="batteryPill" class="badge badge-warn">⚡ 4.2V</div>
-        <div id="statusBadge" class="badge badge-alert">OFFLINE</div>
-        <button id="btnConnect" class="btn-primary" style="padding:4px 10px; font-size:0.68rem;" onclick="connectBLE()">
-          <svg viewBox="0 0 24 24"><path d="M6.5 6.5l11 11L12 23V1l5.5 5.5-11 11"/></svg>
-          PAIR
-        </button>
-        <div class="view-mode-selector">
-          <button class="view-btn active" id="btn-mode-auto" onclick="setViewMode('auto')">AUTO</button>
-          <button class="view-btn" id="btn-mode-mobile" onclick="setViewMode('mobile')">PHONE</button>
-          <button class="view-btn" id="btn-mode-desktop" onclick="setViewMode('desktop')">PC</button>
-        </div>
+      <div class="view-mode-selector">
+        <button class="view-btn active" id="btn-mode-auto" onclick="setViewMode('auto')">AUTO</button>
+        <button class="view-btn" id="btn-mode-mobile" onclick="setViewMode('mobile')">PHONE</button>
+        <button class="view-btn" id="btn-mode-desktop" onclick="setViewMode('desktop')">PC</button>
       </div>
     </header>
 
+    <!-- DUAL HUD PODS: BLE COMM LINK & POWER MATRIX -->
+    <div class="hud-capsule-grid">
+      
+      <!-- POD 1: BLE LINK & PAIRING CONTROL -->
+      <div class="hud-card">
+        <div class="hud-card-info">
+          <div class="hud-card-title">
+            <span>BLE LINK</span>
+            <span id="statusBadge" class="badge badge-alert">OFFLINE</span>
+          </div>
+          <div class="hud-card-meta">
+            <span id="hud-conn-name">DIGI_KEYCHAIN</span>
+            <span class="meta-sep">|</span>
+            <span>GATT READY</span>
+            <span class="meta-sep">|</span>
+            <span class="text-accent">2.4GHz</span>
+          </div>
+        </div>
+        <button id="btnConnect" class="btn-primary" style="padding:6px 14px; font-size:0.72rem;" onclick="connectBLE()">
+          <svg viewBox="0 0 24 24"><path d="M6.5 6.5l11 11L12 23V1l5.5 5.5-11 11"/></svg>
+          PAIR
+        </button>
+      </div>
+
+      <!-- POD 2: POWER MATRIX & STEPPED BATTERY GAUGE -->
+      <div class="hud-card">
+        <div class="hud-card-info">
+          <div class="hud-card-title">
+            <span id="hud-bat-voltage">4.20 V</span>
+            <span class="hud-tag" id="hud-bat-status">ON BATTERY</span>
+          </div>
+          <div class="hud-card-meta">
+            <span id="hud-bat-pct" class="text-accent">100%</span>
+            <span class="meta-sep">|</span>
+            <span id="hud-bat-type">1S LI-ION</span>
+            <span class="meta-sep">|</span>
+            <span id="hud-bat-sub">LOG ACTIVE</span>
+          </div>
+        </div>
+        <!-- CRAZY SLEEK STEPPED CYBERPUNK BATTERY GAUGE -->
+        <div class="battery-meter-container" title="Cyberpunk Battery Cell Gauge">
+          <div class="bat-cell-wrapper">
+            <div class="bat-housing">
+              <div class="bat-segment active" id="bseg-1"></div>
+              <div class="bat-segment active" id="bseg-2"></div>
+              <div class="bat-segment active" id="bseg-3"></div>
+              <div class="bat-segment active" id="bseg-4"></div>
+              <div class="bat-segment active" id="bseg-5"></div>
+              <div class="bat-segment active" id="bseg-6"></div>
+            </div>
+            <div class="bat-terminal"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
     <!-- HARDWARE TOUCH SENSOR TACTICAL HUD -->
     <div id="touchBanner" class="touch-hud">
-      <div class="touch-hud-label">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M4.93 19.07L19.07 4.93"/>
-        </svg>
-        <span>HARDWARE TOUCH SENSOR</span>
+      <div class="touch-hud-info">
+        <div class="touch-hud-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M4.93 19.07L19.07 4.93"/>
+          </svg>
+          <span>HARDWARE TOUCH SENSOR</span>
+        </div>
+        <div class="touch-hud-meta">
+          <span>PIN 04</span>
+          <span class="meta-sep">|</span>
+          <span>SMART DEBOUNCE</span>
+          <span class="meta-sep">|</span>
+          <span>10S SLEEP TOGGLE</span>
+        </div>
       </div>
       <strong id="touchText" class="badge badge-cyan">[ IDLE ]</strong>
     </div>
@@ -713,7 +1032,7 @@
       </button>
     </nav>
 
-    <main style="display:flex; flex-direction:column; gap:12px;">
+    <main style="display:flex; flex-direction:column; gap:10px; width:100%; min-width:0;">
       
       <!-- TAB 1: MODES & MASCOTS -->
       <section id="tabMascots" class="tab-content active">
@@ -725,7 +1044,7 @@
               <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
               SYSTEM MODE
             </div>
-            <div style="font-size:0.65rem; color:var(--beige-dim);">5-Tap Gesture Switch</div>
+            <div style="font-size:0.63rem; color:var(--beige-dim);">5-Tap Gesture Switch</div>
           </div>
           <div class="btn-grid">
             <button class="btn-opt active" id="modeBtn0" onclick="setMode(0)">
@@ -752,16 +1071,16 @@
           <div class="card-header">
             <div class="card-title">
               <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/></svg>
-              CYBERPET REACTION AVATARS
+              CYBERPET AVATARS
             </div>
             <div class="badge badge-warn">DOUBLE-TAP: NEXT</div>
           </div>
           <div class="btn-grid">
             <button class="btn-opt active" id="emoBtn0" onclick="setEmotion(0)">🏴‍☠️ Luffy</button>
             <button class="btn-opt" id="emoBtn1" onclick="setEmotion(1)">👉👈 Shy Love</button>
-            <button class="btn-opt" id="emoBtn2" onclick="setEmotion(2)">🐱 Giggling Cat</button>
+            <button class="btn-opt" id="emoBtn2" onclick="setEmotion(2)">🐱 Giggling</button>
             <button class="btn-opt" id="emoBtn3" onclick="setEmotion(3)">🍌 Sad Banana</button>
-            <button class="btn-opt" id="emoBtn4" onclick="setEmotion(4)">😭 Umaru Cry</button>
+            <button class="btn-opt" id="emoBtn4" onclick="setEmotion(4)">😭 Cry Baby</button>
             <button class="btn-opt" id="emoBtn5" onclick="setEmotion(5)">😾 Angry Cat</button>
             <button class="btn-opt" id="emoBtn6" onclick="setEmotion(6)">🐰 Bunny</button>
           </div>
@@ -776,7 +1095,7 @@
           <div class="card-header">
             <div class="card-title">
               <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/></svg>
-              ROBOT EYES MOODS & STYLES
+              ROBOT EYES MOODS
             </div>
             <div class="badge badge-cyan">DOUBLE-TAP: NEXT</div>
           </div>
@@ -805,14 +1124,14 @@
           <label>HUD LAYOUT STYLE</label>
           <div class="btn-grid">
             <button class="btn-opt active" id="hudLayBtn0" onclick="setHudLayout(0)">⚡ Full HUD</button>
-            <button class="btn-opt" id="hudLayBtn1" onclick="setHudLayout(1)">⏰ Big Clock & Date</button>
-            <button class="btn-opt" id="hudLayBtn2" onclick="setHudLayout(2)">📟 Minimal Dashboard</button>
+            <button class="btn-opt" id="hudLayBtn1" onclick="setHudLayout(1)">⏰ Big Clock</button>
+            <button class="btn-opt" id="hudLayBtn2" onclick="setHudLayout(2)">📟 Dashboard</button>
           </div>
 
           <label>CUSTOM HUD BANNER TEXT</label>
           <div class="text-input-wrap">
             <input type="text" id="txtHudMessage" value="JOYBOY // SYS_ONLINE" maxlength="24" placeholder="Enter HUD banner text...">
-            <button class="btn-primary" onclick="sendHudCustomText()">
+            <button class="btn-primary" style="flex-shrink:0;" onclick="sendHudCustomText()">
               <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
               SYNC
             </button>
@@ -821,7 +1140,7 @@
           <label class="text-accent">2-SECOND HOLD SECRET / SHY MESSAGE</label>
           <div class="text-input-wrap">
             <input type="text" id="txtHudShyMessage" value="I LOVE YOU ❤️" maxlength="24" placeholder="Enter 2s hold secret message...">
-            <button class="btn-opt" style="background:var(--magenta-bg); color:var(--magenta); border-color:var(--magenta);" onclick="sendHudShyText()">
+            <button class="btn-opt" style="background:var(--magenta-bg); color:var(--magenta); border-color:var(--magenta); flex-shrink:0;" onclick="sendHudShyText()">
               <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
               SYNC SHY
             </button>
@@ -854,11 +1173,11 @@
           <div style="display:flex; gap:8px;">
             <button class="btn-opt" style="flex:1;" onclick="syncTimeAndWeather()">
               <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              SYNC TIME & DATE
+              SYNC TIME
             </button>
             <button class="btn-primary" style="flex:1;" onclick="saveAsDefault()">
               <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-              SET AS DEFAULT
+              SET DEFAULT
             </button>
           </div>
         </div>
@@ -891,32 +1210,32 @@
               <svg viewBox="0 0 24 24"><path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M4.93 19.07L19.07 4.93"/></svg>
               HARDWARE TOUCH GESTURE GUIDE
             </div>
-            <div style="font-size:0.65rem; color:var(--beige-dim);">ESP32-C3 CAPACITIVE ENGINE</div>
+            <div style="font-size:0.63rem; color:var(--beige-dim);">ESP32-C3 TOUCH ENGINE</div>
           </div>
           <div class="telemetry-grid">
             <div class="stat-tile">
-              <div class="stat-label">SINGLE TAP <span class="badge badge-cyan">INTERACTIVE</span></div>
-              <div class="stat-value" style="font-size:0.75rem;">Poke Avatar / Glance HUD / Rain Burst</div>
+              <div class="stat-label">SINGLE TAP <span class="badge badge-cyan">POKE</span></div>
+              <div class="stat-value" style="font-size:0.72rem;">Poke Avatar / Glance HUD / Burst</div>
             </div>
             <div class="stat-tile">
-              <div class="stat-label">DOUBLE TAP <span class="badge badge-warn">SUB-OPTION</span></div>
-              <div class="stat-value" style="font-size:0.75rem;">Next Avatar / Mood / HUD Layout / Theme</div>
+              <div class="stat-label">DOUBLE TAP <span class="badge badge-warn">CYCLE</span></div>
+              <div class="stat-value" style="font-size:0.72rem;">Next Avatar / Mood / Layout / Theme</div>
             </div>
             <div class="stat-tile">
-              <div class="stat-label">5 QUICK TAPS <span class="badge badge-ok">MODE SWITCH</span></div>
-              <div class="stat-value" style="font-size:0.75rem;">Pet ➔ Robot ➔ CyberHUD ➔ Matrix</div>
+              <div class="stat-label">5 QUICK TAPS <span class="badge badge-ok">MODE</span></div>
+              <div class="stat-value" style="font-size:0.72rem;">Pet ➔ Robot ➔ HUD ➔ Matrix</div>
             </div>
             <div class="stat-tile">
-              <div class="stat-label">2-SECOND HOLD <span class="badge badge-mag">SHY / LOVE</span></div>
-              <div class="stat-value" style="font-size:0.75rem;">Secret Love Reaction (Reverts in 5s)</div>
+              <div class="stat-label">2-SEC HOLD <span class="badge badge-mag">SHY LOVE</span></div>
+              <div class="stat-value" style="font-size:0.72rem;">Secret Reaction (Reverts in 5s)</div>
             </div>
             <div class="stat-tile">
-              <div class="stat-label">10S HOLD + RELEASE <span class="badge badge-ok">POWER / BLE</span></div>
-              <div class="stat-value" style="font-size:0.75rem;">BLE Radio ON / Deep Sleep Toggle</div>
+              <div class="stat-label">10S HOLD + REL <span class="badge badge-ok">POWER</span></div>
+              <div class="stat-value" style="font-size:0.72rem;">BLE Radio ON / Deep Sleep</div>
             </div>
             <div class="stat-tile">
-              <div class="stat-label">HOLD &gt; 14S <span class="badge badge-alert">NOISE REJECT</span></div>
-              <div class="stat-value" style="font-size:0.75rem;">Table Contact Cancel / Safety Reset</div>
+              <div class="stat-label">HOLD &gt; 14S <span class="badge badge-alert">CANCEL</span></div>
+              <div class="stat-value" style="font-size:0.72rem;">Noise Rejection / Safety Reset</div>
             </div>
           </div>
         </div>
@@ -939,7 +1258,7 @@
           <div class="btn-grid">
             <button class="btn-opt active" id="bootBtn0" onclick="setBootType(0)">☕ Joyboy</button>
             <button class="btn-opt" id="bootBtn1" onclick="setBootType(1)">🖼️ Custom Pic</button>
-            <button class="btn-opt" id="bootBtn2" onclick="setBootType(2)">🎞️ Custom Video</button>
+            <button class="btn-opt" id="bootBtn2" onclick="setBootType(2)">🎞️ Video</button>
             <button class="btn-opt" id="bootBtn3" onclick="setBootType(3)">⚡ Instant</button>
           </div>
 
@@ -979,7 +1298,7 @@
           <div class="card-header">
             <div class="card-title">
               <svg viewBox="0 0 24 24"><rect x="1" y="6" width="18" height="12" rx="2"/><line x1="23" y1="10" x2="23" y2="14"/></svg>
-              BATTERY DISCHARGE & RUNTIME TRACKER
+              BATTERY RUNTIME TRACKER
             </div>
             <button class="btn-opt" style="padding:4px 8px; font-size:0.7rem;" onclick="fetchBatteryLog()">
               <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
@@ -993,39 +1312,39 @@
               <div class="stat-value" id="logLastRun" style="color:var(--cyan);">--</div>
             </div>
             <div class="stat-tile">
-              <div class="stat-label">VOLTAGE DROP</div>
+              <div class="stat-label">VOLT DROP</div>
               <div class="stat-value" id="logLastVolt" style="color:var(--amber);">--</div>
             </div>
             <div class="stat-tile">
-              <div class="stat-label">DISCHARGE RATE</div>
+              <div class="stat-label">DISCHARGE</div>
               <div class="stat-value" id="logDischargeRate" style="color:var(--red);">--</div>
             </div>
             <div class="stat-tile">
-              <div class="stat-label">SESSION UPTIME</div>
+              <div class="stat-label">UPTIME</div>
               <div class="stat-value" id="logCurRun" style="color:var(--green);">0s</div>
             </div>
             <div class="stat-tile">
-              <div class="stat-label">CURRENT VOLTAGE</div>
+              <div class="stat-label">CUR VOLTAGE</div>
               <div class="stat-value" id="logCurVolt">--</div>
             </div>
             <div class="stat-tile">
-              <div class="stat-label">LIFETIME UPTIME</div>
+              <div class="stat-label">LIFETIME</div>
               <div class="stat-value" id="logAllTime" style="color:var(--magenta);">--</div>
             </div>
             <div class="stat-tile">
-              <div class="stat-label">RECORDED CYCLES</div>
+              <div class="stat-label">CYCLES</div>
               <div class="stat-value" id="logCycles">--</div>
             </div>
             <div class="stat-tile">
-              <div class="stat-label">FLASH LOG SYNC</div>
-              <div class="stat-value text-accent" style="font-size:0.75rem;">AUTO ON SLEEP</div>
+              <div class="stat-label">LOG SYNC</div>
+              <div class="stat-value text-accent" style="font-size:0.72rem;">FLASH SAVED</div>
             </div>
           </div>
 
           <div style="display:flex; gap:8px;">
             <button class="btn-opt" style="flex:1;" onclick="fetchBatteryLog()">
               <svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-              READ ESP FLASH LOG
+              READ FLASH LOG
             </button>
             <button class="btn-danger" style="flex:1;" onclick="resetBatteryLog()">
               <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
@@ -1039,7 +1358,7 @@
           <div class="card-header">
             <div class="card-title">
               <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-              POWER MANAGEMENT & FLASH MEMORY
+              POWER & FLASH MEMORY
             </div>
           </div>
 
@@ -1054,7 +1373,7 @@
             </button>
           </div>
 
-          <div style="font-size:0.68rem; color:var(--beige-dim); line-height:1.4;">
+          <div style="font-size:0.66rem; color:var(--beige-dim); line-height:1.4;">
             💡 Single tap wakes from deep sleep (200ms flash). 10s hold wakes with BLE radio enabled.
           </div>
 
@@ -1069,7 +1388,7 @@
           <div class="card-header">
             <div class="card-title">
               <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/></svg>
-              SCREEN ORIENTATION & BRIGHTNESS
+              ORIENTATION & BRIGHTNESS
             </div>
           </div>
 
@@ -1125,18 +1444,18 @@
 
           <div class="text-input-wrap">
             <input type="text" id="txtMessage" value="JOY BOY COFFEE ☕ 🔥" placeholder="Enter marquee text...">
-            <button class="btn-primary" onclick="sendCustomText()">
+            <button class="btn-primary" style="flex-shrink:0;" onclick="sendCustomText()">
               <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
               SEND
             </button>
           </div>
 
           <div class="card-header" style="margin-top:4px;">
-            <div class="card-title" style="font-size:0.72rem; color:var(--beige-muted);">
+            <div class="card-title" style="font-size:0.70rem; color:var(--beige-muted);">
               <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/></svg>
-              32 VECTOR EMOJI PALETTE (TAP TO INSERT)
+              32 VECTOR EMOJI PALETTE
             </div>
-            <div style="font-size:0.65rem; color:var(--beige-dim);">Direct Keyboard Emojis Supported</div>
+            <div style="font-size:0.62rem; color:var(--beige-dim);">Direct Emojis Supported</div>
           </div>
 
           <label>POPULAR & REACTIONS</label>
@@ -1196,13 +1515,13 @@
           </div>
 
           <div class="btn-grid">
-            <label class="btn-opt" style="text-align:center; padding:14px;">
+            <label class="btn-opt" style="text-align:center; padding:12px;">
               <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
               STREAM STATIC IMAGE
               <input type="file" accept="image/*" style="display:none;" onchange="uploadLiveImage(event)">
             </label>
 
-            <label class="btn-primary" style="text-align:center; padding:14px;">
+            <label class="btn-primary" style="text-align:center; padding:12px;">
               <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
               STREAM 25 FPS VIDEO / GIF
               <input type="file" accept="video/*,image/gif" style="display:none;" onchange="uploadLiveVideo(event)">
@@ -1218,7 +1537,7 @@
       <!-- LIVE TERMINAL CONSOLE -->
       <div class="card" style="padding:10px;">
         <div class="card-header" style="padding-bottom:4px; margin-bottom:6px;">
-          <div class="card-title" style="font-size:0.72rem;">
+          <div class="card-title" style="font-size:0.70rem;">
             <svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
             LIVE CONSOLE
           </div>
@@ -1308,6 +1627,7 @@
     }
 
     function toggleCheckbox(id) {
+      vibrate();
       const cb = document.getElementById(id);
       if (cb) {
         cb.checked = !cb.checked;
@@ -1337,6 +1657,41 @@
       vibrate();
       const term = document.getElementById('terminal');
       if (term) term.innerHTML = `> Console cleared.`;
+    }
+
+    function updateBatteryHUD(voltage, pct, isUsb) {
+      const vElem = document.getElementById('hud-bat-voltage');
+      const statElem = document.getElementById('hud-bat-status');
+      const pctElem = document.getElementById('hud-bat-pct');
+      const typeElem = document.getElementById('hud-bat-type');
+
+      if (vElem) vElem.innerText = isUsb ? `5.00 V` : `${voltage} V`;
+      if (pctElem) pctElem.innerText = isUsb ? `USB PWR` : `${pct}%`;
+      if (statElem) {
+        statElem.innerText = isUsb ? `USB CHARGING` : `ON BATTERY`;
+        statElem.className = isUsb ? `hud-tag text-accent` : `hud-tag`;
+      }
+      if (typeElem) typeElem.innerText = isUsb ? `5V BUS` : `1S LI-ION`;
+
+      const numPct = parseInt(pct) || 0;
+      const activeSegments = Math.max(0, Math.min(6, Math.round((numPct / 100) * 6)));
+      for (let i = 1; i <= 6; i++) {
+        const seg = document.getElementById(`bseg-${i}`);
+        if (seg) {
+          if (isUsb) {
+            seg.className = 'bat-segment active charging';
+          } else {
+            if (i <= activeSegments) {
+              seg.className = numPct <= 15 ? 'bat-segment active low' : 'bat-segment active';
+            } else {
+              seg.className = 'bat-segment';
+            }
+          }
+        }
+      }
+
+      const cv = document.getElementById('logCurVolt');
+      if (cv) cv.innerText = isUsb ? `5.0V (USB Powered)` : `${voltage}V (${pct}%)`;
     }
 
     async function connectBLE() {
@@ -1399,13 +1754,7 @@
               const v = parts[0];
               const pct = parts[1];
               const usb = parts[2] === '1';
-              const badge = document.getElementById('batteryPill');
-              if (badge) {
-                badge.innerText = usb ? `⚡ USB (${v}V)` : `🔋 ${v}V (${pct}%)`;
-                badge.className = usb ? "badge badge-ok" : "badge badge-warn";
-              }
-              const cv = document.getElementById('logCurVolt');
-              if (cv) cv.innerText = usb ? `5.0V (USB Powered)` : `${v}V (${pct}%)`;
+              updateBatteryHUD(v, pct, usb);
             }
           });
         }
@@ -1423,6 +1772,9 @@
           sb.className = "badge badge-ok";
         }
         document.getElementById('btnConnect').innerText = "CONNECTED";
+        const connName = document.getElementById('hud-conn-name');
+        if (connName) connName.innerText = bleDevice.name || "CONNECTED";
+
         log("✅ Online! Telemetry & controls active.");
 
         syncTimeAndWeather();
@@ -1446,6 +1798,9 @@
         sb.className = "badge badge-alert";
       }
       document.getElementById('btnConnect').innerText = "PAIR";
+      const connName = document.getElementById('hud-conn-name');
+      if (connName) connName.innerText = "DISCONNECTED";
+
       const tb = document.getElementById('touchBanner');
       const tt = document.getElementById('touchText');
       if (tb) tb.className = "touch-hud";
