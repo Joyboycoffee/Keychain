@@ -111,6 +111,7 @@ int      currentVideoFrame    = 0;
 uint8_t  videoTargetFps       = 25;
 bool     isVideoPlaying       = false;
 uint32_t lastVideoFrameTime   = 0;
+uint32_t streamStartTime      = 0;
 int      incomingFrameIdx     = -1;
 size_t   incomingFrameExpected= 0;
 size_t   incomingFrameReceived= 0;
@@ -146,11 +147,13 @@ class ServerCallbacks : public NimBLEServerCallbacks {
     void onConnect(NimBLEServer* pServer) override {
         bleConnected = true;
         lastActivityTime = millis();
+        updateBatteryTelemetry();
         Serial.printf("\n[BLE] Client Connected! Free Heap: %u bytes\n", (unsigned int)ESP.getFreeHeap());
     }
     void onConnect(NimBLEServer* pServer, ble_gap_conn_desc* desc) override {
         bleConnected = true;
         lastActivityTime = millis();
+        updateBatteryTelemetry();
         Serial.printf("\n[BLE] Client Connected (desc)! Free Heap: %u bytes\n", (unsigned int)ESP.getFreeHeap());
     }
     void onDisconnect(NimBLEServer* pServer) override {
@@ -602,6 +605,7 @@ class StreamCallback : public NimBLECharacteristicCallbacks {
             if (expectedStreamBytes > 0 && streamBytesReceived >= expectedStreamBytes) {
                 newMediaFrameReady = true;
                 currentMode = MODE_STREAM_MEDIA;
+                streamStartTime = millis();
                 lastActivityTime = millis();
                 if (pCharMode) { pCharMode->setValue(std::string("5")); pCharMode->notify(); }
                 if (pCharSet) { pCharSet->setValue(std::string("STREAM:IMAGE_OK")); pCharSet->notify(); }
@@ -619,6 +623,7 @@ class StreamCallback : public NimBLECharacteristicCallbacks {
             if (streamBytesReceived >= expectedStreamBytes) {
                 newMediaFrameReady = true;
                 currentMode = MODE_STREAM_MEDIA;
+                streamStartTime = millis();
                 lastActivityTime = millis();
                 if (pCharMode) { pCharMode->setValue(std::string("5")); pCharMode->notify(); }
                 if (pCharSet) { pCharSet->setValue(std::string("STREAM:IMAGE_OK")); pCharSet->notify(); }
@@ -782,6 +787,7 @@ class StreamCallback : public NimBLECharacteristicCallbacks {
             isVideoPlaying = true;
             currentVideoFrame = 0;
             currentMode = MODE_STREAM_MEDIA;
+            streamStartTime = millis();
             lastVideoFrameTime = millis();
             lastActivityTime = millis();
             if (pCharMode) { pCharMode->setValue(std::string("5")); pCharMode->notify(); }
@@ -964,9 +970,8 @@ void stopBLE(bool notifyVisual) {
         bleConnected = false;
     }
     blinkDebugLed(1, 40); // Quick 40ms pulse
-    setCpuFrequencyMhz(80); // Scale CPU clock down to 80 MHz to save power
     if (notifyVisual) triggerTouchVisual("BLE OFF 💤", 0x8410, 1500, "BLE:OFFLINE");
-    Serial.println("[BLE] BLE Radio Deactivated! Standby mode. CPU @ 80MHz.");
+    Serial.println("[BLE] BLE Radio Deactivated! Standby mode.");
 }
 
 // =========================================================================
@@ -1355,7 +1360,6 @@ void enterDeepSleep() {
         if (NimBLEDevice::getServer()) {
             NimBLEDevice::getServer()->disconnect(0);
         }
-        setCpuFrequencyMhz(80);
     }
 
     // Smooth 1.5s fade out animation to pitch black
@@ -1429,10 +1433,9 @@ void playBootSplash() {
                 canvas.pushSprite(0, 0);
                 free(buf);
                 fadeInBrightness(screenBrightness, 700);
-                if (bootDurationSec > 0) {
-                    uint32_t rem = bootDurationSec * 1000 > 700 ? (bootDurationSec * 1000 - 700) : 0;
-                    if (rem > 0) delay(rem);
-                }
+                uint32_t holdMs = bootDurationSec * 1000;
+                if (holdMs < 2500) holdMs = 2500; // Minimum 2.5s hold duration for splash and preview
+                delay(holdMs);
                 return;
             }
             f.close();
@@ -1452,7 +1455,7 @@ void playBootSplash() {
             uint8_t* fBuf = (uint8_t*)malloc(16384);
             uint32_t startAnim = millis();
             uint32_t totalDurMs = bootDurationSec * 1000;
-            if (totalDurMs < 1000) totalDurMs = 2000; // Minimum 2 seconds
+            if (totalDurMs < 2500) totalDurMs = 2500; // Minimum 2.5 seconds hold
             uint32_t endTime = millis() + totalDurMs;
 
             while (millis() < endTime) {
@@ -1718,13 +1721,13 @@ void setup() {
     pAdv->setScanResponse(true);
     pAdv->addServiceUUID(SERVICE_UUID);
 
-    // Initial Startup: BLE starts in STANDBY (Radio OFF, CPU @ 80MHz to save max power)
+    // Initial Startup: BLE starts in STANDBY (Radio OFF)
     // Bluetooth only turns ON when user holds touch button for 10 seconds!
     bleActive = false;
     bleConnected = false;
-    setCpuFrequencyMhz(80);
+    setCpuFrequencyMhz(160); // Stable 160MHz CPU & bus frequency
     digitalWrite(PIN_DEBUG_LED, HIGH); // Ensure LED is OFF
-    Serial.printf("[BLE] Stack initialized in STANDBY (Radio OFF, CPU @ 80MHz). Hold touch for 10s to activate.\n");
+    Serial.printf("[BLE] Stack initialized in STANDBY (Radio OFF, CPU @ 160MHz). Hold touch for 10s to activate.\n");
 
     // 4. Cold Boot Splash vs Deep Sleep Wakeup (with smooth 0.7s fade-in)
     if (wakeupReason == ESP_SLEEP_WAKEUP_UNDEFINED) {
@@ -1788,12 +1791,27 @@ void loop() {
         enterDeepSleep();
     }
 
-    // Periodic Battery Telemetry & Flash Log Update (every 20 seconds)
+    // Battery Telemetry & Flash Log Update (Fast 2.5s when BLE connected, 20s when disconnected)
     static uint32_t lastBatCheck = 0;
-    if (millis() - lastBatCheck >= 20000) {
+    uint32_t batInterval = isConnected ? 2500 : 20000;
+    if (millis() - lastBatCheck >= batInterval) {
         lastBatCheck = millis();
         updateBatteryTelemetry();
         saveBatteryDischargeLog();
+    }
+
+    // 15-Second Media Stream Auto-Revert back to default mascot
+    if (currentMode == MODE_STREAM_MEDIA && streamStartTime > 0 && (millis() - streamStartTime >= 15000)) {
+        currentMode = defaultMode;
+        isVideoPlaying = false;
+        newMediaFrameReady = false;
+        streamStartTime = 0;
+        if (pCharMode) {
+            char mChar[2] = { (char)('0' + (int)defaultMode), '\0' };
+            pCharMode->setValue(std::string(mChar));
+            pCharMode->notify();
+        }
+        Serial.printf("[STREAM] 15s elapsed -> Auto-reverted to default mode (%d)\n", (int)defaultMode);
     }
 
     // =========================================================================

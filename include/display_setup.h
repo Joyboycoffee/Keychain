@@ -50,7 +50,7 @@ public:
             auto cfg = _light_instance.config();
             cfg.pin_bl = PIN_TFT_BL; // GPIO 2
             cfg.invert = false;
-            cfg.freq   = 44100;
+            cfg.freq   = 5000;      // 5kHz solid flicker-free PWM
             cfg.pwm_channel = 0;
             _light_instance.config(cfg);
             _panel_instance.setLight(&_light_instance);
