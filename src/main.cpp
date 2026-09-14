@@ -877,7 +877,6 @@ void triggerEasterEgg() {
     easterEggScrollX = 240;
     lastActivityTime = millis();
     isVideoPlaying = false;
-    blinkDebugLed(3, 40); // 3 quick celebratory LED pulses
     triggerTouchVisual("EASTER EGG! 🎉", 0xF81F, easterEggDurationMs, "EASTER:UNLOCKED");
     Serial.printf("[EASTER EGG] Unlocked! -> %s\n", easterEggMessage.c_str());
 }
@@ -1341,8 +1340,8 @@ void enterDeepSleep() {
     // Smooth 1.5s fade out animation to pitch black
     fadeOutBrightness(1500);
 
-    // Distinct longer 200ms single flash to signal power-down before sleeping
-    blinkDebugLed(1, 200);
+    // Keep blue LED completely OFF during power down / sleep
+    digitalWrite(PIN_DEBUG_LED, HIGH);
 
     // Wait until touch sensor is completely released before sleeping!
     // Require pin to be continuously LOW for at least 250ms
