@@ -3093,7 +3093,7 @@
         
         const frameCount = Math.min(totalFrames, maxFrames);
         const step = totalFrames / frameCount;
-        log(`GIF contains ${totalFrames} frames. Sampling ${frameCount} frames @ 25 FPS...`);
+        log(`GIF contains ${totalFrames} frames. Sampling ${frameCount} high-quality frames @ 25 FPS...`);
 
         const gifCanvas = document.createElement('canvas');
         gifCanvas.width = reader.width;
@@ -3101,20 +3101,31 @@
         const gifCtx = gifCanvas.getContext('2d');
         const cumulativePixels = new Uint8ClampedArray(reader.width * reader.height * 4);
 
+        // Precompute which frame indices we want to sample
+        const sampleIndices = new Set();
         for (let i = 0; i < frameCount; i++) {
-          const frameIdx = Math.min(Math.floor(i * step), totalFrames - 1);
-          reader.decodeAndBlitFrameRGBA(frameIdx, cumulativePixels);
-          const imgData = new ImageData(cumulativePixels, reader.width, reader.height);
-          gifCtx.putImageData(imgData, 0, 0);
+          sampleIndices.add(Math.min(Math.floor(i * step), totalFrames - 1));
+        }
 
-          ctx.fillStyle = '#000000';
-          ctx.fillRect(0, 0, 240, 240);
-          renderHighQualityCover(gifCanvas, ctx, 240, 240);
+        let sampledCount = 0;
+        // Decode frames sequentially to guarantee correct GIF disposal & delta blending
+        for (let f = 0; f < totalFrames; f++) {
+          reader.decodeAndBlitFrameRGBA(f, cumulativePixels);
+          if (sampleIndices.has(f)) {
+            const imgData = new ImageData(new Uint8ClampedArray(cumulativePixels), reader.width, reader.height);
+            gifCtx.putImageData(imgData, 0, 0);
 
-          const blob = await new Promise(r => targetCanvas.toBlob(r, 'image/jpeg', 0.45));
-          const buf = await blob.arrayBuffer();
-          frameBlobs.push(new Uint8Array(buf));
-          if (onProgress) onProgress(i + 1, frameCount);
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, 240, 240);
+            renderHighQualityCover(gifCanvas, ctx, 240, 240);
+
+            const blob = await new Promise(r => targetCanvas.toBlob(r, 'image/jpeg', 0.70));
+            const buf = await blob.arrayBuffer();
+            frameBlobs.push(new Uint8Array(buf));
+            sampledCount++;
+            if (onProgress) onProgress(sampledCount, frameCount);
+            if (sampledCount >= frameCount) break;
+          }
         }
       } else {
         log(`Parsing HTML5 video (${Math.round(file.size / 1024)} KB)...`);
@@ -3136,20 +3147,20 @@
 
         const duration = Math.min(video.duration || 1.2, 1.5);
         const frameCount = Math.min(Math.max(Math.floor(duration * 12), 6), maxFrames);
-        log(`Video duration: ${duration.toFixed(1)}s. Sampling ${frameCount} frames @ 25 FPS...`);
+        log(`Video duration: ${duration.toFixed(1)}s. Sampling ${frameCount} high-quality frames @ 25 FPS...`);
 
         for (let i = 0; i < frameCount; i++) {
           video.currentTime = (i / frameCount) * duration;
           await new Promise(r => {
             let done = false;
             video.onseeked = () => { if (!done) { done = true; r(); } };
-            setTimeout(() => { if (!done) { done = true; r(); } }, 150);
+            setTimeout(() => { if (!done) { done = true; r(); } }, 200);
           });
           ctx.fillStyle = '#000000';
           ctx.fillRect(0, 0, 240, 240);
           renderHighQualityCover(video, ctx, 240, 240);
 
-          const blob = await new Promise(r => targetCanvas.toBlob(r, 'image/jpeg', 0.45));
+          const blob = await new Promise(r => targetCanvas.toBlob(r, 'image/jpeg', 0.70));
           const buf = await blob.arrayBuffer();
           frameBlobs.push(new Uint8Array(buf));
           if (onProgress) onProgress(i + 1, frameCount);
@@ -3160,7 +3171,7 @@
     }
 
     // =========================================================================
-    // BOOT MEDIA UPLOADERS (MOBILE-OPTIMIZED 180B CHUNKING)
+    // BOOT MEDIA UPLOADERS (MOBILE-OPTIMIZED OP-CODE CHUNKING)
     // =========================================================================
     async function uploadBootImage(e) {
       const file = e.target.files[0];
@@ -3202,22 +3213,24 @@
         log(`Prepared 240x240 HD Boot JPEG (${totalLen} bytes). Writing to flash...`);
 
         const CHUNK_SIZE = 180;
-        const firstPayloadLen = Math.min(CHUNK_SIZE - 4, totalLen);
-        const header = new Uint8Array(4 + firstPayloadLen);
-        header[0] = 0xAA;
-        header[1] = 0x99;
-        header[2] = (totalLen >> 8) & 0xFF;
-        header[3] = totalLen & 0xFF;
-        header.set(bytes.subarray(0, firstPayloadLen), 4);
+        const firstPayloadLen = Math.min(CHUNK_SIZE - 3, totalLen);
+        const header = new Uint8Array(3 + firstPayloadLen);
+        header[0] = 0x20; // CMD_BOOT_IMG_START
+        header[1] = (totalLen >> 8) & 0xFF;
+        header[2] = totalLen & 0xFF;
+        header.set(bytes.subarray(0, firstPayloadLen), 3);
 
         await safeBleWrite(charStream, header, true);
         await new Promise(r => setTimeout(r, 25));
 
         let offset = firstPayloadLen;
         while (offset < totalLen) {
-          const end = Math.min(offset + CHUNK_SIZE, totalLen);
-          const chunk = bytes.subarray(offset, end);
-          await safeBleWrite(charStream, chunk, true);
+          const end = Math.min(offset + (CHUNK_SIZE - 1), totalLen);
+          const chunkData = bytes.subarray(offset, end);
+          const chunkPacket = new Uint8Array(1 + chunkData.length);
+          chunkPacket[0] = 0x21; // CMD_BOOT_IMG_CHUNK
+          chunkPacket.set(chunkData, 1);
+          await safeBleWrite(charStream, chunkPacket, true);
           offset = end;
           const pct = Math.round((offset / totalLen) * 100);
           if (progressBar) progressBar.style.width = `${pct}%`;
@@ -3256,8 +3269,8 @@
           if (progressBar) progressBar.style.width = `${Math.round((cur / total) * 30)}%`;
         });
 
-        log(`Uploading ${frameBlobs.length} boot animation frames to flash...`);
-        const initHeader = new Uint8Array([0xBB, 0x99, frameBlobs.length, 20]);
+        log(`Uploading ${frameBlobs.length} crisp boot animation frames to flash...`);
+        const initHeader = new Uint8Array([0x30, frameBlobs.length, 20]); // CMD_BOOT_VID_INIT
         await safeBleWrite(charStream, initHeader, true);
         await new Promise(r => setTimeout(r, 40));
 
@@ -3266,23 +3279,25 @@
           const fBytes = frameBlobs[fIdx];
           const totalLen = fBytes.length;
 
-          const firstPayloadLen = Math.min(CHUNK_SIZE - 5, totalLen);
-          const fHeader = new Uint8Array(5 + firstPayloadLen);
-          fHeader[0] = 0xCC;
-          fHeader[1] = 0x99;
-          fHeader[2] = fIdx;
-          fHeader[3] = (totalLen >> 8) & 0xFF;
-          fHeader[4] = totalLen & 0xFF;
-          fHeader.set(fBytes.subarray(0, firstPayloadLen), 5);
+          const firstPayloadLen = Math.min(CHUNK_SIZE - 4, totalLen);
+          const fHeader = new Uint8Array(4 + firstPayloadLen);
+          fHeader[0] = 0x31; // CMD_BOOT_VID_FRAME
+          fHeader[1] = fIdx;
+          fHeader[2] = (totalLen >> 8) & 0xFF;
+          fHeader[3] = totalLen & 0xFF;
+          fHeader.set(fBytes.subarray(0, firstPayloadLen), 4);
 
           await safeBleWrite(charStream, fHeader, true);
           await new Promise(r => setTimeout(r, 15));
 
           let offset = firstPayloadLen;
           while (offset < totalLen) {
-            const end = Math.min(offset + CHUNK_SIZE, totalLen);
-            const chunk = fBytes.subarray(offset, end);
-            await safeBleWrite(charStream, chunk, true);
+            const end = Math.min(offset + (CHUNK_SIZE - 1), totalLen);
+            const chunkData = fBytes.subarray(offset, end);
+            const chunkPacket = new Uint8Array(1 + chunkData.length);
+            chunkPacket[0] = 0x32; // CMD_BOOT_VID_CHUNK
+            chunkPacket.set(chunkData, 1);
+            await safeBleWrite(charStream, chunkPacket, true);
             offset = end;
             await new Promise(r => setTimeout(r, 12));
           }
@@ -3291,7 +3306,7 @@
           if (progressBar) progressBar.style.width = `${pct}%`;
         }
 
-        const finishHeader = new Uint8Array([0xDD, 0x99]);
+        const finishHeader = new Uint8Array([0x33]); // CMD_BOOT_VID_FIN
         await safeBleWrite(charStream, finishHeader, true);
 
         if (progressBar) progressBar.style.width = '100%';
@@ -3350,22 +3365,24 @@
         log(`Prepared 240x240 HD JPEG (${totalLen} bytes). Streaming to screen...`);
 
         const CHUNK_SIZE = 180;
-        const firstPayloadLen = Math.min(CHUNK_SIZE - 4, totalLen);
-        const header = new Uint8Array(4 + firstPayloadLen);
-        header[0] = 0xAA;
-        header[1] = 0x55;
-        header[2] = (totalLen >> 8) & 0xFF;
-        header[3] = totalLen & 0xFF;
-        header.set(bytes.subarray(0, firstPayloadLen), 4);
+        const firstPayloadLen = Math.min(CHUNK_SIZE - 3, totalLen);
+        const header = new Uint8Array(3 + firstPayloadLen);
+        header[0] = 0x10; // CMD_LIVE_IMG_START
+        header[1] = (totalLen >> 8) & 0xFF;
+        header[2] = totalLen & 0xFF;
+        header.set(bytes.subarray(0, firstPayloadLen), 3);
 
         await safeBleWrite(charStream, header, true);
         await new Promise(r => setTimeout(r, 20));
 
         let offset = firstPayloadLen;
         while (offset < totalLen) {
-          const end = Math.min(offset + CHUNK_SIZE, totalLen);
-          const chunk = bytes.subarray(offset, end);
-          await safeBleWrite(charStream, chunk, true);
+          const end = Math.min(offset + (CHUNK_SIZE - 1), totalLen);
+          const chunkData = bytes.subarray(offset, end);
+          const chunkPacket = new Uint8Array(1 + chunkData.length);
+          chunkPacket[0] = 0x11; // CMD_LIVE_IMG_CHUNK
+          chunkPacket.set(chunkData, 1);
+          await safeBleWrite(charStream, chunkPacket, true);
           offset = end;
           const pct = Math.round((offset / totalLen) * 100);
           if (progressBar) progressBar.style.width = `${pct}%`;
@@ -3404,9 +3421,9 @@
         });
 
         let totalBytes = frameBlobs.reduce((acc, f) => acc + f.length, 0);
-        log(`Extracted ${frameBlobs.length} frames (total size: ${totalBytes} bytes). Streaming over BLE @ 25 FPS...`);
+        log(`Extracted ${frameBlobs.length} crisp frames (total size: ${totalBytes} bytes). Streaming over BLE @ 25 FPS...`);
 
-        const initHeader = new Uint8Array([0xBB, 0x66, frameBlobs.length, 25]);
+        const initHeader = new Uint8Array([0x40, frameBlobs.length, 25]); // CMD_LIVE_VID_INIT
         await safeBleWrite(charStream, initHeader, true);
         await new Promise(r => setTimeout(r, 30));
 
@@ -3415,23 +3432,25 @@
           const fBytes = frameBlobs[fIdx];
           const totalLen = fBytes.length;
 
-          const firstPayloadLen = Math.min(CHUNK_SIZE - 5, totalLen);
-          const fHeader = new Uint8Array(5 + firstPayloadLen);
-          fHeader[0] = 0xCC;
-          fHeader[1] = 0x77;
-          fHeader[2] = fIdx;
-          fHeader[3] = (totalLen >> 8) & 0xFF;
-          fHeader[4] = totalLen & 0xFF;
-          fHeader.set(fBytes.subarray(0, firstPayloadLen), 5);
+          const firstPayloadLen = Math.min(CHUNK_SIZE - 4, totalLen);
+          const fHeader = new Uint8Array(4 + firstPayloadLen);
+          fHeader[0] = 0x41; // CMD_LIVE_VID_FRAME
+          fHeader[1] = fIdx;
+          fHeader[2] = (totalLen >> 8) & 0xFF;
+          fHeader[3] = totalLen & 0xFF;
+          fHeader.set(fBytes.subarray(0, firstPayloadLen), 4);
 
           await safeBleWrite(charStream, fHeader, true);
           await new Promise(r => setTimeout(r, 15));
 
           let offset = firstPayloadLen;
           while (offset < totalLen) {
-            const end = Math.min(offset + CHUNK_SIZE, totalLen);
-            const chunk = fBytes.subarray(offset, end);
-            await safeBleWrite(charStream, chunk, true);
+            const end = Math.min(offset + (CHUNK_SIZE - 1), totalLen);
+            const chunkData = fBytes.subarray(offset, end);
+            const chunkPacket = new Uint8Array(1 + chunkData.length);
+            chunkPacket[0] = 0x42; // CMD_LIVE_VID_CHUNK
+            chunkPacket.set(chunkData, 1);
+            await safeBleWrite(charStream, chunkPacket, true);
             offset = end;
             await new Promise(r => setTimeout(r, 12));
           }
@@ -3441,7 +3460,7 @@
           log(`Frame ${fIdx + 1}/${frameBlobs.length} sent (${totalLen} B)...`);
         }
 
-        const playHeader = new Uint8Array([0xDD, 0x88]);
+        const playHeader = new Uint8Array([0x43]); // CMD_LIVE_VID_PLAY
         await safeBleWrite(charStream, playHeader, true);
 
         if (progressBar) progressBar.style.width = '100%';

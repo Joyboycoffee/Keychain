@@ -93,15 +93,15 @@ uint32_t easterEggDurationMs = 60000;
 int      easterEggScrollX    = 240;
 
 // Dynamic Image / Video Stream Buffers
-#define STREAM_CHUNK_BUFFER 20480
+#define STREAM_CHUNK_BUFFER 32768
 uint8_t* pStreamBuf          = nullptr;
 size_t   streamBytesReceived = 0;
 size_t   expectedStreamBytes = 0;
 bool     newMediaFrameReady  = false;
 
 // 25 FPS Video / GIF Dynamic Stream Pool
-#define MAX_VIDEO_FRAMES 30
-#define VIDEO_POOL_MAX_SIZE 65000
+#define MAX_VIDEO_FRAMES 32
+#define VIDEO_POOL_MAX_SIZE 102400
 uint8_t* pVideoPool          = nullptr;
 size_t   videoPoolWriteOffset = 0;
 size_t   frameOffsets[MAX_VIDEO_FRAMES];
@@ -567,8 +567,218 @@ class StreamCallback : public NimBLECharacteristicCallbacks {
 
         const uint8_t* bytes = (const uint8_t*)data.data();
         size_t len = data.length();
+        uint8_t opcode = bytes[0];
 
-        // 1. Single Live Image Header: 0xAA 0x55 [len_hi] [len_lo]
+        // -------------------------------------------------------------
+        // 1. LIVE SINGLE IMAGE PROTOCOL (0x10 = Start, 0x11 = Data Chunk)
+        // -------------------------------------------------------------
+        if (opcode == 0x10 && len >= 3) {
+            expectedStreamBytes = (bytes[1] << 8) | bytes[2];
+            streamBytesReceived = 0;
+            newMediaFrameReady = false;
+            isVideoPlaying = false;
+            if (!pStreamBuf) pStreamBuf = (uint8_t*)malloc(STREAM_CHUNK_BUFFER);
+            if (pStreamBuf && len > 3) {
+                size_t payload = len - 3;
+                if (payload <= STREAM_CHUNK_BUFFER) {
+                    memcpy(pStreamBuf, bytes + 3, payload);
+                    streamBytesReceived = payload;
+                }
+            }
+            if (expectedStreamBytes > 0 && streamBytesReceived >= expectedStreamBytes) {
+                newMediaFrameReady = true;
+                currentMode = MODE_STREAM_MEDIA;
+                lastActivityTime = millis();
+                if (pCharMode) { pCharMode->setValue(std::string("5")); pCharMode->notify(); }
+                if (pCharSet) { pCharSet->setValue(std::string("STREAM:IMAGE_OK")); pCharSet->notify(); }
+                Serial.printf("[STREAM] Single Image ready (%d bytes)!\n", (int)streamBytesReceived);
+            }
+            return;
+        }
+
+        if (opcode == 0x11 && len > 1 && expectedStreamBytes > 0 && pStreamBuf) {
+            size_t payload = len - 1;
+            if (streamBytesReceived + payload <= STREAM_CHUNK_BUFFER) {
+                memcpy(pStreamBuf + streamBytesReceived, bytes + 1, payload);
+                streamBytesReceived += payload;
+            }
+            if (streamBytesReceived >= expectedStreamBytes) {
+                newMediaFrameReady = true;
+                currentMode = MODE_STREAM_MEDIA;
+                lastActivityTime = millis();
+                if (pCharMode) { pCharMode->setValue(std::string("5")); pCharMode->notify(); }
+                if (pCharSet) { pCharSet->setValue(std::string("STREAM:IMAGE_OK")); pCharSet->notify(); }
+                Serial.printf("[STREAM] Single Image upload complete (%d bytes)!\n", (int)streamBytesReceived);
+            }
+            return;
+        }
+
+        // -------------------------------------------------------------
+        // 2. PERSISTENT BOOT IMAGE PROTOCOL (0x20 = Start, 0x21 = Data Chunk)
+        // -------------------------------------------------------------
+        if (opcode == 0x20 && len >= 3) {
+            bootBytesExpected = (bytes[1] << 8) | bytes[2];
+            bootBytesReceived = 0;
+            bootUploadType = 1;
+            isBootUploading = true;
+            LittleFS.remove("/boot_splash.jpg");
+            bootFile = LittleFS.open("/boot_splash.jpg", "w");
+            if (bootFile && len > 3) {
+                size_t payload = len - 3;
+                bootFile.write(bytes + 3, payload);
+                bootBytesReceived += payload;
+            }
+            if (bootBytesReceived >= bootBytesExpected) {
+                if (bootFile) bootFile.close();
+                isBootUploading = false;
+                bootSplashType = BOOT_CUSTOM_IMAGE;
+                prefs.putUChar("boot_type", (uint8_t)bootSplashType);
+                Serial.printf("[LITTLEFS] Boot Image saved (%d bytes)! Previewing...\n", (int)bootBytesReceived);
+                playBootSplash();
+            }
+            return;
+        }
+
+        if (opcode == 0x21 && len > 1 && isBootUploading && bootFile) {
+            size_t payload = len - 1;
+            bootFile.write(bytes + 1, payload);
+            bootBytesReceived += payload;
+            if (bootBytesReceived >= bootBytesExpected) {
+                bootFile.close();
+                isBootUploading = false;
+                bootSplashType = BOOT_CUSTOM_IMAGE;
+                prefs.putUChar("boot_type", (uint8_t)bootSplashType);
+                Serial.printf("[LITTLEFS] Boot Image upload complete (%d bytes)! Previewing...\n", (int)bootBytesReceived);
+                playBootSplash();
+            }
+            return;
+        }
+
+        // -------------------------------------------------------------
+        // 3. PERSISTENT BOOT VIDEO / ANIMATION (0x30 = Init, 0x31 = Frame Start, 0x32 = Frame Chunk, 0x33 = Finish)
+        // -------------------------------------------------------------
+        if (opcode == 0x30 && len >= 3) {
+            bootUploadType = 2;
+            isBootUploading = true;
+            incomingFrameIdx = -1;
+            LittleFS.remove("/boot_anim.bin");
+            bootFile = LittleFS.open("/boot_anim.bin", "w");
+            if (bootFile) {
+                bootFile.write(bytes[1]); // total_frames
+                bootFile.write(bytes[2]); // fps
+            }
+            Serial.printf("[LITTLEFS] Receiving Boot Video (%d frames @ %d FPS)...\n", bytes[1], bytes[2]);
+            return;
+        }
+
+        if (opcode == 0x31 && len >= 4 && isBootUploading && bootFile) {
+            incomingFrameIdx = bytes[1];
+            incomingFrameExpected = (bytes[2] << 8) | bytes[3];
+            incomingFrameReceived = 0;
+            bootFile.write(bytes[2]); // hi len
+            bootFile.write(bytes[3]); // lo len
+            if (len > 4) {
+                size_t payload = len - 4;
+                bootFile.write(bytes + 4, payload);
+                incomingFrameReceived += payload;
+            }
+            if (incomingFrameReceived >= incomingFrameExpected) {
+                incomingFrameIdx = -1;
+            }
+            return;
+        }
+
+        if (opcode == 0x32 && len > 1 && isBootUploading && bootFile) {
+            size_t payload = len - 1;
+            bootFile.write(bytes + 1, payload);
+            incomingFrameReceived += payload;
+            if (incomingFrameReceived >= incomingFrameExpected) {
+                incomingFrameIdx = -1;
+            }
+            return;
+        }
+
+        if (opcode == 0x33) {
+            if (bootFile) bootFile.close();
+            isBootUploading = false;
+            incomingFrameIdx = -1;
+            bootSplashType = BOOT_CUSTOM_ANIM;
+            prefs.putUChar("boot_type", (uint8_t)bootSplashType);
+            Serial.println("[LITTLEFS] Boot Video Animation Saved! Previewing...");
+            playBootSplash();
+            return;
+        }
+
+        // -------------------------------------------------------------
+        // 4. LIVE VIDEO / GIF STREAM (0x40 = Init, 0x41 = Frame Start, 0x42 = Frame Chunk, 0x43 = Play)
+        // -------------------------------------------------------------
+        if (opcode == 0x40 && len >= 3) {
+            totalVideoFrames = bytes[1];
+            if (totalVideoFrames > MAX_VIDEO_FRAMES) totalVideoFrames = MAX_VIDEO_FRAMES;
+            videoTargetFps = bytes[2] > 0 ? bytes[2] : 25;
+            videoPoolWriteOffset = 0;
+            currentVideoFrame = 0;
+            isVideoPlaying = false;
+            incomingFrameIdx = -1;
+            memset(frameOffsets, 0, sizeof(frameOffsets));
+            memset(frameLengths, 0, sizeof(frameLengths));
+
+            if (!pVideoPool) pVideoPool = (uint8_t*)malloc(VIDEO_POOL_MAX_SIZE);
+            Serial.printf("[STREAM] Live Video Init: %d frames @ %d FPS (Pool Allocated)\n", totalVideoFrames, videoTargetFps);
+            return;
+        }
+
+        if (opcode == 0x41 && len >= 4 && pVideoPool) {
+            incomingFrameIdx = bytes[1];
+            incomingFrameExpected = (bytes[2] << 8) | bytes[3];
+            incomingFrameReceived = 0;
+
+            if (incomingFrameIdx < MAX_VIDEO_FRAMES && (videoPoolWriteOffset + incomingFrameExpected) <= VIDEO_POOL_MAX_SIZE) {
+                frameOffsets[incomingFrameIdx] = videoPoolWriteOffset;
+                frameLengths[incomingFrameIdx] = 0;
+                if (len > 4) {
+                    size_t payload = len - 4;
+                    memcpy(pVideoPool + videoPoolWriteOffset, bytes + 4, payload);
+                    videoPoolWriteOffset += payload;
+                    incomingFrameReceived += payload;
+                }
+                if (incomingFrameReceived >= incomingFrameExpected) {
+                    frameLengths[incomingFrameIdx] = incomingFrameExpected;
+                    incomingFrameIdx = -1;
+                }
+            }
+            return;
+        }
+
+        if (opcode == 0x42 && len > 1 && incomingFrameIdx >= 0 && pVideoPool) {
+            size_t payload = len - 1;
+            if (videoPoolWriteOffset + payload <= VIDEO_POOL_MAX_SIZE) {
+                memcpy(pVideoPool + videoPoolWriteOffset, bytes + 1, payload);
+                videoPoolWriteOffset += payload;
+                incomingFrameReceived += payload;
+                if (incomingFrameReceived >= incomingFrameExpected) {
+                    frameLengths[incomingFrameIdx] = incomingFrameExpected;
+                    incomingFrameIdx = -1;
+                }
+            }
+            return;
+        }
+
+        if (opcode == 0x43) {
+            isVideoPlaying = true;
+            currentVideoFrame = 0;
+            currentMode = MODE_STREAM_MEDIA;
+            lastVideoFrameTime = millis();
+            lastActivityTime = millis();
+            if (pCharMode) { pCharMode->setValue(std::string("5")); pCharMode->notify(); }
+            if (pCharSet) { pCharSet->setValue(std::string("STREAM:VIDEO_OK")); pCharSet->notify(); }
+            Serial.printf("[STREAM] Live Video Playback Started (%d frames @ %d FPS)!\n", totalVideoFrames, videoTargetFps);
+            return;
+        }
+
+        // -------------------------------------------------------------
+        // 5. LEGACY FALLBACK COMPATIBILITY (0xAA, 0xBB, 0xCC, 0xDD)
+        // -------------------------------------------------------------
         if (len >= 4 && bytes[0] == 0xAA && bytes[1] == 0x55) {
             expectedStreamBytes = (bytes[2] << 8) | bytes[3];
             streamBytesReceived = 0;
@@ -582,187 +792,7 @@ class StreamCallback : public NimBLECharacteristicCallbacks {
                     streamBytesReceived = payload;
                 }
             }
-            if (expectedStreamBytes > 0 && streamBytesReceived >= expectedStreamBytes) {
-                newMediaFrameReady = true;
-                currentMode = MODE_STREAM_MEDIA;
-                lastActivityTime = millis();
-                if (pCharMode) {
-                    pCharMode->setValue(std::string("5"));
-                    pCharMode->notify();
-                }
-                if (pCharSet) {
-                    pCharSet->setValue(std::string("STREAM:IMAGE_OK"));
-                    pCharSet->notify();
-                }
-                Serial.printf("[STREAM] Image ready immediately (%d bytes)!\n", (int)streamBytesReceived);
-            }
             return;
-        }
-
-        // 2. Persistent Boot Image Header: 0xAA 0x99 [len_hi] [len_lo]
-        if (len >= 4 && bytes[0] == 0xAA && bytes[1] == 0x99) {
-            bootBytesExpected = (bytes[2] << 8) | bytes[3];
-            bootBytesReceived = 0;
-            bootUploadType = 1;
-            isBootUploading = true;
-            LittleFS.remove("/boot_splash.jpg");
-            bootFile = LittleFS.open("/boot_splash.jpg", "w");
-            if (len > 4 && bootFile) {
-                size_t payload = len - 4;
-                bootFile.write(bytes + 4, payload);
-                bootBytesReceived += payload;
-            }
-            Serial.printf("[LITTLEFS] Receiving Boot Image (%d bytes)...\n", (int)bootBytesExpected);
-            return;
-        }
-
-        // 3. Persistent Boot Video Header: 0xBB 0x99 [total_frames] [fps]
-        if (len >= 4 && bytes[0] == 0xBB && bytes[1] == 0x99) {
-            bootUploadType = 2;
-            isBootUploading = true;
-            LittleFS.remove("/boot_anim.bin");
-            bootFile = LittleFS.open("/boot_anim.bin", "w");
-            if (bootFile) {
-                bootFile.write(bytes[2]); // total_frames
-                bootFile.write(bytes[3]); // fps
-            }
-            Serial.printf("[LITTLEFS] Receiving Boot Video (%d frames @ %d FPS)...\n", bytes[2], bytes[3]);
-            return;
-        }
-
-        // 4. Live Video / GIF Stream Init Header: 0xBB 0x66 [total_frames] [fps]
-        if (len >= 4 && bytes[0] == 0xBB && bytes[1] == 0x66) {
-            totalVideoFrames = bytes[2];
-            if (totalVideoFrames > MAX_VIDEO_FRAMES) totalVideoFrames = MAX_VIDEO_FRAMES;
-            videoTargetFps = bytes[3] > 0 ? bytes[3] : 25;
-            videoPoolWriteOffset = 0;
-            currentVideoFrame = 0;
-            isVideoPlaying = false;
-            incomingFrameIdx = -1;
-            
-            if (!pVideoPool) pVideoPool = (uint8_t*)malloc(VIDEO_POOL_MAX_SIZE);
-            Serial.printf("[STREAM] Video/GIF Stream Init: %d frames @ %d FPS (Buffer Allocated)\n", totalVideoFrames, videoTargetFps);
-            return;
-        }
-
-        // 5. Video Frame Header (Live or Boot): 0xCC [0x77|0x99] [frame_idx] [len_hi] [len_lo]
-        if (len >= 5 && bytes[0] == 0xCC) {
-            incomingFrameIdx = bytes[2];
-            incomingFrameExpected = (bytes[3] << 8) | bytes[4];
-            incomingFrameReceived = 0;
-
-            if (bytes[1] == 0x99 && bootFile) {
-                // Boot animation to flash
-                bootFile.write(bytes[3]);
-                bootFile.write(bytes[4]);
-                size_t payload = len - 5;
-                if (payload > 0) {
-                    bootFile.write(bytes + 5, payload);
-                    incomingFrameReceived += payload;
-                }
-            } else if (bytes[1] == 0x77 && pVideoPool) {
-                // Live video buffer
-                if (incomingFrameIdx < MAX_VIDEO_FRAMES && (videoPoolWriteOffset + incomingFrameExpected) <= VIDEO_POOL_MAX_SIZE) {
-                    frameOffsets[incomingFrameIdx] = videoPoolWriteOffset;
-                    frameLengths[incomingFrameIdx] = 0;
-                    size_t payload = len - 5;
-                    if (payload > 0) {
-                        memcpy(pVideoPool + videoPoolWriteOffset, bytes + 5, payload);
-                        videoPoolWriteOffset += payload;
-                        incomingFrameReceived += payload;
-                    }
-                    if (incomingFrameReceived >= incomingFrameExpected) {
-                        frameLengths[incomingFrameIdx] = incomingFrameExpected;
-                        incomingFrameIdx = -1;
-                    }
-                }
-            }
-            return;
-        }
-
-        // 6. Finish / Play Header: 0xDD [0x88|0x99]
-        if (len >= 2 && bytes[0] == 0xDD) {
-            if (bytes[1] == 0x99) {
-                // Finalize Boot Media Upload
-                if (bootFile) {
-                    bootFile.close();
-                }
-                isBootUploading = false;
-                bootSplashType = (bootUploadType == 1) ? BOOT_CUSTOM_IMAGE : BOOT_CUSTOM_ANIM;
-                prefs.putUChar("boot_type", (uint8_t)bootSplashType);
-                Serial.printf("[LITTLEFS] Boot Media Saved! Type=%d. Previewing...\n", (int)bootSplashType);
-                playBootSplash();
-            } else if (bytes[1] == 0x88) {
-                // Live Video Play
-                isVideoPlaying = true;
-                currentVideoFrame = 0;
-                currentMode = MODE_STREAM_MEDIA;
-                lastVideoFrameTime = millis();
-                lastActivityTime = millis();
-                if (pCharMode) {
-                    pCharMode->setValue(std::string("5"));
-                    pCharMode->notify();
-                }
-                if (pCharSet) {
-                    pCharSet->setValue(std::string("STREAM:VIDEO_OK"));
-                    pCharSet->notify();
-                }
-                Serial.printf("[STREAM] Video/GIF Playback Started (%d frames @ %d FPS)!\n", totalVideoFrames, videoTargetFps);
-            }
-            return;
-        }
-
-        // 7. Append Boot Upload Chunk
-        if (isBootUploading && bootFile) {
-            bootFile.write(bytes, len);
-            if (bootUploadType == 1) {
-                bootBytesReceived += len;
-                if (bootBytesReceived >= bootBytesExpected) {
-                    bootFile.close();
-                    isBootUploading = false;
-                    bootSplashType = BOOT_CUSTOM_IMAGE;
-                    prefs.putUChar("boot_type", (uint8_t)bootSplashType);
-                    Serial.println("[LITTLEFS] Boot Image Upload Complete! Previewing...");
-                    playBootSplash();
-                }
-            }
-            return;
-        }
-
-        // 8. Append Live Video Frame Chunk
-        if (incomingFrameIdx >= 0 && incomingFrameReceived < incomingFrameExpected && pVideoPool) {
-            if (videoPoolWriteOffset + len <= VIDEO_POOL_MAX_SIZE) {
-                memcpy(pVideoPool + videoPoolWriteOffset, bytes, len);
-                videoPoolWriteOffset += len;
-                incomingFrameReceived += len;
-                if (incomingFrameReceived >= incomingFrameExpected) {
-                    frameLengths[incomingFrameIdx] = incomingFrameExpected;
-                    incomingFrameIdx = -1;
-                }
-            }
-            return;
-        }
-
-        // 9. Append Live Single Image Chunk
-        if (expectedStreamBytes > 0 && streamBytesReceived < expectedStreamBytes && pStreamBuf) {
-            if (streamBytesReceived + len <= STREAM_CHUNK_BUFFER) {
-                memcpy(pStreamBuf + streamBytesReceived, bytes, len);
-                streamBytesReceived += len;
-            }
-            if (streamBytesReceived >= expectedStreamBytes) {
-                newMediaFrameReady = true;
-                currentMode = MODE_STREAM_MEDIA;
-                lastActivityTime = millis();
-                if (pCharMode) {
-                    pCharMode->setValue(std::string("5"));
-                    pCharMode->notify();
-                }
-                if (pCharSet) {
-                    pCharSet->setValue(std::string("STREAM:IMAGE_OK"));
-                    pCharSet->notify();
-                }
-                Serial.printf("[STREAM] Image ready (%d bytes)!\n", (int)streamBytesReceived);
-            }
         }
     }
 };
@@ -1397,21 +1427,29 @@ void playBootSplash() {
             uint32_t frameDelay = 1000 / fps;
             Serial.printf("[BOOT] Playing /boot_anim.bin (%d frames @ %d FPS)...\n", totalFrames, fps);
 
+            uint8_t* fBuf = (uint8_t*)malloc(16384);
             uint32_t startAnim = millis();
-            uint32_t endTime = millis() + (bootDurationSec * 1000);
-            while (millis() < endTime && f.available() > 2) {
+            uint32_t totalDurMs = bootDurationSec * 1000;
+            if (totalDurMs < 1000) totalDurMs = 2000; // Minimum 2 seconds
+            uint32_t endTime = millis() + totalDurMs;
+
+            while (millis() < endTime) {
                 f.seek(2);
-                for (int i = 0; i < totalFrames && f.available() > 2; i++) {
+                for (int i = 0; i < totalFrames; i++) {
+                    if (f.available() < 2) break;
                     uint8_t hi = f.read();
                     uint8_t lo = f.read();
                     size_t fLen = (hi << 8) | lo;
-                    if (fLen == 0 || fLen > 10000 || fLen > (size_t)f.available()) break;
-                    uint8_t* fBuf = (uint8_t*)malloc(fLen);
+                    if (fLen == 0 || fLen > 16384 || fLen > (size_t)f.available()) {
+                        f.seek(f.position() + fLen);
+                        continue;
+                    }
                     if (fBuf) {
-                        f.read(fBuf, fLen);
-                        canvas.drawJpg(fBuf, fLen, 0, 0, 240, 240);
-                        canvas.pushSprite(0, 0);
-                        free(fBuf);
+                        size_t bytesRead = f.read(fBuf, fLen);
+                        if (bytesRead == fLen) {
+                            canvas.drawJpg(fBuf, fLen, 0, 0, 240, 240);
+                            canvas.pushSprite(0, 0);
+                        }
                     } else {
                         f.seek(f.position() + fLen);
                     }
@@ -1425,8 +1463,10 @@ void playBootSplash() {
                         tft.setBrightness(screenBrightness);
                     }
                     delay(frameDelay);
+                    if (millis() >= endTime) break;
                 }
             }
+            if (fBuf) free(fBuf);
             tft.setBrightness(screenBrightness);
             f.close();
             return;
