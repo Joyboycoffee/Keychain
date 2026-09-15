@@ -1,24 +1,29 @@
 {
+  "id": "joyboy-keychain-pwa",
   "name": "Joyboy Keychain - Control Terminal",
   "short_name": "Keychain",
   "description": "Tactical Bluetooth Control Terminal & Stream Deck for ESP32-C3 Digi Keychain",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
+  "display_override": ["standalone", "window-controls-overlay"],
   "background_color": "#090a0c",
   "theme_color": "#090a0c",
   "orientation": "any",
+  "prefer_related_applications": false,
   "categories": ["utilities", "hardware", "productivity"],
   "icons": [
     {
       "src": "icons/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "icons/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "icons/icon-maskable-192.png",
@@ -35,7 +40,40 @@
     {
       "src": "icons/icon.svg",
       "sizes": "any",
-      "type": "image/svg+xml"
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Live Media Stream",
+      "short_name": "Stream",
+      "description": "Stream photos and video animations",
+      "url": "./index.html#tabStream",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Marquee Broadcast",
+      "short_name": "Marquee",
+      "description": "Broadcast marquee text messages",
+      "url": "./index.html#tabMarquee",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "icons/screenshot-mobile.png",
+      "sizes": "540x960",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Joyboy Keychain Mobile Deck"
+    },
+    {
+      "src": "icons/screenshot-desktop.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Joyboy Keychain Desktop Deck"
     }
   ]
 }

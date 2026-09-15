@@ -1,5 +1,5 @@
 // Joyboy Keychain Service Worker
-const CACHE_NAME = 'keychain-deck-v4.3';
+const CACHE_NAME = 'keychain-deck-v4.4';
 const ASSETS = [
   './',
   './index.html',
@@ -9,7 +9,9 @@ const ASSETS = [
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-maskable-192.png',
-  './icons/icon-maskable-512.png'
+  './icons/icon-maskable-512.png',
+  './icons/screenshot-mobile.png',
+  './icons/screenshot-desktop.png'
 ];
 
 self.addEventListener('install', (e) => {
@@ -39,7 +41,6 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
-  // Navigation request (index.html) or static assets: Network First with cache fallback
   e.respondWith(
     fetch(e.request)
       .then((networkResponse) => {

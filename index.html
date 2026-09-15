@@ -1180,17 +1180,10 @@
         <div class="brand-title">JOYBOY KEYCHAIN <span class="brand-badge">ESP32-C3</span></div>
       </div>
       
-      <div style="display:flex; align-items:center; gap:8px;">
-        <button id="btnInstallApp" class="btn-install-pwa" onclick="triggerPWAInstall()" title="Install App to Device">
-          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          <span>INSTALL APP</span>
-        </button>
-
-        <div class="view-mode-selector">
-          <button class="view-btn active" id="btn-mode-auto" onclick="setViewMode('auto')">AUTO</button>
-          <button class="view-btn" id="btn-mode-mobile" onclick="setViewMode('mobile')">PHONE</button>
-          <button class="view-btn" id="btn-mode-desktop" onclick="setViewMode('desktop')">PC</button>
-        </div>
+      <div class="view-mode-selector">
+        <button class="view-btn active" id="btn-mode-auto" onclick="setViewMode('auto')">AUTO</button>
+        <button class="view-btn" id="btn-mode-mobile" onclick="setViewMode('mobile')">PHONE</button>
+        <button class="view-btn" id="btn-mode-desktop" onclick="setViewMode('desktop')">PC</button>
       </div>
     </header>
 
@@ -1474,7 +1467,10 @@
               <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
               SECRET EASTER EGG PROMPT
             </div>
-            <div class="badge badge-mag">7-POKE UNLOCK 🎉</div>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span id="easterEggCountBadge" class="badge badge-mag" style="font-weight:700;">0 UNLOCKED 🎉</span>
+              <span class="badge badge-warn">7-POKE UNLOCK</span>
+            </div>
           </div>
           <div style="font-size:0.75rem; color:var(--beige-muted); margin-bottom:8px;">
             Configure your custom secret Easter Egg message. Rapidly tap/poke the touch sensor <b>7 times</b> to trigger this hidden prompt on the screen!
@@ -1489,9 +1485,13 @@
           </div>
 
           <div style="display:flex; gap:8px; margin-top:8px;">
-            <button class="btn-opt" style="flex:1; background:var(--magenta-bg); color:var(--magenta); border-color:var(--magenta);" onclick="testEasterEgg()">
+            <button class="btn-opt" style="flex:2; background:var(--magenta-bg); color:var(--magenta); border-color:var(--magenta);" onclick="testEasterEgg()">
               <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
               TEST EASTER EGG ON DEVICE
+            </button>
+            <button class="btn-opt" style="flex:1; border-color:var(--border-accent);" onclick="resetEasterEggCount()">
+              <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              RESET COUNT
             </button>
           </div>
         </div>
@@ -1883,6 +1883,23 @@
           </div>
         </div>
       </section>
+ 
+      <!-- PWA APP INSTALL BANNER CARD (RIGHT ABOVE LIVE CONSOLE) -->
+      <div id="installAppCard" class="card" style="padding:12px 14px; background:linear-gradient(135deg, rgba(226, 180, 106, 0.08), rgba(20, 24, 33, 0.95)); border:1px solid var(--amber);">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+          <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+            <img src="icons/icon.svg" width="36" height="36" alt="Joyboy App Icon" style="border-radius:6px; border:1px solid var(--amber); flex-shrink:0;">
+            <div style="min-width:0;">
+              <div style="font-size:0.80rem; font-weight:700; color:var(--beige-light); letter-spacing:0.8px;">JOYBOY KEYCHAIN APP</div>
+              <div style="font-size:0.65rem; color:var(--beige-muted);">Install standalone WebAPK / PWA for quick home-screen access</div>
+            </div>
+          </div>
+          <button id="btnInstallApp" class="btn-install-pwa" onclick="triggerPWAInstall()" title="Install App to Device">
+            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>INSTALL APP</span>
+          </button>
+        </div>
+      </div>
 
       <!-- LIVE TERMINAL CONSOLE -->
       <div class="card" style="padding:10px;">
@@ -2332,6 +2349,12 @@
           if (btnLTR) btnLTR.classList.toggle('active', msgDir === 1);
           if (dirVal) dirVal.innerText = (msgDir === 0) ? "RIGHT TO LEFT (←)" : "LEFT TO RIGHT (→)";
 
+          // Parse Easter Egg Counter if present (14th field)
+          if (p.length >= 15) {
+            const eggCnt = parseInt(p[14]);
+            if (!isNaN(eggCnt)) updateEasterEggCountUI(eggCnt);
+          }
+
           log(`⚙️ Synchronized settings: Brightness ${Math.round((br / 255) * 100)}%, Sleep ${sleepLabels[sleepIdx]}`);
         }
       } else if (msg === "TOUCH:POKE") {
@@ -2369,9 +2392,19 @@
         highlightEmotionUI(1);
         setTouchBanner("👉👈 CYBERPET SHY LOVE (2s HOLD)", "badge-mag", 5000);
         log("🐱 CyberPet 2s Hold -> Shy Love Avatar Active!");
-      } else if (msg === "EASTER:UNLOCKED") {
-        setTouchBanner("🎉 SECRET EASTER EGG UNLOCKED! (7 POKES)", "badge-mag", 6000);
-        log("🎉 Secret Developer Easter Egg Unlocked on Keychain!");
+      } else if (msg.startsWith("EASTER:UNLOCKED")) {
+        let eggCnt = easterEggCount + 1;
+        if (msg.includes(':') && msg.split(':').length >= 3) {
+          const parsed = parseInt(msg.split(':')[2]);
+          if (!isNaN(parsed)) eggCnt = parsed;
+        }
+        updateEasterEggCountUI(eggCnt);
+        setTouchBanner(`🎉 SECRET EASTER EGG UNLOCKED (#${eggCnt})!`, "badge-mag", 6000);
+        log(`🎉 Secret Developer Easter Egg Unlocked on Keychain! (#${eggCnt})`);
+      } else if (msg.startsWith("EGG_COUNT:")) {
+        const cnt = parseInt(msg.substring(10));
+        if (!isNaN(cnt)) updateEasterEggCountUI(cnt);
+        log(`🥚 Easter Egg trigger counter: ${cnt}`);
       } else if (msg.startsWith("TOUCH:REVERT")) {
         setTouchBanner("🔄 REVERTED (5s ELAPSED)", "badge-ok", 1500);
         log("🔄 5s elapsed -> Reverted to normal screen.");
@@ -2732,6 +2765,15 @@
       return bleWriteQueue;
     }
 
+    let easterEggCount = parseInt(localStorage.getItem('joyboy_egg_count') || '0', 10);
+
+    function updateEasterEggCountUI(count) {
+      easterEggCount = parseInt(count, 10) || 0;
+      try { localStorage.setItem('joyboy_egg_count', easterEggCount.toString()); } catch(e) {}
+      const badge = document.getElementById('easterEggCountBadge');
+      if (badge) badge.innerText = `${easterEggCount} UNLOCKED 🎉`;
+    }
+
     async function sendEasterEggMessage() {
       vibrate();
       if (!charSettings) {
@@ -2769,6 +2811,23 @@
         log(`❌ Easter Egg test error: ${err.message}`);
       }
     }
+
+    async function resetEasterEggCount() {
+      vibrate();
+      if (!confirm("Reset the secret Easter egg trigger counter to 0?")) return;
+      updateEasterEggCountUI(0);
+      if (charSettings) {
+        try {
+          const data = new TextEncoder().encode("EGG:RESET_COUNT");
+          await safeBleWrite(charSettings, data, false);
+        } catch (e) {}
+      }
+      log("🥚 Easter Egg counter reset to 0.");
+      setTouchBanner("COUNTER RESET (0) 🔄", "badge-ok", 2000);
+    }
+
+    // Initialize Easter Egg count on load
+    updateEasterEggCountUI(easterEggCount);
 
     // =========================================================================
     // MARQUEE BROADCAST CONTROLS (SPEED, SIZE, DIRECTION)
@@ -3642,12 +3701,14 @@
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredInstallPrompt = e;
+      const card = document.getElementById('installAppCard');
       const btn = document.getElementById('btnInstallApp');
+      if (card) card.style.display = 'flex';
       if (btn) {
         btn.style.display = 'inline-flex';
         btn.classList.add('ready');
       }
-      log("📲 PWA ready to install! Tap 'INSTALL APP' in header.");
+      log("📲 PWA ready to install! Tap 'INSTALL APP' above Live Console.");
     });
 
     async function triggerPWAInstall() {
@@ -3657,7 +3718,9 @@
         const { outcome } = await deferredInstallPrompt.userChoice;
         if (outcome === 'accepted') {
           log('🎉 Joyboy Keychain installed successfully!');
+          const card = document.getElementById('installAppCard');
           const btn = document.getElementById('btnInstallApp');
+          if (card) card.style.display = 'none';
           if (btn) btn.style.display = 'none';
         } else {
           log('PWA installation dismissed by user.');
@@ -3671,14 +3734,18 @@
 
     window.addEventListener('appinstalled', () => {
       log('✅ Joyboy Keychain successfully installed on device!');
+      const card = document.getElementById('installAppCard');
       const btn = document.getElementById('btnInstallApp');
+      if (card) card.style.display = 'none';
       if (btn) btn.style.display = 'none';
       closeInstallGuideModal();
     });
 
-    // Hide install button if running in standalone display mode
+    // Hide install card/button if running in standalone display mode
     if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+      const card = document.getElementById('installAppCard');
       const btn = document.getElementById('btnInstallApp');
+      if (card) card.style.display = 'none';
       if (btn) btn.style.display = 'none';
     }
 

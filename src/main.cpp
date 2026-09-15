@@ -91,6 +91,7 @@ bool     isEasterEggActive   = false;
 uint32_t easterEggStartTime  = 0;
 uint32_t easterEggDurationMs = 60000;
 int      easterEggScrollX    = 240;
+uint32_t easterEggCount      = 0;
 
 // Dynamic Image / Video Stream Buffers
 #define STREAM_CHUNK_BUFFER 32768
@@ -428,11 +429,31 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
             prefs.putString("egg_msg", easterEggMessage);
             Serial.printf("[SETTINGS] Synced Easter Egg Text: %s\n", easterEggMessage.c_str());
         }
-        // 15. Preview/Trigger Easter Egg: "EGG:TRIGGER" or "EGG:PREVIEW"
+        // 15. Easter Egg Trigger Counter Reset: "EGG:RESET_COUNT"
+        else if (cmd == "EGG:RESET_COUNT") {
+            easterEggCount = 0;
+            prefs.putUInt("egg_cnt", 0);
+            if (pCharSet) {
+                pCharSet->setValue(std::string("EGG_COUNT:0"));
+                pCharSet->notify();
+            }
+            Serial.println("[SETTINGS] Easter Egg Counter Reset to 0.");
+        }
+        // 16. Easter Egg Trigger Counter Query: "EGG:GET_COUNT"
+        else if (cmd == "EGG:GET_COUNT") {
+            char cntMsg[32];
+            snprintf(cntMsg, sizeof(cntMsg), "EGG_COUNT:%u", (unsigned int)easterEggCount);
+            if (pCharSet) {
+                pCharSet->setValue(std::string(cntMsg));
+                pCharSet->notify();
+            }
+            Serial.printf("[SETTINGS] Sent Easter Egg Count: %u\n", (unsigned int)easterEggCount);
+        }
+        // 17. Preview/Trigger Easter Egg: "EGG:TRIGGER" or "EGG:PREVIEW"
         else if (cmd == "EGG:TRIGGER" || cmd == "EGG:PREVIEW") {
             triggerEasterEgg();
         }
-        // 16. Marquee Speed: "MSG_SPD:<1..15>"
+        // 18. Marquee Speed: "MSG_SPD:<1..15>"
         else if (cmd.startsWith("MSG_SPD:")) {
             int spd = cmd.substring(8).toInt();
             if (spd >= 1 && spd <= 15) {
@@ -441,7 +462,7 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
                 Serial.printf("[SETTINGS] Marquee Speed: %d px/frame\n", msgSpeed);
             }
         }
-        // 17. Marquee Text Size: "MSG_SZ:<1..12>"
+        // 19. Marquee Text Size: "MSG_SZ:<1..12>"
         else if (cmd.startsWith("MSG_SZ:")) {
             int sz = cmd.substring(7).toInt();
             if (sz >= 1 && sz <= 12) {
@@ -450,14 +471,14 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
                 Serial.printf("[SETTINGS] Marquee Size: %d\n", msgSize);
             }
         }
-        // 18. Marquee Direction: "MSG_DIR:<0|1>" (0=RTL, 1=LTR)
+        // 20. Marquee Direction: "MSG_DIR:<0|1>" (0=RTL, 1=LTR)
         else if (cmd.startsWith("MSG_DIR:")) {
             int dir = cmd.substring(8).toInt();
             msgDirection = (dir == 1) ? 1 : 0;
             prefs.putUChar("msg_dir", msgDirection);
             Serial.printf("[SETTINGS] Marquee Direction: %s\n", (msgDirection == 1) ? "Left-to-Right" : "Right-to-Left");
         }
-        // 19. Marquee Full Config: "MSG_CFG:<spd>:<sz>:<dir>"
+        // 21. Marquee Full Config: "MSG_CFG:<spd>:<sz>:<dir>"
         else if (cmd.startsWith("MSG_CFG:")) {
             String cfg = cmd.substring(8);
             int idx1 = cfg.indexOf(':');
@@ -480,7 +501,7 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
                 Serial.printf("[SETTINGS] Marquee Config: Spd=%d, Size=%d, Dir=%d\n", msgSpeed, msgSize, msgDirection);
             }
         }
-        // 20. Save All Changes to Flash Memory: "SAVE_CONFIG" or "SAVE_CHANGES"
+        // 22. Save All Changes to Flash Memory: "SAVE_CONFIG" or "SAVE_CHANGES"
         else if (cmd == "SAVE_CONFIG" || cmd == "SAVE_CHANGES") {
             defaultMode = currentMode;
             memePet.defaultEmotion = memePet.currentEmotion;
@@ -513,11 +534,11 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
             triggerTouchVisual("SAVED DEFAULTS 💾", 0x07E0, 1500, "SAVED:OK");
             Serial.printf("[SETTINGS] Settings flashed to NVS memory: Brightness=%d, Sleep=%u ms\n", screenBrightness, (unsigned int)sleepTimeoutMs);
         }
-        // 21. Query Full Config Dashboard: "CFG:GET" or "GET_CONFIG"
+        // 23. Query Full Config Dashboard: "CFG:GET" or "GET_CONFIG"
         else if (cmd == "CFG:GET" || cmd == "GET_CONFIG") {
             char cfgMsg[256];
             uint32_t sleepSec = sleepTimeoutMs / 1000;
-            snprintf(cfgMsg, sizeof(cfgMsg), "CFG_DASH|%d|%d|%d|%d|%d|%d|%d|%u|%d|%d|%d|%d|%d",
+            snprintf(cfgMsg, sizeof(cfgMsg), "CFG_DASH|%d|%d|%d|%d|%d|%d|%d|%u|%d|%d|%d|%d|%d|%u",
                      (int)currentMode,
                      (int)memePet.currentEmotion,
                      (int)cyberHUD.currentLayout,
@@ -530,7 +551,8 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
                      (int)bootDurationSec,
                      (int)msgSpeed,
                      (int)msgSize,
-                     (int)msgDirection);
+                     (int)msgDirection,
+                     (unsigned int)easterEggCount);
             if (pCharSet) {
                 pCharSet->setValue(std::string(cfgMsg));
                 pCharSet->notify();
@@ -899,8 +921,12 @@ void triggerEasterEgg() {
     easterEggScrollX = 240;
     lastActivityTime = millis();
     isVideoPlaying = false;
-    triggerTouchVisual("EASTER EGG! 🎉", 0xF81F, easterEggDurationMs, "EASTER:UNLOCKED");
-    Serial.printf("[EASTER EGG] Unlocked! -> %s\n", easterEggMessage.c_str());
+    easterEggCount++;
+    prefs.putUInt("egg_cnt", easterEggCount);
+    char bleEgg[32];
+    snprintf(bleEgg, sizeof(bleEgg), "EASTER:UNLOCKED:%u", (unsigned int)easterEggCount);
+    triggerTouchVisual("EASTER EGG! 🎉", 0xF81F, easterEggDurationMs, bleEgg);
+    Serial.printf("[EASTER EGG] Unlocked (#%u)! -> %s\n", (unsigned int)easterEggCount, easterEggMessage.c_str());
 }
 
 // =========================================================================
@@ -1646,6 +1672,7 @@ void setup() {
     sleepTimeoutMs = prefs.getUInt("sleep", 0); // 0 = Never sleep by default
     customMessage = prefs.getString("msg", "I AM JOY BOY COFFEE :coffee: :fire:");
     easterEggMessage = prefs.getString("egg_msg", "YOU ARE AWESOME :sparkles: :heart: :fire:");
+    easterEggCount = prefs.getUInt("egg_cnt", 0);
     msgSpeed = prefs.getUChar("msg_spd", 3);
     msgSize = prefs.getUChar("msg_sz", 3);
     msgDirection = prefs.getUChar("msg_dir", 0);
@@ -1840,10 +1867,12 @@ void loop() {
                 easterEggScrollX = 240;
             }
 
-            // Bottom Subtitle in Tactical Amber Gold
+            // Bottom Subtitle in Tactical Amber Gold with trigger count
             canvas.setTextColor(0xFD00, 0x0000);
             canvas.setTextSize(1);
-            canvas.drawCenterString("YOU FOUND THE SECRET! ✨", 120, 204);
+            char cntSub[48];
+            snprintf(cntSub, sizeof(cntSub), "UNLOCKED #%u TIME%s! ✨", (unsigned int)easterEggCount, (easterEggCount == 1) ? "" : "S");
+            canvas.drawCenterString(cntSub, 120, 204);
 
             // Sparkle Stars in corners
             EmojiRenderer::drawEmoji(&canvas, EMOJI_SPARKLES, 10, 14);
