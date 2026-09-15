@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#14171d"/>
+      <stop offset="100%" stop-color="#090a0c"/>
+    </linearGradient>
+    <linearGradient id="borderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f5f0e6"/>
+      <stop offset="50%" stop-color="#e2b46a"/>
+      <stop offset="100%" stop-color="#d8c7ad"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background Canvas -->
+  <rect width="512" height="512" fill="#090a0c"/>
+
+  <!-- Outer Cyber Box / Badge -->
+  <rect x="28" y="28" width="456" height="456" rx="36" fill="url(#bgGrad)" stroke="url(#borderGrad)" stroke-width="5"/>
+  
+  <!-- Inner Border Frame -->
+  <rect x="42" y="42" width="428" height="428" rx="24" fill="none" stroke="#22252d" stroke-width="2"/>
+
+  <!-- Subtle Cyber Grid Accent Lines -->
+  <line x1="56" y1="120" x2="456" y2="120" stroke="#1c202a" stroke-width="1.5" stroke-dasharray="6,6"/>
+  <line x1="56" y1="390" x2="456" y2="390" stroke="#1c202a" stroke-width="1.5" stroke-dasharray="6,6"/>
+
+  <!-- Top Tech Badge -->
+  <rect x="181" y="68" width="150" height="28" rx="6" fill="#15171d" stroke="#e2b46a" stroke-width="1.5"/>
+  <text x="256" y="87" fill="#e2b46a" font-family="'JetBrains Mono', 'SF Mono', Consolas, monospace" font-size="13" font-weight="bold" text-anchor="middle" letter-spacing="1.5">ESP32-C3 // DECK</text>
+
+  <!-- Upper Line Text: JOYBOY -->
+  <text x="256" y="200" fill="#f5f0e6" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="66" font-weight="900" text-anchor="middle" letter-spacing="6">JOYBOY</text>
+
+  <!-- Center Glowing Divider Line with Diamond -->
+  <line x1="126" y1="244" x2="386" y2="244" stroke="#e2b46a" stroke-width="2.5"/>
+  <polygon points="256,236 264,244 256,252 248,244" fill="#f5f0e6" stroke="#e2b46a" stroke-width="2"/>
+
+  <!-- Lower Line Text: KEYCHAIN -->
+  <text x="256" y="324" fill="#e2b46a" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="52" font-weight="800" text-anchor="middle" letter-spacing="5">KEYCHAIN</text>
+
+  <!-- Bottom Subtitle -->
+  <text x="256" y="420" fill="#9e9382" font-family="'JetBrains Mono', 'SF Mono', Consolas, monospace" font-size="14" font-weight="bold" text-anchor="middle" letter-spacing="2">TACTICAL TERMINAL ⚡</text>
+
+  <!-- Corner Tech Accent Brackets -->
+  <path d="M 54 74 L 54 54 L 74 54" fill="none" stroke="#e2b46a" stroke-width="3"/>
+  <path d="M 458 74 L 458 54 L 438 54" fill="none" stroke="#e2b46a" stroke-width="3"/>
+  <path d="M 54 438 L 54 458 L 74 458" fill="none" stroke="#e2b46a" stroke-width="3"/>
+  <path d="M 458 438 L 458 458 L 438 458" fill="none" stroke="#e2b46a" stroke-width="3"/>
+</svg>

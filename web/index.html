@@ -3,7 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>DIGI KEYCHAIN // CONTROL TERMINAL</title>
+  <title>JOYBOY KEYCHAIN // CONTROL TERMINAL</title>
+  <meta name="description" content="Tactical Bluetooth Control Terminal & Stream Deck for ESP32-C3 Digi Keychain">
+  <meta name="theme-color" content="#090a0c">
+  <link rel="manifest" href="manifest.json">
+  
+  <!-- Apple iOS PWA Support -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Joyboy Keychain">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  
+  <!-- Standard Favicons & App Icons -->
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  <link rel="shortcut icon" href="favicon.ico">
   <style>
     :root {
       --bg: #090a0c;
@@ -1016,6 +1030,143 @@
     .text-light { color: var(--beige-light); }
     .text-accent { color: var(--accent); }
     .divider { height: 1px; background: var(--border); width: 100%; margin: 2px 0; }
+
+    /* PWA INSTALL BUTTON & MODAL */
+    .btn-install-pwa {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(226, 180, 106, 0.14);
+      border: 1px solid var(--amber);
+      color: var(--amber);
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      padding: 5px 11px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      box-shadow: 0 0 10px rgba(226, 180, 106, 0.18);
+    }
+    .btn-install-pwa:hover {
+      background: var(--amber);
+      color: #090a0c;
+      box-shadow: 0 0 16px rgba(226, 180, 106, 0.45);
+      transform: translateY(-1px);
+    }
+    .btn-install-pwa:active {
+      transform: scale(0.95);
+    }
+    .btn-install-pwa svg {
+      width: 13px;
+      height: 13px;
+      stroke: currentColor;
+    }
+
+    /* MODAL */
+    .modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(5, 6, 8, 0.85);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 16px;
+      animation: fadeIn 0.2s ease;
+    }
+    .modal-backdrop.active {
+      display: flex;
+    }
+    .modal-card {
+      background: var(--surface);
+      border: 1px solid var(--border-accent);
+      border-radius: 8px;
+      max-width: 440px;
+      width: 100%;
+      overflow: hidden;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7);
+      display: flex;
+      flex-direction: column;
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: var(--surface-raised);
+      border-bottom: 1px solid var(--border);
+    }
+    .modal-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      color: var(--beige-light);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: var(--beige-muted);
+      font-size: 1.3rem;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0 4px;
+    }
+    .modal-close:hover {
+      color: var(--red);
+    }
+    .modal-body {
+      padding: 16px;
+      font-size: 0.78rem;
+      line-height: 1.5;
+    }
+    .install-step-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .install-step {
+      display: flex;
+      gap: 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 0.74rem;
+      color: var(--beige-main);
+    }
+    .step-num {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--amber-bg);
+      border: 1px solid var(--amber);
+      color: var(--amber);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 0.7rem;
+      flex-shrink: 0;
+    }
+    .modal-footer {
+      padding: 12px 16px;
+      background: var(--surface-raised);
+      border-top: 1px solid var(--border);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.97); }
+      to { opacity: 1; transform: scale(1); }
+    }
   </style>
 </head>
 <body class="view-auto">
@@ -1025,16 +1176,21 @@
     <!-- HEADER (CLEAN, MINIMAL, ZERO CLUTTER) -->
     <header class="header">
       <div class="brand">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2">
-          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-        </svg>
-        <div class="brand-title">DIGI KEYCHAIN <span class="brand-badge">ESP32-C3</span></div>
+        <img src="icons/icon.svg" width="24" height="24" alt="Joyboy Keychain Logo" style="border-radius:5px; border:1px solid var(--border-accent); flex-shrink:0;">
+        <div class="brand-title">JOYBOY KEYCHAIN <span class="brand-badge">ESP32-C3</span></div>
       </div>
       
-      <div class="view-mode-selector">
-        <button class="view-btn active" id="btn-mode-auto" onclick="setViewMode('auto')">AUTO</button>
-        <button class="view-btn" id="btn-mode-mobile" onclick="setViewMode('mobile')">PHONE</button>
-        <button class="view-btn" id="btn-mode-desktop" onclick="setViewMode('desktop')">PC</button>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <button id="btnInstallApp" class="btn-install-pwa" onclick="triggerPWAInstall()" title="Install App to Device">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span>INSTALL APP</span>
+        </button>
+
+        <div class="view-mode-selector">
+          <button class="view-btn active" id="btn-mode-auto" onclick="setViewMode('auto')">AUTO</button>
+          <button class="view-btn" id="btn-mode-mobile" onclick="setViewMode('mobile')">PHONE</button>
+          <button class="view-btn" id="btn-mode-desktop" onclick="setViewMode('desktop')">PC</button>
+        </div>
       </div>
     </header>
 
@@ -3468,6 +3624,113 @@
         if (progressWrap) progressWrap.style.display = 'none';
       }
     }
+
+    // =========================================================================
+    // PROGRESSIVE WEB APP (PWA) INSTALL ENGINE & SERVICE WORKER
+    // =========================================================================
+    let deferredInstallPrompt = null;
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then((reg) => console.log('[PWA] Service Worker active:', reg.scope))
+          .catch((err) => console.warn('[PWA] Service Worker registration failed:', err));
+      });
+    }
+
+    // Capture Chrome/Edge/Android beforeinstallprompt event
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      const btn = document.getElementById('btnInstallApp');
+      if (btn) {
+        btn.style.display = 'inline-flex';
+        btn.classList.add('ready');
+      }
+      log("📲 PWA ready to install! Tap 'INSTALL APP' in header.");
+    });
+
+    async function triggerPWAInstall() {
+      vibrate();
+      if (deferredInstallPrompt) {
+        deferredInstallPrompt.prompt();
+        const { outcome } = await deferredInstallPrompt.userChoice;
+        if (outcome === 'accepted') {
+          log('🎉 Joyboy Keychain installed successfully!');
+          const btn = document.getElementById('btnInstallApp');
+          if (btn) btn.style.display = 'none';
+        } else {
+          log('PWA installation dismissed by user.');
+        }
+        deferredInstallPrompt = null;
+      } else {
+        // If already installed or browser requires manual step (iOS/Safari/Desktop menu)
+        openInstallGuideModal();
+      }
+    }
+
+    window.addEventListener('appinstalled', () => {
+      log('✅ Joyboy Keychain successfully installed on device!');
+      const btn = document.getElementById('btnInstallApp');
+      if (btn) btn.style.display = 'none';
+      closeInstallGuideModal();
+    });
+
+    // Hide install button if running in standalone display mode
+    if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+      const btn = document.getElementById('btnInstallApp');
+      if (btn) btn.style.display = 'none';
+    }
+
+    function openInstallGuideModal() {
+      const modal = document.getElementById('installGuideModal');
+      if (modal) modal.classList.add('active');
+    }
+
+    function closeInstallGuideModal(e) {
+      if (e && e.target && e.target !== e.currentTarget && !e.target.classList.contains('modal-close')) return;
+      const modal = document.getElementById('installGuideModal');
+      if (modal) modal.classList.remove('active');
+    }
   </script>
+
+  <!-- PWA INSTALLATION GUIDE MODAL -->
+  <div id="installGuideModal" class="modal-backdrop" onclick="closeInstallGuideModal(event)">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          INSTALL JOYBOY KEYCHAIN
+        </div>
+        <button class="modal-close" onclick="closeInstallGuideModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="display:flex; align-items:center; gap:14px; margin-bottom:14px;">
+          <img src="icons/icon.svg" width="56" height="56" alt="App Icon" style="border-radius:12px; border:1px solid var(--amber); box-shadow: 0 0 14px rgba(226, 180, 106, 0.25); flex-shrink:0;">
+          <div>
+            <div style="font-weight:bold; font-size:0.95rem; color:var(--beige-light);">Joyboy Keychain Deck</div>
+            <div style="font-size:0.75rem; color:var(--beige-muted);">Install standalone PWA for instantaneous Bluetooth controls and full-screen mobile experience.</div>
+          </div>
+        </div>
+        <div class="install-step-list">
+          <div class="install-step">
+            <span class="step-num">1</span>
+            <div><b>Chrome / Edge (PC & Android):</b> Tap the <b>Install App</b> icon (⬇️) in the address bar or tap browser menu (⋮) ➔ select <b>"Install Joyboy Keychain"</b>.</div>
+          </div>
+          <div class="install-step">
+            <span class="step-num">2</span>
+            <div><b>Safari (iOS / iPhone):</b> Tap the <b>Share button</b> (⎋ with arrow) ➔ scroll down and tap <b>"Add to Home Screen"</b>.</div>
+          </div>
+          <div class="install-step">
+            <span class="step-num">3</span>
+            <div>Launch directly from your Home Screen / App Dock with zero address bar distraction!</div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-primary" style="width:100%;" onclick="closeInstallGuideModal()">GOT IT</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

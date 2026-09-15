@@ -1,0 +1,41 @@
+{
+  "name": "Joyboy Keychain - Control Terminal",
+  "short_name": "Keychain",
+  "description": "Tactical Bluetooth Control Terminal & Stream Deck for ESP32-C3 Digi Keychain",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#090a0c",
+  "theme_color": "#090a0c",
+  "orientation": "any",
+  "categories": ["utilities", "hardware", "productivity"],
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
