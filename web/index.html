@@ -1024,12 +1024,12 @@
               <span class="btn-opt-sub">Pixel Mascots</span>
             </button>
             <button class="btn-opt" id="modeBtn1" onclick="setMode(1)">
-              <span>CYBERHUD</span>
-              <span class="btn-opt-sub">Tactical Clock</span>
-            </button>
-            <button class="btn-opt" id="modeBtn2" onclick="setMode(2)">
               <span>ROBOT EYES</span>
               <span class="btn-opt-sub">Procedural Gaze</span>
+            </button>
+            <button class="btn-opt" id="modeBtn2" onclick="setMode(2)">
+              <span>CYBERHUD</span>
+              <span class="btn-opt-sub">Tactical Clock</span>
             </button>
             <button class="btn-opt" id="modeBtn3" onclick="setMode(3)">
               <span>MATRIX RAIN</span>
@@ -1037,7 +1037,7 @@
             </button>
           </div>
 
-          <!-- SUB-PANEL: CYBERPET EMOTIONS -->
+          <!-- SUB-PANEL: CYBERPET EMOTIONS (MODE 0) -->
           <div id="panelMode0" class="sub-section">
             <div class="sub-title">CYBERPET MASCOTS & AVATARS</div>
             <div class="grid-options">
@@ -1051,8 +1051,19 @@
             </div>
           </div>
 
-          <!-- SUB-PANEL: CYBERHUD CONFIG -->
+          <!-- SUB-PANEL: ROBOT EYES (MODE 1) -->
           <div id="panelMode1" class="sub-section" style="display:none;">
+            <div class="sub-title">ROBOT EYE MOODS</div>
+            <div class="grid-options">
+              <button class="btn-opt active" id="robotMoodBtn0" onclick="setRobotMood(0)">CYAN GLOW</button>
+              <button class="btn-opt" id="robotMoodBtn1" onclick="setRobotMood(1)">HEART EYES</button>
+              <button class="btn-opt" id="robotMoodBtn2" onclick="setRobotMood(2)">FOCUSED</button>
+              <button class="btn-opt" id="robotMoodBtn3" onclick="setRobotMood(3)">SUSPICIOUS</button>
+            </div>
+          </div>
+
+          <!-- SUB-PANEL: CYBERHUD CONFIG (MODE 2) -->
+          <div id="panelMode2" class="sub-section" style="display:none;">
             <div class="sub-title">CYBERHUD LAYOUT STYLE</div>
             <div class="grid-options" style="margin-bottom:12px;">
               <button class="btn-opt active" id="hudLayBtn0" onclick="setHudLayout(0)">COMPACT HUD</button>
@@ -1072,17 +1083,6 @@
             <div class="input-row" style="margin-top:10px;">
               <input type="text" id="txtHudMessage" class="txt-input" placeholder="Custom HUD banner message..." maxlength="32">
               <button class="btn-primary" onclick="sendHudCustomText()">UPDATE</button>
-            </div>
-          </div>
-
-          <!-- SUB-PANEL: ROBOT EYES -->
-          <div id="panelMode2" class="sub-section" style="display:none;">
-            <div class="sub-title">ROBOT EYE MOODS</div>
-            <div class="grid-options">
-              <button class="btn-opt active" id="robotMoodBtn0" onclick="setRobotMood(0)">CYAN GLOW</button>
-              <button class="btn-opt" id="robotMoodBtn1" onclick="setRobotMood(1)">HEART EYES</button>
-              <button class="btn-opt" id="robotMoodBtn2" onclick="setRobotMood(2)">FOCUSED</button>
-              <button class="btn-opt" id="robotMoodBtn3" onclick="setRobotMood(3)">SUSPICIOUS</button>
             </div>
           </div>
 
