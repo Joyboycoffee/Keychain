@@ -1,5 +1,5 @@
 // Joyboy Keychain Service Worker
-const CACHE_NAME = 'keychain-deck-v4.4';
+const CACHE_NAME = 'spearhead-v5.0.2';
 const ASSETS = [
   './',
   './index.html',
