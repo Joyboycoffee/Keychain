@@ -115,6 +115,15 @@ int      incomingFrameIdx     = -1;
 size_t   incomingFrameExpected= 0;
 size_t   incomingFrameReceived= 0;
 
+// Dasai Mochi 30 FPS Flash-Backed Animation Stream Engine
+File     dasaiAnimFile;
+uint16_t dasaiTotalFrames   = 0;
+uint8_t  dasaiFps           = 30;
+int      dasaiCurrentFrame  = 0;
+uint32_t lastDasaiFrameTime = 0;
+uint8_t  dasaiFrameBuf[1024];
+bool     dasaiFileOpened    = false;
+
 // Boot Media Upload State
 File     bootFile;
 bool     isBootUploading      = false;
@@ -184,6 +193,10 @@ class ModeCallback : public NimBLECharacteristicCallbacks {
                 currentMode = (SystemMode)m;
                 if (currentMode != MODE_STREAM_MEDIA) {
                     isVideoPlaying = false;
+                }
+                if (currentMode != MODE_ROBOT_EYES && dasaiFileOpened) {
+                    dasaiAnimFile.close();
+                    dasaiFileOpened = false;
                 }
                 lastActivityTime = millis();
                 Serial.printf("[BLE] Switched Mode: %d\n", m);
@@ -388,6 +401,18 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
                 Serial.printf("[SETTINGS] CyberHUD Configured: Layout=%d\n", cyberHUD.currentLayout);
             }
         }
+        // 10b. CyberHUD Time Format: "TIME_FMT:12" or "TIME_FMT:24"
+        else if (cmd.startsWith("TIME_FMT:")) {
+            int fmt = cmd.substring(9).toInt();
+            bool is12 = (fmt == 12);
+            cyberHUD.setTimeFormat(is12);
+            prefs.putUChar("time_fmt", (uint8_t)fmt);
+            if (pCharSet) {
+                pCharSet->setValue(is12 ? "TIME_FMT:12" : "TIME_FMT:24");
+                pCharSet->notify();
+            }
+            Serial.printf("[SETTINGS] Time Format set: %d-Hour\n", fmt);
+        }
         // 10. CyberHUD Custom Text: "HUD_MSG:<custom text>"
         else if (cmd.startsWith("HUD_MSG:")) {
             String msg = cmd.substring(8);
@@ -540,6 +565,7 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
             prefs.putBool("hud_wave", cyberHUD.showWaveform);
             prefs.putBool("hud_text", cyberHUD.showCustomText);
             prefs.putString("hud_msg", cyberHUD.customMessage);
+            prefs.putUChar("time_fmt", cyberHUD.is12HourFormat ? 12 : 24);
             prefs.putString("hud_shy", cyberHUD.customShyText);
             prefs.putString("egg_msg", easterEggMessage);
             prefs.putUChar("robot_mood", (uint8_t)robotEyes.currentStyle);
@@ -564,7 +590,7 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
         else if (cmd == "CFG:GET" || cmd == "GET_CONFIG") {
             char cfgMsg[256];
             uint32_t sleepSec = sleepTimeoutMs / 1000;
-            snprintf(cfgMsg, sizeof(cfgMsg), "CFG_DASH|%d|%d|%d|%d|%d|%d|%d|%u|%d|%d|%d|%d|%d|%u",
+            snprintf(cfgMsg, sizeof(cfgMsg), "CFG_DASH|%d|%d|%d|%d|%d|%d|%d|%u|%d|%d|%d|%d|%d|%u|%d",
                      (int)currentMode,
                      (int)memePet.currentEmotion,
                      (int)cyberHUD.currentLayout,
@@ -578,7 +604,8 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
                      (int)msgSpeed,
                      (int)msgSize,
                      (int)msgDirection,
-                     (unsigned int)easterEggCount);
+                     (unsigned int)easterEggCount,
+                     cyberHUD.is12HourFormat ? 12 : 24);
             if (pCharSet) {
                 pCharSet->setValue(std::string(cfgMsg));
                 pCharSet->notify();
@@ -1713,6 +1740,7 @@ void setup() {
     cyberHUD.showWaveform = prefs.getBool("hud_wave", true);
     cyberHUD.showCustomText = prefs.getBool("hud_text", true);
     cyberHUD.setCustomText(prefs.getString("hud_msg", "SPEARHEAD // SYS_ONLINE"));
+    cyberHUD.setTimeFormat(prefs.getUChar("time_fmt", 12) == 12);
     String shyMsg = prefs.getString("hud_shy", "I LOVE YOU");
     cyberHUD.setShyText(shyMsg);
     robotEyes.setShyText(shyMsg);
@@ -1966,9 +1994,98 @@ void loop() {
             memePet.update();
             break;
 
-        case MODE_ROBOT_EYES:
-            robotEyes.update();
+        case MODE_ROBOT_EYES: {
+            if (!dasaiFileOpened) {
+                if (LittleFS.exists("/dasai_anim.bin")) {
+                    dasaiAnimFile = LittleFS.open("/dasai_anim.bin", "r");
+                    if (dasaiAnimFile && dasaiAnimFile.size() >= 4) {
+                        uint8_t fLo = dasaiAnimFile.read();
+                        uint8_t fHi = dasaiAnimFile.read();
+                        dasaiTotalFrames = fLo | (fHi << 8);
+                        dasaiFps = dasaiAnimFile.read();
+                        dasaiAnimFile.read(); // format flag
+                        if (dasaiFps == 0 || dasaiFps > 60) dasaiFps = 30;
+                        dasaiCurrentFrame = 0;
+                        dasaiFileOpened = true;
+                        lastDasaiFrameTime = 0;
+                        Serial.printf("[DASAI] Playing /dasai_anim.bin (%u frames @ %u FPS)\n", dasaiTotalFrames, dasaiFps);
+                    }
+                }
+            }
+
+            if (dasaiFileOpened && dasaiAnimFile && dasaiTotalFrames > 0) {
+                uint32_t now = millis();
+                uint32_t frameDelay = 1000 / dasaiFps;
+                if (now - lastDasaiFrameTime >= frameDelay) {
+                    lastDasaiFrameTime = now;
+
+                    if (dasaiAnimFile.available() < 1024) {
+                        dasaiAnimFile.seek(4);
+                        dasaiCurrentFrame = 0;
+                    }
+
+                    if (dasaiAnimFile.available() >= 1024) {
+                        dasaiAnimFile.read(dasaiFrameBuf, 1024);
+                        dasaiCurrentFrame = (dasaiCurrentFrame + 1) % dasaiTotalFrames;
+                    }
+
+                    uint16_t faceColor = 0x07FF; // Glowing Cyan
+                    if (robotEyes.isShyLoveActive || robotEyes.currentStyle == 1) {
+                        faceColor = 0xF81F; // Pink / Magenta
+                    } else if (robotEyes.currentStyle == 2) {
+                        faceColor = 0xF800; // Fierce Red
+                    } else if (robotEyes.currentStyle == 3) {
+                        faceColor = 0xFFE0; // Cyber Gold
+                    }
+
+                    canvas.fillScreen(TFT_BLACK);
+
+                    // Render 128x64 bitmap scaled to 224x112 at (x=8, y=64)
+                    for (int r = 0; r < 64; r++) {
+                        int sy = 64 + (r * 7) / 4;
+                        int blockH = (64 + ((r + 1) * 7) / 4) - sy;
+                        if (blockH < 1) blockH = 1;
+
+                        int runStart = -1;
+                        for (int c = 0; c < 128; c++) {
+                            bool on = (dasaiFrameBuf[r * 16 + (c >> 3)] >> (7 - (c & 7))) & 1;
+                            if (on) {
+                                if (runStart < 0) runStart = c;
+                            } else if (runStart >= 0) {
+                                int sx = 8 + (runStart * 7) / 4;
+                                int ex = 8 + (c * 7) / 4;
+                                canvas.fillRect(sx, sy, ex - sx, blockH, faceColor);
+                                runStart = -1;
+                            }
+                        }
+                        if (runStart >= 0) {
+                            int sx = 8 + (runStart * 7) / 4;
+                            int ex = 8 + (128 * 7) / 4;
+                            canvas.fillRect(sx, sy, ex - sx, blockH, faceColor);
+                        }
+                    }
+
+                    // 2-Second Hold Shy Love overlay
+                    if (robotEyes.isShyLoveActive) {
+                        if (millis() - robotEyes.shyLoveStartTime >= 5000) {
+                            robotEyes.isShyLoveActive = false;
+                            robotEyes.setStyle(robotEyes.preShyStyle);
+                        } else {
+                            for (int i = 0; i < 4; i++) {
+                                int hx = 25 + i * 60 + (int)(sin((millis() / 150.0f + i)) * 6);
+                                int hy = 25 + (int)(cos((millis() / 200.0f + i)) * 8);
+                                canvas.fillCircle(hx - 4, hy - 4, 4, 0xF81F);
+                                canvas.fillCircle(hx + 4, hy - 4, 4, 0xF81F);
+                                canvas.fillTriangle(hx - 8, hy - 3, hx + 8, hy - 3, hx, hy + 6, 0xF81F);
+                            }
+                        }
+                    }
+                }
+            } else {
+                robotEyes.update();
+            }
             break;
+        }
 
         case MODE_CYBER_HUD:
             cyberHUD.update();

@@ -1066,9 +1066,15 @@
           <div id="panelMode2" class="sub-section" style="display:none;">
             <div class="sub-title">CYBERHUD LAYOUT STYLE</div>
             <div class="grid-options" style="margin-bottom:12px;">
-              <button class="btn-opt active" id="hudLayBtn0" onclick="setHudLayout(0)">COMPACT HUD</button>
-              <button class="btn-opt" id="hudLayBtn1" onclick="setHudLayout(1)">EXPANDED GAUGES</button>
-              <button class="btn-opt" id="hudLayBtn2" onclick="setHudLayout(2)">MINIMALIST</button>
+              <button class="btn-opt active" id="hudLayBtn0" onclick="setHudLayout(0)">COMPACT (EYES ON TOP)</button>
+              <button class="btn-opt" id="hudLayBtn1" onclick="setHudLayout(1)">BIG CLOCK & GAUGES</button>
+              <button class="btn-opt" id="hudLayBtn2" onclick="setHudLayout(2)">MINIMALIST DASH</button>
+            </div>
+
+            <div class="sub-title" style="margin-top:6px;">CLOCK TIME FORMAT</div>
+            <div class="grid-options" style="margin-bottom:12px;">
+              <button class="btn-opt active" id="btnTimeFmt12" onclick="setTimeFormat(12)">12-HOUR (AM/PM)</button>
+              <button class="btn-opt" id="btnTimeFmt24" onclick="setTimeFormat(24)">24-HOUR MILITARY</button>
             </div>
 
             <div class="sub-title" style="margin-top:6px;">DISPLAY METRICS & GAUGES</div>
@@ -1947,7 +1953,27 @@
       }
     }
 
+    let curTimeFormat = 12;
     let currentHudLayout = 0;
+
+    async function setTimeFormat(fmt) {
+      vibrate();
+      curTimeFormat = fmt;
+      highlightTimeFormatUI(fmt);
+      if (!charSettings) return;
+      const data = new TextEncoder().encode(`TIME_FMT:${fmt}`);
+      await safeBleWrite(charSettings, data, false);
+      log(`Time format: ${fmt}-Hour (${fmt === 12 ? 'AM/PM' : '24h Military'})`);
+      setTouchBanner(`${fmt}-HR CLOCK`, "badge-ok", 1500);
+    }
+
+    function highlightTimeFormatUI(fmt) {
+      curTimeFormat = fmt;
+      const b12 = document.getElementById('btnTimeFmt12');
+      const b24 = document.getElementById('btnTimeFmt24');
+      if (b12) b12.className = (fmt === 12) ? "btn-opt active" : "btn-opt";
+      if (b24) b24.className = (fmt === 24) ? "btn-opt active" : "btn-opt";
+    }
     let currentRobotMood = 0;
     let currentMatrixTheme = 0;
 
@@ -2041,6 +2067,11 @@
             const eggCnt = parseInt(p[14]);
             if (!isNaN(eggCnt)) updateEasterEggCountUI(eggCnt);
           }
+          // Parse Time Format if present (15th field)
+          if (p.length >= 16) {
+            const timeFmt = parseInt(p[15]);
+            if (!isNaN(timeFmt)) highlightTimeFormatUI(timeFmt);
+          }
 
           log(`Synchronized settings: Brightness ${Math.round((br / 255) * 100)}%, Sleep ${sleepLabels[sleepIdx]}`);
         }
@@ -2055,6 +2086,10 @@
         const idx = parseInt(parts[1]);
         if (!isNaN(idx)) highlightRobotMoodUI(idx);
         setTouchBanner("ROBOT MOOD UPDATED", "badge-cyan", 1500);
+      } else if (msg.startsWith("TIME_FMT:")) {
+        const fmt = parseInt(msg.substring(9));
+        if (!isNaN(fmt)) highlightTimeFormatUI(fmt);
+        setTouchBanner(`${fmt}-HR TIME FORMAT`, "badge-ok", 1500);
       } else if (msg.startsWith("HUD:LAYOUT") || msg.startsWith("HUD_LAY:")) {
         const parts = msg.split(':');
         const idx = parseInt(parts[1]);
