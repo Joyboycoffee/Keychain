@@ -1771,6 +1771,11 @@
     // -------------------------------------------------------------
     async function connectBLE() {
       vibrate();
+      if (!navigator.bluetooth) {
+        alert("Web Bluetooth is not supported in this browser context!\n\n1. Make sure you are accessing via HTTPS (or localhost).\n2. Use Google Chrome, Microsoft Edge, or Samsung Internet.\n3. On iOS (iPhone/iPad), use the Bluefy Bluetooth browser.");
+        log("Error: Web Bluetooth API not supported or blocked (Requires HTTPS).");
+        return;
+      }
       try {
         log("Scanning for SPEARHEAD BLE device...");
         const sb = document.getElementById('statusBadge');
@@ -2146,9 +2151,7 @@
       const data = new TextEncoder().encode("SAVE_CONFIG");
       await safeBleWrite(charSettings, data, false);
       log("Flashed current settings to ESP32 NVS memory as permanent default!");
-      alert("Settings Flashed to Memory!
-
-System Mode, CyberHUD, Robot Eyes, Matrix Themes, Brightness, Sleep Timeout, Screen Rotation, and Mascots are now saved permanently in ESP32 memory.");
+      alert("Settings Flashed to Memory!\n\nSystem Mode, CyberHUD, Robot Eyes, Matrix Themes, Brightness, Sleep Timeout, Screen Rotation, and Mascots are now saved permanently in ESP32 memory.");
     }
 
     async function turnOffBLE() {
@@ -2157,9 +2160,7 @@ System Mode, CyberHUD, Robot Eyes, Matrix Themes, Brightness, Sleep Timeout, Scr
         log("Not connected over BLE.");
         return;
       }
-      if (!confirm("Turn off Bluetooth on the ESP32 to save power?
-
-(To turn it back on, hold the Touch Sensor for 10 seconds until the blue LED flashes)")) return;
+      if (!confirm("Turn off Bluetooth on the ESP32 to save power?\n\n(To turn it back on, hold the Touch Sensor for 10 seconds until the blue LED flashes)")) return;
       try {
         const data = new TextEncoder().encode("BLE:OFF");
         await charSettings.writeValue(data);
@@ -2177,9 +2178,7 @@ System Mode, CyberHUD, Robot Eyes, Matrix Themes, Brightness, Sleep Timeout, Scr
         log("Not connected over BLE.");
         return;
       }
-      if (!confirm("Put SPEARHEAD into Deep Sleep now?
-
-(Tap the Touch Sensor to wake it back up)")) return;
+      if (!confirm("Put SPEARHEAD into Deep Sleep now?\n\n(Tap the Touch Sensor to wake it back up)")) return;
       try {
         const data = new TextEncoder().encode("SYS:SLEEP");
         await charSettings.writeValue(data);
@@ -2473,9 +2472,7 @@ System Mode, CyberHUD, Robot Eyes, Matrix Themes, Brightness, Sleep Timeout, Scr
         await safeBleWrite(charSettings, data, false);
         log(`Secret Easter Egg saved: "${text}"`);
         setTouchBanner("EASTER EGG SAVED", "badge-mag", 2500);
-        alert("Secret Easter Egg message saved to keychain!
-
-Rapidly tap the touch sensor 7 times to reveal it!");
+        alert("Secret Easter Egg message saved to keychain!\n\nRapidly tap the touch sensor 7 times to reveal it!");
       } catch (err) {
         console.error(err);
         log(`Easter Egg error: ${err.message}`);
