@@ -82,18 +82,20 @@
       line-height: 1.45;
     }
 
-    /* SVG ICONS */
+    /* GLOBAL SVG SIZING (BULLETPROOF PREVENTS ANY BLOWUPS) */
     svg {
-      flex-shrink: 0;
-    }
-    button svg, label svg, .btn-opt svg, .btn-primary svg, .btn-danger svg, .nav-item svg, .tab-btn svg, .card-title svg {
-      width: 14px;
-      height: 14px;
-      stroke: currentColor;
-      fill: none;
-      stroke-width: 2;
-      display: inline-block;
-      vertical-align: middle;
+      width: 14px !important;
+      height: 14px !important;
+      max-width: 14px !important;
+      max-height: 14px !important;
+      stroke: currentColor !important;
+      fill: none !important;
+      stroke-width: 2 !important;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      flex-shrink: 0 !important;
+      display: inline-block !important;
+      vertical-align: middle !important;
     }
 
     /* VIEW MODES & CONTAINER SCALING */
@@ -1431,13 +1433,13 @@
     <!-- PWA INSTALLATION BANNER (DIRECTLY ABOVE BLE CONSOLE) -->
     <!-- ========================================================= -->
     <div id="installAppCard" class="pwa-banner-card">
-      <div style="display:flex; flex-direction:column; gap:3px;">
-        <div style="font-size:0.78rem; font-weight:800; color:var(--beige-light); letter-spacing:1px; display:flex; align-items:center; gap:8px;">
-          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-          INSTALL SPEARHEAD WEB APPLICATION
+      <div style="display:flex; flex-direction:column; gap:2px; min-width:0;">
+        <div style="font-size:0.75rem; font-weight:800; color:var(--beige-light); letter-spacing:0.8px; display:flex; align-items:center; gap:8px;">
+          <svg viewBox="0 0 24 24" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span>INSTALL SPEARHEAD PWA</span>
         </div>
-        <div style="font-size:0.70rem; color:var(--beige-muted);">
-          Install standalone PWA for full-screen tactile controls & offline caching
+        <div style="font-size:0.68rem; color:var(--beige-muted);">
+          Add standalone app for full-screen tactile controls & offline caching
         </div>
       </div>
       <button id="btnInstallApp" class="btn-primary" onclick="triggerPWAInstall()">INSTALL APP</button>
