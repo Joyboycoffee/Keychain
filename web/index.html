@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Spearhead // Tactical Control Deck</title>
   <meta name="description" content="Tactical Bluetooth Control Terminal & Stream Deck for Spearhead ESP32-C3">
-  <meta name="theme-color" content="#080a0e">
+  <meta name="theme-color" content="#090a0c">
   <link rel="manifest" href="manifest.json">
   
   <!-- Apple iOS PWA Support -->
@@ -14,41 +14,46 @@
   <meta name="apple-mobile-web-app-title" content="Spearhead">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   
-  <!-- Standard Favicons & App Icons -->
+  <!-- Favicons & App Icons -->
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
-  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
   <link rel="shortcut icon" href="favicon.ico">
 
   <style>
     :root {
-      --bg: #080a0e;
-      --surface: #10131a;
-      --surface-raised: #161a23;
-      --surface-hover: #1c212d;
-      --border: #232836;
-      --border-accent: #32384a;
+      --bg: #090a0c;
+      --surface: #111317;
+      --surface-raised: #171920;
+      --surface-hover: #1f222b;
+      --border: #22252d;
+      --border-accent: #3a3f4d;
 
-      --text-main: #f3f4f6;
-      --text-muted: #9ca3af;
-      --text-dim: #6b7280;
+      --beige-light: #f5f0e6;
+      --beige-main: #e2d7c5;
+      --beige-muted: #9e9382;
+      --beige-dim: #5c554a;
 
-      --accent: #8b5cf6;
-      --accent-hover: #7c3aed;
-      --accent-subtle: rgba(139, 92, 246, 0.12);
+      --accent: #d8c7ad;
+      --accent-glow: rgba(216, 199, 173, 0.15);
 
-      --cyan: #38bdf8;
-      --cyan-bg: rgba(56, 189, 248, 0.10);
-      --green: #34d399;
-      --green-bg: rgba(52, 211, 153, 0.10);
-      --amber: #f59e0b;
-      --amber-bg: rgba(245, 158, 11, 0.10);
-      --red: #f87171;
-      --red-bg: rgba(248, 113, 113, 0.10);
-      --purple: #c084fc;
-      --purple-bg: rgba(192, 132, 252, 0.10);
+      --green: #a2c892;
+      --green-bg: rgba(162, 200, 146, 0.12);
+      --red: #df735d;
+      --red-bg: rgba(223, 115, 93, 0.12);
+      --amber: #e2b46a;
+      --amber-bg: rgba(226, 180, 106, 0.12);
+      --cyan: #82b1ff;
+      --cyan-bg: rgba(130, 177, 255, 0.12);
+      --magenta: #e092bb;
+      --magenta-bg: rgba(224, 146, 187, 0.12);
+
+      --key-bg: #15171d;
+      --key-border: #282c36;
+      --key-active: #d8c7ad;
+      --key-active-text: #090a0c;
 
       --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, Menlo, Monaco, monospace;
-      --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', sans-serif;
+      --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
 
     * {
@@ -57,6 +62,7 @@
       padding: 0;
       font-family: var(--font-mono);
       -webkit-tap-highlight-color: transparent;
+      border-radius: 0px !important; /* STRICT SHARP CORNERS EVERYWHERE */
     }
 
     html, body {
@@ -64,25 +70,25 @@
       max-width: 100vw;
       overflow-x: hidden;
       background-color: var(--bg);
-      color: var(--text-main);
+      color: var(--beige-main);
     }
 
     body {
-      padding: 16px;
+      padding: 16px 12px 60px 12px;
       display: flex;
       justify-content: center;
       min-height: 100vh;
       font-size: 13px;
-      line-height: 1.5;
+      line-height: 1.45;
     }
 
-    /* GLOBAL SVG SIZING */
+    /* SVG ICONS */
     svg {
       flex-shrink: 0;
     }
     button svg, label svg, .btn-opt svg, .btn-primary svg, .btn-danger svg, .nav-item svg, .tab-btn svg, .card-title svg {
-      width: 15px;
-      height: 15px;
+      width: 14px;
+      height: 14px;
       stroke: currentColor;
       fill: none;
       stroke-width: 2;
@@ -90,92 +96,57 @@
       vertical-align: middle;
     }
 
-    /* LAYOUT CONTAINERS */
     .app-container {
-      max-width: 960px;
+      max-width: 920px;
       width: 100%;
       display: flex;
       flex-direction: column;
-      gap: 16px;
-      padding-bottom: 85px;
-      min-width: 0;
-    }
-
-    body.view-desktop .app-container {
-      max-width: 1120px;
-      padding-bottom: 24px;
-    }
-
-    body.view-desktop .mobile-nav { display: none !important; }
-    body.view-desktop .tabs-bar { display: flex !important; }
-    body.view-mobile .tabs-bar { display: none !important; }
-    body.view-mobile .mobile-nav { display: flex !important; }
-
-    @media (min-width: 920px) {
-      body:not(.view-mobile) .app-container {
-        max-width: 1120px;
-        padding-bottom: 24px;
-      }
-      body:not(.view-mobile) .mobile-nav { display: none !important; }
-      body:not(.view-mobile) .tabs-bar { display: flex !important; }
-    }
-
-    @media (max-width: 919px) {
-      body:not(.view-desktop) .tabs-bar { display: none; }
-      body:not(.view-desktop) .mobile-nav { display: flex; }
+      gap: 18px;
     }
 
     /* HEADER */
     .header {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      padding: 12px 16px;
-      border-radius: 8px;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      width: 100%;
+      justify-content: space-between;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      gap: 12px;
+      flex-wrap: wrap;
     }
 
     .brand {
       display: flex;
       align-items: center;
       gap: 10px;
-      min-width: 0;
       cursor: pointer;
       user-select: none;
     }
 
-    .brand-logo {
-      object-fit: contain;
-      background: #000;
-      width: 32px;
-      height: 32px;
-      border-radius: 6px;
-      border: 1px solid var(--border-accent);
-      flex-shrink: 0;
-      transition: transform 0.15s ease, border-color 0.15s ease;
+    .brand-logo-box {
+      background: var(--surface-raised);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      font-size: 0.80rem;
+      font-weight: 900;
+      letter-spacing: 2px;
+      padding: 5px 11px;
+      text-transform: uppercase;
+      transition: all 0.15s ease;
     }
-    .brand:hover .brand-logo {
-      object-fit: contain;
-      background: #000;
-      border-color: var(--accent);
-      transform: scale(1.05);
+    .brand:hover .brand-logo-box {
+      background: var(--accent);
+      color: var(--bg);
     }
-    .brand:active .brand-logo {
-      object-fit: contain;
-      background: #000;
-      transform: scale(0.92);
+    .brand:active .brand-logo-box {
+      transform: scale(0.96);
     }
 
     .brand-title {
       font-size: 0.95rem;
       font-weight: 800;
       letter-spacing: 1.5px;
-      color: var(--text-main);
+      color: var(--beige-light);
       display: flex;
       align-items: center;
       gap: 8px;
@@ -183,50 +154,46 @@
     }
 
     .brand-badge {
-      font-size: 0.64rem;
+      font-size: 0.62rem;
       background: var(--surface-raised);
       border: 1px solid var(--border-accent);
-      color: var(--text-muted);
+      color: var(--beige-muted);
       padding: 2px 6px;
-      border-radius: 4px;
       letter-spacing: 0.8px;
       font-weight: 600;
     }
 
     .view-mode-selector {
       display: flex;
-      background: var(--bg);
+      background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 3px;
+      padding: 2px;
       gap: 2px;
-      flex-shrink: 0;
     }
 
     .view-btn {
       background: transparent;
       border: none;
-      color: var(--text-dim);
+      color: var(--beige-dim);
       padding: 5px 9px;
       font-size: 0.68rem;
       font-weight: 700;
       letter-spacing: 0.6px;
       cursor: pointer;
-      border-radius: 4px;
       transition: all 0.15s;
     }
 
     .view-btn.active {
       background: var(--surface-raised);
-      color: var(--text-main);
+      color: var(--beige-light);
       border: 1px solid var(--border-accent);
     }
 
-    /* DUAL TOP PODS */
+    /* TOP PODS (BLE & BATTERY) */
     .hud-capsule-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 12px;
+      gap: 14px;
       width: 100%;
     }
 
@@ -236,12 +203,9 @@
       justify-content: space-between;
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 14px 16px;
-      position: relative;
-      overflow: hidden;
+      padding: 16px 18px;
+      gap: 14px;
       min-width: 0;
-      gap: 12px;
     }
 
     .hud-card-info {
@@ -254,521 +218,531 @@
     .hud-card-title {
       font-size: 0.65rem;
       font-weight: 700;
-      color: var(--text-dim);
+      color: var(--beige-muted);
       letter-spacing: 1px;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
     }
 
-    .hud-card-val {
-      font-size: 1.15rem;
-      font-weight: 800;
-      color: var(--text-main);
-      letter-spacing: 0.5px;
+    .hud-card-meta {
+      font-size: 0.72rem;
+      color: var(--beige-dim);
+      display: flex;
+      align-items: center;
+      gap: 6px;
       white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
     }
 
-    .hud-card-sub {
-      font-size: 0.68rem;
-      color: var(--text-muted);
+    .meta-sep {
+      color: var(--border-accent);
+    }
+
+    .text-accent {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    /* BATTERY GAUGE */
+    .battery-meter-container {
       display: flex;
       align-items: center;
-      gap: 6px;
     }
-
-    /* BATTERY LEVEL METER */
-    .battery-meter {
+    .bat-cell-wrapper {
       display: flex;
       align-items: center;
-      gap: 3px;
-      padding: 3px 5px;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      width: fit-content;
     }
-
+    .bat-housing {
+      display: flex;
+      gap: 2px;
+      background: #000;
+      padding: 3px;
+      border: 1px solid var(--border-accent);
+    }
     .bat-segment {
-      width: 7px;
-      height: 14px;
-      border-radius: 2px;
-      background: #1e2430;
+      width: 6px;
+      height: 16px;
+      background: #1c1e24;
       transition: background 0.2s ease;
     }
-
-    .bat-segment.active { background: var(--green); }
-    .bat-segment.active.low { background: var(--red); }
-    .bat-segment.active.charging { background: var(--cyan); }
-
-    /* TOUCH FEEDBACK STRIP */
-    .touch-hud {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 8px 14px;
-      font-size: 0.72rem;
-      width: 100%;
-      min-width: 0;
-      transition: border-color 0.2s ease;
+    .bat-segment.active {
+      background: var(--green);
     }
-    .touch-hud.active {
-      border-color: var(--accent);
+    .bat-segment.active.low {
+      background: var(--red);
     }
-
-    /* DESKTOP TABS BAR */
-    .tabs-bar {
-      display: flex;
-      gap: 8px;
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 8px;
-      overflow-x: auto;
-      scrollbar-width: none;
+    .bat-segment.active.charging {
+      background: var(--cyan);
     }
-    .tabs-bar::-webkit-scrollbar { display: none; }
-
-    .tab-btn {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      color: var(--text-muted);
-      padding: 8px 16px;
-      font-size: 0.74rem;
-      font-weight: 700;
-      letter-spacing: 0.8px;
-      border-radius: 6px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      white-space: nowrap;
-      transition: all 0.15s ease;
-    }
-    .tab-btn:hover {
-      background: var(--surface-hover);
-      color: var(--text-main);
-      border-color: var(--border-accent);
-    }
-    .tab-btn.active {
-      background: var(--surface-raised);
-      color: var(--text-main);
-      border-color: var(--accent);
-    }
-
-    /* TAB CONTENT & CARDS */
-    .tab-content { display: none; flex-direction: column; gap: 14px; width: 100%; min-width: 0; }
-    .tab-content.active { display: flex; }
-
-    .card {
-      background-color: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 16px 18px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      width: 100%;
-      min-width: 0;
-    }
-
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 10px;
-      margin-bottom: 4px;
-      min-width: 0;
-      gap: 8px;
-    }
-
-    .card-title {
-      font-size: 0.78rem;
-      font-weight: 700;
-      letter-spacing: 1px;
-      color: var(--text-main);
-      text-transform: uppercase;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      white-space: nowrap;
-      min-width: 0;
-    }
-
-    .card-title svg {
-      stroke: var(--accent);
-    }
-
-    /* TELEMETRY GRID & TILES */
-    .telemetry-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 10px;
-      width: 100%;
-    }
-
-    @media (min-width: 640px) {
-      .telemetry-grid.grid-4 {
-        grid-template-columns: repeat(4, 1fr);
-      }
-    }
-
-    .stat-tile {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 12px 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      min-width: 0;
-      overflow: hidden;
-    }
-
-    .stat-label {
-      font-size: 0.65rem;
-      color: var(--text-dim);
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      gap: 4px;
-    }
-
-    .stat-value {
-      font-size: 0.95rem;
-      font-weight: 700;
-      color: var(--text-main);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+    .bat-terminal {
+      width: 3px;
+      height: 8px;
+      background: var(--border-accent);
+      margin-left: 1px;
     }
 
     /* BADGES */
     .badge {
       display: inline-flex;
       align-items: center;
-      gap: 4px;
-      padding: 2px 7px;
-      border-radius: 4px;
-      font-size: 0.65rem;
+      font-size: 0.62rem;
       font-weight: 700;
-      letter-spacing: 0.5px;
-      border: 1px solid var(--border);
+      letter-spacing: 0.8px;
+      padding: 2px 6px;
+      border: 1px solid var(--border-accent);
       background: var(--surface-raised);
-      color: var(--text-muted);
+      color: var(--beige-muted);
+      text-transform: uppercase;
     }
-    .badge-ok { border-color: var(--green); color: var(--green); background: var(--green-bg); }
-    .badge-alert { border-color: var(--red); color: var(--red); background: var(--red-bg); }
-    .badge-warn { border-color: var(--amber); color: var(--amber); background: var(--amber-bg); }
-    .badge-cyan { border-color: var(--cyan); color: var(--cyan); background: var(--cyan-bg); }
-    .badge-mag { border-color: var(--purple); color: var(--purple); background: var(--purple-bg); }
+    .badge-ok {
+      color: var(--green);
+      background: var(--green-bg);
+      border-color: rgba(162, 200, 146, 0.3);
+    }
+    .badge-alert {
+      color: var(--red);
+      background: var(--red-bg);
+      border-color: rgba(223, 115, 93, 0.3);
+    }
+    .badge-warn {
+      color: var(--amber);
+      background: var(--amber-bg);
+      border-color: rgba(226, 180, 106, 0.3);
+    }
+    .badge-cyan {
+      color: var(--cyan);
+      background: var(--cyan-bg);
+      border-color: rgba(130, 177, 255, 0.3);
+    }
+    .badge-mag {
+      color: var(--magenta);
+      background: var(--magenta-bg);
+      border-color: rgba(224, 146, 187, 0.3);
+    }
 
-    /* BUTTONS */
-    .btn-grid {
+    /* TOUCH HUD */
+    .touch-hud {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--cyan);
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      transition: all 0.2s ease;
+    }
+    .touch-hud.active {
+      border-color: var(--cyan);
+      background: var(--surface-raised);
+    }
+    .touch-hud-info {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .touch-hud-title {
+      font-size: 0.65rem;
+      font-weight: 800;
+      color: var(--beige-light);
+      letter-spacing: 1px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .touch-hud-meta {
+      font-size: 0.68rem;
+      color: var(--beige-dim);
+      display: flex;
+      gap: 6px;
+    }
+
+    /* NAVIGATION TABS */
+    .tabs-bar {
+      display: flex;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 3px;
+      gap: 3px;
+      overflow-x: auto;
+    }
+
+    .tab-btn {
+      flex: 1;
+      min-width: 100px;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--beige-muted);
+      padding: 10px 12px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+    .tab-btn:hover {
+      background: var(--surface-hover);
+      color: var(--beige-light);
+    }
+    .tab-btn.active {
+      background: var(--surface-raised);
+      border-color: var(--border-accent);
+      color: var(--accent);
+    }
+
+    /* CARDS & SECTIONS */
+    .tab-pane {
+      display: none;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .tab-pane.active {
+      display: flex;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .card-title-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .card-title {
+      font-size: 0.76rem;
+      font-weight: 800;
+      color: var(--beige-light);
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-sub {
+      font-size: 0.70rem;
+      color: var(--beige-dim);
+    }
+
+    .sub-section {
+      border-top: 1px solid var(--border);
+      padding-top: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .sub-title {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--beige-muted);
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+    }
+
+    /* BUTTON GRIDS & CONTROLS */
+    .grid-options {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
       gap: 8px;
       width: 100%;
     }
 
-    .btn-primary, .btn-opt, .btn-danger {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 10px 14px;
-      font-size: 0.74rem;
+    .btn-opt {
+      background: var(--key-bg);
+      border: 1px solid var(--key-border);
+      color: var(--beige-muted);
+      padding: 12px 10px;
+      font-size: 0.72rem;
       font-weight: 700;
       letter-spacing: 0.6px;
-      border-radius: 6px;
       cursor: pointer;
-      user-select: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
       transition: all 0.15s ease;
-      white-space: nowrap;
-      min-width: 0;
+      text-align: center;
+    }
+    .btn-opt:hover {
+      background: var(--surface-hover);
+      border-color: var(--border-accent);
+      color: var(--beige-light);
+    }
+    .btn-opt.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--bg);
+      font-weight: 900;
+    }
+
+    .btn-opt-sub {
+      font-size: 0.60rem;
+      opacity: 0.8;
+      font-weight: 500;
     }
 
     .btn-primary {
       background: var(--accent);
       border: 1px solid var(--accent);
-      color: #080a0e;
+      color: var(--bg);
+      padding: 10px 18px;
+      font-size: 0.74rem;
+      font-weight: 800;
+      letter-spacing: 1px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.15s ease;
     }
     .btn-primary:hover {
-      background: var(--accent-hover);
-      border-color: var(--accent-hover);
+      background: #e8dccb;
+      border-color: #e8dccb;
     }
-    .btn-primary:active { transform: translateY(1px); }
+    .btn-primary:active {
+      transform: scale(0.98);
+    }
 
-    .btn-opt {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      color: var(--text-main);
-    }
-    .btn-opt:hover {
+    .btn-secondary {
       background: var(--surface-raised);
-      border-color: var(--border-accent);
+      border: 1px solid var(--border-accent);
+      color: var(--beige-main);
+      padding: 10px 18px;
+      font-size: 0.74rem;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.15s ease;
     }
-    .btn-opt.active {
-      background: var(--surface-raised);
-      border-color: var(--accent);
-      color: var(--text-main);
+    .btn-secondary:hover {
+      background: var(--surface-hover);
+      color: var(--beige-light);
     }
-    .btn-opt:active { transform: translateY(1px); }
 
     .btn-danger {
       background: var(--red-bg);
-      border: 1px solid var(--red);
+      border: 1px solid rgba(223, 115, 93, 0.4);
       color: var(--red);
+      padding: 10px 16px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.15s ease;
     }
     .btn-danger:hover {
-      background: var(--red);
-      color: #080a0e;
+      background: rgba(223, 115, 93, 0.25);
     }
 
     /* INPUTS & SLIDERS */
-    .text-input-wrap {
+    .input-row {
       display: flex;
       gap: 8px;
       width: 100%;
-      min-width: 0;
     }
 
-    input[type="text"], input[type="number"] {
-      width: 100%;
-      min-width: 0;
+    .txt-input {
       flex: 1;
-      background: var(--bg);
+      background: var(--key-bg);
       border: 1px solid var(--border);
-      padding: 9px 12px;
-      border-radius: 6px;
-      color: var(--text-main);
+      color: var(--beige-light);
+      padding: 10px 12px;
       font-size: 0.78rem;
-      font-family: var(--font-mono);
       outline: none;
-      transition: border-color 0.15s;
+      transition: border-color 0.15s ease;
     }
-    input[type="text"]:focus, input[type="number"]:focus {
+    .txt-input:focus {
       border-color: var(--accent);
     }
 
-    .slider-wrap {
+    .slider-row {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 8px;
       width: 100%;
     }
-    .slider-head {
+
+    .slider-header {
       display: flex;
       justify-content: space-between;
+      align-items: center;
       font-size: 0.72rem;
-      color: var(--text-muted);
+      color: var(--beige-muted);
+    }
+
+    .slider-val {
+      font-weight: 800;
+      color: var(--accent);
     }
 
     input[type="range"] {
       -webkit-appearance: none;
       width: 100%;
       height: 6px;
-      border-radius: 3px;
-      background: #181d27;
+      background: var(--key-bg);
+      border: 1px solid var(--border);
       outline: none;
     }
     input[type="range"]::-webkit-slider-thumb {
       -webkit-appearance: none;
-      width: 16px;
-      height: 16px;
-      border-radius: 4px;
+      width: 14px;
+      height: 18px;
       background: var(--accent);
+      border: 1px solid #000;
       cursor: pointer;
     }
 
-    /* CHECKBOXES */
+    /* CHECKBOX TILES */
     .checkbox-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
       gap: 8px;
-      width: 100%;
     }
-    .checkbox-row {
+    .checkbox-tile {
       display: flex;
       align-items: center;
       gap: 8px;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      padding: 9px 12px;
-      border-radius: 6px;
+      background: var(--key-bg);
+      border: 1px solid var(--key-border);
+      padding: 10px 12px;
       cursor: pointer;
-      user-select: none;
-    }
-    .checkbox-row input[type="checkbox"] {
-      accent-color: var(--accent);
-      width: 15px;
-      height: 15px;
-      cursor: pointer;
-    }
-    .checkbox-row label {
-      cursor: pointer;
-      color: var(--text-main);
       font-size: 0.72rem;
-      margin: 0;
-    }
-
-    /* UPLOAD CARDS */
-    .upload-deck {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 12px;
-      width: 100%;
-    }
-    .upload-dropzone {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      background: var(--bg);
-      border: 1px dashed var(--border-accent);
-      border-radius: 8px;
-      padding: 20px 16px;
-      cursor: pointer;
-      text-align: center;
-      gap: 6px;
+      color: var(--beige-muted);
+      user-select: none;
       transition: all 0.15s ease;
     }
-    .upload-dropzone:hover {
-      border-color: var(--accent);
-      background: var(--surface-raised);
+    .checkbox-tile:hover {
+      border-color: var(--border-accent);
+      color: var(--beige-light);
     }
-    .upload-title {
-      font-size: 0.78rem;
-      font-weight: 700;
-      color: var(--text-main);
-      letter-spacing: 0.5px;
-    }
-    .upload-hint {
-      font-size: 0.66rem;
-      color: var(--text-dim);
+    .checkbox-tile input[type="checkbox"] {
+      accent-color: var(--accent);
+      width: 14px;
+      height: 14px;
+      cursor: pointer;
     }
 
-    /* PROGRESS BAR */
-    .progress-bar-wrap {
-      height: 8px;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      overflow: hidden;
-      display: none;
+    /* TELEMETRY METRIC TILES */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 8px;
       width: 100%;
     }
-    .progress-bar {
-      height: 100%;
-      width: 0%;
-      background: var(--accent);
-      transition: width 0.1s ease;
+    .metric-tile {
+      background: var(--key-bg);
+      border: 1px solid var(--border);
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .metric-tile-label {
+      font-size: 0.62rem;
+      color: var(--beige-dim);
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+    }
+    .metric-tile-val {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: var(--beige-light);
+    }
+    .metric-tile-sub {
+      font-size: 0.65rem;
+      color: var(--beige-muted);
     }
 
-    /* TERMINAL */
+    /* LIVE CONSOLE */
     .terminal {
-      background: #050608;
+      background: #000;
       border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 10px 12px;
-      font-size: 0.72rem;
-      color: var(--green);
-      max-height: 105px;
+      padding: 12px;
+      height: 140px;
       overflow-y: auto;
-      line-height: 1.45;
+      font-family: var(--font-mono);
+      font-size: 0.70rem;
+      color: var(--green);
+      line-height: 1.4;
+      white-space: pre-wrap;
       word-break: break-all;
     }
 
-    /* MOBILE NAV */
-    .mobile-nav {
-      display: flex;
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: var(--surface);
-      border-top: 1px solid var(--border);
-      z-index: 100;
-      padding: 6px 8px;
-      padding-bottom: max(6px, env(safe-area-inset-bottom));
-    }
-    .nav-item {
-      flex: 1;
-      padding: 8px 4px;
-      background: transparent;
-      border: none;
-      color: var(--text-dim);
-      font-size: 0.62rem;
-      font-weight: 700;
-      letter-spacing: 0.5px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
-      cursor: pointer;
-    }
-    .nav-item.active {
-      color: var(--text-main);
-    }
-    .nav-item.active svg {
-      stroke: var(--accent);
-    }
-
-    /* MODAL */
+    /* MODAL (ABOUT & INSTALL GUIDE) */
     .modal-backdrop {
       position: fixed;
       top: 0;
       left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(5, 6, 8, 0.88);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(4px);
+      z-index: 9999;
       display: none;
       align-items: center;
       justify-content: center;
-      z-index: 1000;
       padding: 16px;
     }
-    .modal-backdrop.active { display: flex; }
-
+    .modal-backdrop.active {
+      display: flex;
+    }
     .modal-card {
       background: var(--surface);
       border: 1px solid var(--border-accent);
-      border-radius: 10px;
       max-width: 520px;
       width: 100%;
-      max-height: 85vh;
-      overflow-y: auto;
-      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8);
+      padding: 24px;
       display: flex;
       flex-direction: column;
+      gap: 18px;
+      max-height: 88vh;
+      overflow-y: auto;
     }
     .modal-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 14px 18px;
-      background: var(--surface-raised);
       border-bottom: 1px solid var(--border);
-      position: sticky;
-      top: 0;
-      z-index: 10;
+      padding-bottom: 12px;
     }
     .modal-title {
-      font-size: 0.86rem;
+      font-size: 0.85rem;
       font-weight: 800;
-      letter-spacing: 1px;
-      color: var(--text-main);
+      color: var(--beige-light);
+      letter-spacing: 1.2px;
       display: flex;
       align-items: center;
       gap: 8px;
@@ -776,50 +750,85 @@
     .modal-close {
       background: transparent;
       border: none;
-      color: var(--text-muted);
-      font-size: 1.4rem;
+      color: var(--beige-muted);
+      font-size: 1.2rem;
       cursor: pointer;
-      line-height: 1;
-      padding: 0 4px;
+      padding: 2px 6px;
     }
-    .modal-close:hover { color: var(--red); }
+    .modal-close:hover {
+      color: var(--beige-light);
+    }
     .modal-body {
-      padding: 18px;
-      font-size: 0.78rem;
-      line-height: 1.6;
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 16px;
     }
-    .modal-footer {
-      padding: 14px 18px;
-      background: var(--surface-raised);
-      border-top: 1px solid var(--border);
-    }
-    
     .about-section {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 12px 14px;
       display: flex;
       flex-direction: column;
       gap: 6px;
     }
     .about-sec-title {
-      font-size: 0.70rem;
-      font-weight: 700;
+      font-size: 0.68rem;
+      font-weight: 800;
       color: var(--accent);
       letter-spacing: 0.8px;
       text-transform: uppercase;
     }
 
-    /* PWA INSTALL CARD */
+    /* PWA BANNER */
     .pwa-banner-card {
-      background: var(--surface-raised);
+      background: var(--surface);
       border: 1px solid var(--border-accent);
-      border-radius: 8px;
-      padding: 14px 16px;
+      border-left: 3px solid var(--accent);
+      padding: 16px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    /* MOBILE NAV BAR */
+    .mobile-nav-bar {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100vw;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 4px 6px;
+      z-index: 100;
+      justify-content: space-around;
+    }
+    .nav-item {
+      background: transparent;
+      border: none;
+      color: var(--beige-dim);
+      font-size: 0.62rem;
+      font-weight: 700;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      padding: 6px 10px;
+      cursor: pointer;
+    }
+    .nav-item.active {
+      color: var(--accent);
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding-bottom: 70px;
+      }
+      .tabs-bar {
+        display: none;
+      }
+      .mobile-nav-bar {
+        display: flex;
+      }
     }
   </style>
 </head>
@@ -827,11 +836,11 @@
 
   <div class="app-container">
 
-    <!-- HEADER (TAP LOGO 3 TIMES FOR ABOUT) -->
+    <!-- HEADER (TAP SPEARHEAD BOX 3 TIMES FOR CREATOR ABOUT MODAL) -->
     <header class="header">
-      <div class="brand" onclick="handleLogoTap()" title="Spearhead Keychain (Tap 3x for System Info)">
-        <img id="headerLogo" src="icons/icon-192.png" class="brand-logo" alt="Spearhead Emblem">
-        <div class="brand-title">SPEARHEAD <span class="brand-badge">ESP32-C3 // OS v5.0</span></div>
+      <div class="brand" onclick="handleLogoTap()" title="Spearhead (Tap 3x for System Info)">
+        <div class="brand-logo-box">SPEARHEAD</div>
+        <div class="brand-title">KEYCHAIN <span class="brand-badge">ESP32-C3 // OS v5.0</span></div>
       </div>
       
       <div class="view-mode-selector">
@@ -841,636 +850,561 @@
       </div>
     </header>
 
-    <!-- DUAL TOP PODS -->
+    <!-- DUAL TOP PODS: COMM LINK & POWER MATRIX -->
     <div class="hud-capsule-grid">
       
-      <!-- POD 1: BLE LINK -->
+      <!-- POD 1: BLE LINK & PAIRING CONTROL -->
       <div class="hud-card">
         <div class="hud-card-info">
           <div class="hud-card-title">
             <span>BLE LINK</span>
             <span id="statusBadge" class="badge badge-alert">OFFLINE</span>
           </div>
-          <div class="hud-card-val" id="hud-conn-name">DISCONNECTED</div>
-          <div class="hud-card-sub">ESP32-C3 SuperMini • 160MHz</div>
+          <div class="hud-card-meta">
+            <span id="hud-conn-name">DISCONNECTED</span>
+            <span class="meta-sep">|</span>
+            <span>GATT READY</span>
+            <span class="meta-sep">|</span>
+            <span class="text-accent">2.4GHz</span>
+          </div>
         </div>
-        <button id="btnConnect" class="btn-primary" onclick="connectBLE()">PAIR</button>
+        <button id="btnConnect" class="btn-primary" onclick="connectBLE()">
+          <svg viewBox="0 0 24 24"><path d="M6.5 6.5l11 11L12 23V1l5.5 5.5-11 11"/></svg>
+          PAIR
+        </button>
       </div>
 
-      <!-- POD 2: POWER MATRIX -->
+      <!-- POD 2: POWER MATRIX & STEPPED BATTERY GAUGE -->
       <div class="hud-card">
         <div class="hud-card-info">
           <div class="hud-card-title">
-            <span>POWER MATRIX</span>
-            <span id="hud-bat-status" class="badge">STANDBY</span>
+            <span id="hud-bat-voltage">-- V</span>
+            <span class="badge" id="hud-bat-status">STANDBY</span>
           </div>
-          <div class="hud-card-val" id="hud-bat-pct">--%</div>
-          <div class="hud-card-sub">
-            <span id="hud-bat-voltage">-- V</span> • <span id="hud-bat-hours">~--H LEFT</span>
+          <div class="hud-card-meta">
+            <span id="hud-bat-pct" class="text-accent">--%</span>
+            <span class="meta-sep">|</span>
+            <span id="hud-bat-hours">~--H LEFT</span>
+            <span class="meta-sep">|</span>
+            <span>1S LI-ION</span>
           </div>
         </div>
-
-        <div class="battery-meter">
-          <div class="bat-segment" id="bseg-1"></div>
-          <div class="bat-segment" id="bseg-2"></div>
-          <div class="bat-segment" id="bseg-3"></div>
-          <div class="bat-segment" id="bseg-4"></div>
-          <div class="bat-segment" id="bseg-5"></div>
-          <div class="bat-segment" id="bseg-6"></div>
+        
+        <div class="battery-meter-container" title="Segmented Energy Cell">
+          <div class="bat-cell-wrapper">
+            <div class="bat-housing">
+              <div class="bat-segment" id="bseg-1"></div>
+              <div class="bat-segment" id="bseg-2"></div>
+              <div class="bat-segment" id="bseg-3"></div>
+              <div class="bat-segment" id="bseg-4"></div>
+              <div class="bat-segment" id="bseg-5"></div>
+              <div class="bat-segment" id="bseg-6"></div>
+            </div>
+            <div class="bat-terminal"></div>
+          </div>
         </div>
       </div>
 
     </div>
 
-    <!-- TOUCH FEEDBACK STRIP -->
-    <div class="touch-hud" id="touchBanner">
-      <div style="display:flex; align-items:center; gap:8px;">
-        <span style="color:var(--text-dim); font-size:0.68rem; font-weight:700;">TOUCH ISR</span>
-        <span id="touchText" class="badge badge-cyan">[ IDLE ]</span>
+    <!-- HARDWARE TOUCH SENSOR TACTICAL HUD -->
+    <div id="touchBanner" class="touch-hud">
+      <div class="touch-hud-info">
+        <div class="touch-hud-title">
+          <svg viewBox="0 0 24 24"><path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M4.93 19.07L19.07 4.93"/></svg>
+          <span>HARDWARE TOUCH SENSOR</span>
+        </div>
+        <div class="touch-hud-meta">
+          <span>PIN 04</span>
+          <span class="meta-sep">|</span>
+          <span>SMART DEBOUNCE</span>
+          <span class="meta-sep">|</span>
+          <span>10S RADIO TOGGLE</span>
+        </div>
       </div>
-      <div style="font-size:0.65rem; color:var(--text-dim);">Live Feedback</div>
+      <strong id="touchText" class="badge badge-cyan">[ IDLE ]</strong>
     </div>
 
-    <!-- DESKTOP TABS BAR -->
+    <!-- MAIN DESKTOP TABS -->
     <nav class="tabs-bar">
       <button class="tab-btn active" id="dtab-tabMascots" onclick="switchTab('tabMascots')">
-        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><circle cx="15.5" cy="8.5" r="1.5"/><path d="M8 15s1.5 2 4 2 4-2 4-2"/></svg>
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18"/><circle cx="8.5" cy="8.5" r="1.5"/><circle cx="15.5" cy="8.5" r="1.5"/><path d="M8 15s1.5 2 4 2 4-2 4-2"/></svg>
         MODES
       </button>
       <button class="tab-btn" id="dtab-tabBoot" onclick="switchTab('tabBoot')">
         <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        BOOTLOADER
+        BOOT
       </button>
       <button class="tab-btn" id="dtab-tabDisplay" onclick="switchTab('tabDisplay')">
-        <svg viewBox="0 0 24 24"><rect x="1" y="6" width="18" height="12" rx="2"/><line x1="23" y1="10" x2="23" y2="14"/></svg>
+        <svg viewBox="0 0 24 24"><rect x="1" y="6" width="18" height="12"/><line x1="23" y1="10" x2="23" y2="14"/></svg>
         POWER & LOGS
       </button>
       <button class="tab-btn" id="dtab-tabMarquee" onclick="switchTab('tabMarquee')">
         <svg viewBox="0 0 24 24"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>
-        BROADCAST
+        MARQUEE
       </button>
       <button class="tab-btn" id="dtab-tabStream" onclick="switchTab('tabStream')">
-        <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
-        STREAM DECK
+        <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+        STREAM
       </button>
     </nav>
 
-    <!-- MAIN APP CONTENT PANELS -->
-    <main style="display:flex; flex-direction:column; gap:14px; width:100%; min-width:0;">
-
-      <!-- TAB 1: MODES & MASCOTS -->
-      <section id="tabMascots" class="tab-content active">
-        
-        <!-- Mode Selector -->
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">
-              <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-              ACTIVE SYSTEM MODE
-            </div>
-            <div class="badge badge-cyan">5-TAP SWITCH</div>
-          </div>
-          <div class="btn-grid">
-            <button class="btn-opt active" id="modeBtn0" onclick="setMode(0)">CyberPet</button>
-            <button class="btn-opt" id="modeBtn1" onclick="setMode(1)">Robot Eyes</button>
-            <button class="btn-opt" id="modeBtn2" onclick="setMode(2)">Cyber HUD</button>
-            <button class="btn-opt" id="modeBtn3" onclick="setMode(3)">Matrix Rain</button>
-          </div>
-        </div>
-
-        <!-- Mode 0: Mascot Selection -->
-        <div class="card context-panel" id="panelMode0">
-          <div class="card-header">
-            <div class="card-title">
-              <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-              MASCOT EMOTION AVATARS
-            </div>
-            <div class="badge badge-warn">DOUBLE-TAP CYCLE</div>
-          </div>
-          <div class="btn-grid">
-            <button class="btn-opt active" id="emoBtn0" onclick="setEmotion(0)">Luffy</button>
-            <button class="btn-opt" id="emoBtn1" onclick="setEmotion(1)">Shy Love</button>
-            <button class="btn-opt" id="emoBtn2" onclick="setEmotion(2)">Giggle Cat</button>
-            <button class="btn-opt" id="emoBtn3" onclick="setEmotion(3)">Sad Banana</button>
-            <button class="btn-opt" id="emoBtn4" onclick="setEmotion(4)">Umaru Cry</button>
-            <button class="btn-opt" id="emoBtn5" onclick="setEmotion(5)">Angry Cat</button>
-            <button class="btn-opt" id="emoBtn6" onclick="setEmotion(6)">Bunny</button>
-          </div>
-          <button class="btn-primary" onclick="saveAsDefault()">
-            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            SET AS DEFAULT BOOT SCREEN
-          </button>
-        </div>
-
-        <!-- Mode 1: Robot Eyes Moods -->
-        <div class="card context-panel" id="panelMode1">
-          <div class="card-header">
-            <div class="card-title">
-              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="9" cy="10" r="1.5"/><circle cx="15" cy="10" r="1.5"/><path d="M8 15h8"/></svg>
-              ROBOT EYES STYLE & MOOD
-            </div>
-            <div class="badge badge-cyan">DOUBLE-TAP: STYLE</div>
-          </div>
-          <div class="btn-grid">
-            <button class="btn-opt active" id="robotMoodBtn0" onclick="setRobotMood(0)">Cyan Focus</button>
-            <button class="btn-opt" id="robotMoodBtn1" onclick="setRobotMood(1)">Happy Love</button>
-            <button class="btn-opt" id="robotMoodBtn2" onclick="setRobotMood(2)">Angry Red</button>
-            <button class="btn-opt" id="robotMoodBtn3" onclick="setRobotMood(3)">Gold Cyber</button>
-          </div>
-          <button class="btn-primary" onclick="saveAsDefault()">
-            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            SET AS DEFAULT BOOT SCREEN
-          </button>
-        </div>
-
-        <!-- Mode 2: Cyber HUD Configuration -->
-        <div class="card context-panel" id="panelMode2">
-          <div class="card-header">
-            <div class="card-title">
-              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              CYBER HUD LAYOUT & WEATHER
-            </div>
-            <div class="badge badge-cyan">DOUBLE-TAP: LAYOUT</div>
-          </div>
-          <div class="btn-grid">
-            <button class="btn-opt active" id="hudLayBtn0" onclick="setHudLayout(0)">Full HUD</button>
-            <button class="btn-opt" id="hudLayBtn1" onclick="setHudLayout(1)">Big Clock</button>
-            <button class="btn-opt" id="hudLayBtn2" onclick="setHudLayout(2)">Minimal Dash</button>
-          </div>
-
-          <label>CUSTOM HUD BANNER TEXT</label>
-          <div class="text-input-wrap">
-            <input type="text" id="txtHudMessage" value="SPEARHEAD // SYS_ONLINE" maxlength="24" placeholder="Enter HUD banner text...">
-            <button class="btn-opt" onclick="sendHudCustomText()">SYNC</button>
-          </div>
-
-          <label>TOGGLE DISPLAY ELEMENTS</label>
-          <div class="checkbox-grid">
-            <div class="checkbox-row" onclick="toggleCheckbox('chkHudSec')">
-              <input type="checkbox" id="chkHudSec" checked onchange="syncHudConfig()">
-              <label>Show Seconds (HH:MM:SS)</label>
-            </div>
-            <div class="checkbox-row" onclick="toggleCheckbox('chkHudBat')">
-              <input type="checkbox" id="chkHudBat" checked onchange="syncHudConfig()">
-              <label>Show Battery Gauge</label>
-            </div>
-            <div class="checkbox-row" onclick="toggleCheckbox('chkHudDate')">
-              <input type="checkbox" id="chkHudDate" checked onchange="syncHudConfig()">
-              <label>Show Date Banner</label>
-            </div>
-            <div class="checkbox-row" onclick="toggleCheckbox('chkHudWave')">
-              <input type="checkbox" id="chkHudWave" checked onchange="syncHudConfig()">
-              <label>Show Waveform</label>
-            </div>
-            <div class="checkbox-row" onclick="toggleCheckbox('chkHudText')">
-              <input type="checkbox" id="chkHudText" checked onchange="syncHudConfig()">
-              <label>Show Banner Text</label>
-            </div>
-          </div>
-
-          <div style="display:flex; gap:8px;">
-            <button class="btn-opt" style="flex:1;" onclick="syncTimeAndWeather()">
-              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              SYNC TIME & WEATHER
-            </button>
-            <button class="btn-primary" style="flex:1;" onclick="saveAsDefault()">SET DEFAULT</button>
-          </div>
-        </div>
-
-        <!-- Mode 3: Matrix Rain Themes -->
-        <div class="card context-panel" id="panelMode3">
-          <div class="card-header">
-            <div class="card-title">
-              <svg viewBox="0 0 24 24"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/></svg>
-              MATRIX RAIN THEMES
-            </div>
-            <div class="badge badge-ok">DOUBLE-TAP: THEME</div>
-          </div>
-          <div class="btn-grid">
-            <button class="btn-opt active" id="matrixThmBtn0" onclick="setMatrixTheme(0)">Neo Green</button>
-            <button class="btn-opt" id="matrixThmBtn1" onclick="setMatrixTheme(1)">Cyber Cyan</button>
-            <button class="btn-opt" id="matrixThmBtn2" onclick="setMatrixTheme(2)">Synth Magenta</button>
-            <button class="btn-opt" id="matrixThmBtn3" onclick="setMatrixTheme(3)">Fire Amber</button>
-          </div>
-          <button class="btn-primary" onclick="saveAsDefault()">SET AS DEFAULT BOOT SCREEN</button>
-        </div>
-
-        <!-- DEDICATED 2-SECOND HOLD SECRET MESSAGE HUB -->
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">
-              <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-              2-SECOND HOLD SECRET MESSAGE
-            </div>
-            <div class="badge badge-mag">UNIVERSAL REACTION</div>
-          </div>
-          <div style="font-size:0.75rem; color:var(--text-muted);">
-            Configure the message revealed when holding the touch sensor for <b>2 seconds</b> across CyberHUD, Robot Eyes, Matrix Rain, and Mascots.
-          </div>
-
-          <div class="text-input-wrap">
-            <input type="text" id="txtUniversalShyMessage" value="I LOVE YOU" maxlength="28" placeholder="Enter universal 2-second hold message...">
-            <button class="btn-primary" style="flex-shrink:0;" onclick="sendUniversalShyText()">
-              <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-              SAVE MESSAGE
-            </button>
-          </div>
-
-          <div style="display:flex; gap:8px;">
-            <button class="btn-opt" style="flex:1;" onclick="testUniversalShyReaction()">
-              <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-              TEST 2s REACTION ON DEVICE
-            </button>
-          </div>
-        </div>
-
-        <!-- Secret Developer Easter Egg Card -->
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">
-              <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-              SECRET EASTER EGG PROMPT
-            </div>
-            <div style="display:flex; align-items:center; gap:6px;">
-              <span id="easterEggCountBadge" class="badge badge-mag">0 UNLOCKED</span>
-              <span class="badge badge-warn">7-POKE UNLOCK</span>
-            </div>
-          </div>
-          <div style="font-size:0.75rem; color:var(--text-muted);">
-            Configure your custom secret Easter Egg message. Rapidly tap the touch sensor <b>7 times</b> to trigger this hidden screen!
-          </div>
-
-          <div class="text-input-wrap">
-            <input type="text" id="txtEasterEgg" value="YOU FOUND THE SECRET" maxlength="40" placeholder="Enter secret Easter Egg message...">
-            <button class="btn-primary" style="flex-shrink:0;" onclick="sendEasterEggMessage()">
-              <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-              SAVE SECRET
-            </button>
-          </div>
-
-          <div style="display:flex; gap:8px;">
-            <button class="btn-opt" style="flex:2;" onclick="testEasterEgg()">
-              <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-              TEST EASTER EGG ON DEVICE
-            </button>
-            <button class="btn-opt" style="flex:1;" onclick="resetEasterEggCount()">
-              <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-              RESET COUNT
-            </button>
-          </div>
-        </div>
-
-        <!-- Hardware Touch Gesture Guide -->
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">
-              <svg viewBox="0 0 24 24"><path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M4.93 19.07L19.07 4.93"/></svg>
-              HARDWARE TOUCH GESTURE GUIDE
-            </div>
-            <div style="font-size:0.63rem; color:var(--text-dim);">ESP32-C3 TOUCH ISR</div>
-          </div>
-          <div class="telemetry-grid">
-            <div class="stat-tile">
-              <div class="stat-label">SINGLE TAP <span class="badge badge-cyan">POKE</span></div>
-              <div class="stat-value" style="font-size:0.72rem;">Poke Avatar / Glance HUD / Tick</div>
-            </div>
-            <div class="stat-tile">
-              <div class="stat-label">DOUBLE TAP <span class="badge badge-warn">CYCLE</span></div>
-              <div class="stat-value" style="font-size:0.72rem;">Next Avatar / Mood / Layout / Theme</div>
-            </div>
-            <div class="stat-tile">
-              <div class="stat-label">5 QUICK TAPS <span class="badge badge-ok">MODE</span></div>
-              <div class="stat-value" style="font-size:0.72rem;">Pet ➔ Robot ➔ HUD ➔ Matrix</div>
-            </div>
-            <div class="stat-tile">
-              <div class="stat-label">7 QUICK POKES <span class="badge badge-mag">EASTER EGG</span></div>
-              <div class="stat-value" style="font-size:0.72rem;">Unlock Hidden Developer Screen</div>
-            </div>
-            <div class="stat-tile">
-              <div class="stat-label">2-SEC HOLD <span class="badge badge-mag">REACTION</span></div>
-              <div class="stat-value" style="font-size:0.72rem;">Universal Secret Reaction (5s Revert)</div>
-            </div>
-            <div class="stat-tile">
-              <div class="stat-label">10S HOLD + REL <span class="badge badge-ok">POWER</span></div>
-              <div class="stat-value" style="font-size:0.72rem;">BLE Radio ON / Deep Sleep</div>
-            </div>
-            <div class="stat-tile">
-              <div class="stat-label">HOLD &gt; 14S <span class="badge badge-alert">CANCEL</span></div>
-              <div class="stat-value" style="font-size:0.72rem;">Noise Rejection / Safety Reset</div>
-            </div>
-          </div>
-        </div>
-
-      </section>
-
-      <!-- TAB 2: BOOTLOADER STUDIO -->
-      <section id="tabBoot" class="tab-content">
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">
-              <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-              STARTUP BOOTLOADER ANIMATION
-            </div>
-            <button class="btn-opt" style="padding:4px 8px; font-size:0.7rem;" onclick="testBootSplash()">
-              <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-              PREVIEW
-            </button>
-          </div>
-          <div class="btn-grid">
-            <button class="btn-opt active" id="bootBtn0" onclick="setBootType(0)">Spearhead</button>
-            <button class="btn-opt" id="bootBtn1" onclick="setBootType(1)">Custom Image</button>
-            <button class="btn-opt" id="bootBtn2" onclick="setBootType(2)">Video Anim</button>
-            <button class="btn-opt" id="bootBtn3" onclick="setBootType(3)">Instant Boot</button>
-          </div>
-
-          <div class="slider-wrap">
-            <div class="slider-head">
-              <span>DISPLAY DURATION</span>
-              <span id="bootDurVal" style="color:var(--accent); font-weight:700;">2 Seconds</span>
-            </div>
-            <input type="range" id="bootDurSlider" min="1" max="4" value="2" oninput="updateBootDuration(this.value)">
-          </div>
-
-          <!-- SLEEK UPLOAD CARDS -->
-          <div class="upload-deck">
-            <label class="upload-dropzone">
-              <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-              <div class="upload-title">FLASH BOOT IMAGE</div>
-              <div class="upload-hint">PNG / JPG • 240x240 Auto-fit</div>
-              <input type="file" accept="image/*" style="display:none;" onchange="uploadBootImage(event)">
-            </label>
-
-            <label class="upload-dropzone">
-              <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
-              <div class="upload-title">FLASH BOOT VIDEO</div>
-              <div class="upload-hint">MP4 / GIF • 20 FPS Loop</div>
-              <input type="file" accept="video/*,image/gif" style="display:none;" onchange="uploadBootVideo(event)">
-            </label>
-          </div>
-
-          <div id="bootProgressWrap" class="progress-bar-wrap">
-            <div id="bootProgressBar" class="progress-bar"></div>
-          </div>
-        </div>
-      </section>
-
-      <!-- TAB 3: POWER & BATTERY LOGS -->
-      <section id="tabDisplay" class="tab-content">
-        
-        <!-- Battery Discharge & Runtime Tracker -->
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">
-              <svg viewBox="0 0 24 24"><rect x="1" y="6" width="18" height="12" rx="2"/><line x1="23" y1="10" x2="23" y2="14"/></svg>
-              BATTERY RUNTIME TRACKER
-            </div>
-            <button class="btn-opt" style="padding:4px 8px; font-size:0.7rem;" onclick="fetchBatteryLog()">
-              <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-              REFRESH
-            </button>
-          </div>
-
-          <div class="telemetry-grid grid-4">
-            <div class="stat-tile">
-              <div class="stat-label">LAST RUN</div>
-              <div class="stat-value" id="logLastRun" style="color:var(--cyan);">--</div>
-            </div>
-            <div class="stat-tile">
-              <div class="stat-label">VOLT DROP</div>
-              <div class="stat-value" id="logLastVolt" style="color:var(--amber);">--</div>
-            </div>
-            <div class="stat-tile">
-              <div class="stat-label">DISCHARGE</div>
-              <div class="stat-value" id="logDischargeRate" style="color:var(--red);">--</div>
-            </div>
-            <div class="stat-tile">
-              <div class="stat-label">UPTIME</div>
-              <div class="stat-value" id="logCurRun" style="color:var(--green);">0s</div>
-            </div>
-            <div class="stat-tile">
-              <div class="stat-label">CUR VOLTAGE</div>
-              <div class="stat-value" id="logCurVolt">--</div>
-            </div>
-            <div class="stat-tile">
-              <div class="stat-label">LIFETIME</div>
-              <div class="stat-value" id="logAllTime" style="color:var(--purple);">--</div>
-            </div>
-            <div class="stat-tile">
-              <div class="stat-label">CYCLES</div>
-              <div class="stat-value" id="logCycles">--</div>
-            </div>
-            <div class="stat-tile">
-              <div class="stat-label">LOG SYNC</div>
-              <div class="stat-value" style="color:var(--accent); font-size:0.74rem;">NVS FLASH</div>
-            </div>
-          </div>
-
-          <div style="display:flex; gap:8px;">
-            <button class="btn-opt" style="flex:1;" onclick="fetchBatteryLog()">
-              <svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-              READ FLASH LOG
-            </button>
-            <button class="btn-danger" style="flex:1;" onclick="resetBatteryLog()">
-              <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-              RESET LOG
-            </button>
-          </div>
-        </div>
-
-        <!-- Power Management & Memory -->
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">
-              <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-              POWER & HARDWARE STANDBY
-            </div>
-          </div>
-
-          <div class="btn-grid">
-            <button class="btn-opt" style="border-color:var(--cyan); color:var(--cyan);" onclick="turnOffBLE()">
-              <svg viewBox="0 0 24 24"><path d="M6.5 6.5l11 11L12 23V1l5.5 5.5-11 11"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-              TURN OFF BLE & SLEEP
-            </button>
-            <button class="btn-opt" style="border-color:var(--purple); color:var(--purple);" onclick="enterDeepSleepNow()">
-              <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-              DEEP SLEEP NOW
-            </button>
-          </div>
-
-          <div style="font-size:0.70rem; color:var(--text-dim); line-height:1.45;">
-            Single tap wakes from deep sleep in &lt;0.08s. 10s hold wakes with BLE radio enabled.
-          </div>
-
-          <button class="btn-primary" onclick="saveChangesToFlash()">
-            <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-            SAVE CHANGES TO FLASH MEMORY
-          </button>
-        </div>
-
-        <!-- Display Orientation & Brightness -->
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">
-              <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/></svg>
-              ORIENTATION & BRIGHTNESS
-            </div>
-          </div>
-
-          <label>ORIENTATION</label>
-          <div class="btn-grid">
-            <button class="btn-opt" id="rotBtn0" onclick="setRotation(0)">0° Normal</button>
-            <button class="btn-opt" id="rotBtn1" onclick="setRotation(1)">90° Right</button>
-            <button class="btn-opt" id="rotBtn2" onclick="setRotation(2)">180° Invert</button>
-            <button class="btn-opt active" id="rotBtn3" onclick="setRotation(3)">270° Left</button>
-          </div>
-
-          <div class="slider-wrap">
-            <div class="slider-head">
-              <span>LIVE ROTATION ANGLE</span>
-              <span id="angleVal" style="color:var(--accent); font-weight:700;">270°</span>
-            </div>
-            <input type="range" id="angleSlider" min="0" max="360" value="270" step="90" oninput="updateAngleSlider(this.value)">
-          </div>
-
-          <div class="slider-wrap">
-            <div class="slider-head">
-              <span>BRIGHTNESS</span>
-              <span id="brVal" style="color:var(--accent); font-weight:700;">95%</span>
-            </div>
-            <input type="range" id="brSlider" min="15" max="255" value="240" oninput="updateBrightness(this.value)">
-          </div>
-
-          <div class="slider-wrap">
-            <div class="slider-head">
-              <span>AUTO SLEEP TIMEOUT</span>
-              <span id="sleepVal" style="color:var(--accent); font-weight:700;">Never (Always ON)</span>
-            </div>
-            <input type="range" id="sleepSlider" min="0" max="5" value="5" oninput="updateSleepSlider(this.value)">
-          </div>
-        </div>
-
-      </section>
-
-      <!-- TAB 4: MARQUEE TEXT BROADCAST -->
-      <section id="tabMarquee" class="tab-content">
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">
-              <svg viewBox="0 0 24 24"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>
-              SCROLLING TEXT BROADCAST
-            </div>
-          </div>
-
-          <div class="text-input-wrap">
-            <input type="text" id="txtMessage" value="SPEARHEAD // SYSTEM ONLINE" placeholder="Enter marquee text...">
-            <button class="btn-primary" style="flex-shrink:0;" onclick="sendCustomText()">
-              <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-              SEND
-            </button>
-          </div>
-
-          <!-- ADVANCED MARQUEE CONTROLS: SPEED, SCALE & DIRECTION -->
-          <div style="background:var(--surface-raised); border:1px solid var(--border); border-radius:6px; padding:12px 14px; display:flex; flex-direction:column; gap:12px;">
-            <div class="slider-wrap">
-              <div class="slider-head">
-                <span>SCROLL SPEED</span>
-                <span id="marqueeSpeedVal" style="color:var(--accent); font-weight:700;">3 px/f</span>
-              </div>
-              <input type="range" id="marqueeSpeed" min="1" max="12" value="3" oninput="updateMarqueeSpeed(this.value)">
-            </div>
-
-            <div class="slider-wrap">
-              <div class="slider-head">
-                <span>TEXT SIZE / SCALE</span>
-                <span id="marqueeSizeVal" style="color:var(--accent); font-weight:700;">Size 3 (24px)</span>
-              </div>
-              <input type="range" id="marqueeSize" min="1" max="12" value="3" oninput="updateMarqueeSize(this.value)">
-              <div style="display:flex; justify-content:space-between; font-size:0.62rem; color:var(--text-dim); margin-top:2px;">
-                <span>1 (8px)</span><span>3 (24px)</span><span>6 (48px)</span><span>9 (72px)</span><span>12 (96px Mega)</span>
-              </div>
-            </div>
-
-            <div class="slider-wrap">
-              <div class="slider-head">
-                <span>FLOW DIRECTION</span>
-                <span id="marqueeDirVal" style="color:var(--accent); font-weight:700;">RIGHT TO LEFT (←)</span>
-              </div>
-              <div class="btn-grid" style="grid-template-columns: 1fr 1fr;">
-                <button class="btn-opt active" id="btnDirRTL" onclick="setMarqueeDirection(0)">← Right to Left</button>
-                <button class="btn-opt" id="btnDirLTR" onclick="setMarqueeDirection(1)">Left to Right →</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- TAB 5: LIVE MEDIA STREAMING -->
-      <section id="tabStream" class="tab-content">
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">
-              <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
-              LIVE MEDIA STREAM (IMAGE / VIDEO / GIF)
-            </div>
-          </div>
-
-          <div class="upload-deck">
-            <label class="upload-dropzone">
-              <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-              <div class="upload-title">STREAM STATIC IMAGE</div>
-              <div class="upload-hint">PNG / JPG / WebP • Real-time Frame</div>
-              <input type="file" accept="image/*" style="display:none;" onchange="uploadLiveImage(event)">
-            </label>
-
-            <label class="upload-dropzone">
-              <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-              <div class="upload-title">STREAM 25 FPS VIDEO / GIF</div>
-              <div class="upload-hint">MP4 / GIF • Flash-Backed Loop</div>
-              <input type="file" accept="video/*,image/gif" style="display:none;" onchange="uploadLiveVideo(event)">
-            </label>
-          </div>
-
-          <div id="streamProgressWrap" class="progress-bar-wrap">
-            <div id="streamProgressBar" class="progress-bar"></div>
-          </div>
-        </div>
-      </section>
-
-      <!-- PWA APP INSTALL BANNER CARD -->
-      <div id="installAppCard" class="pwa-banner-card card">
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
-          <div style="display:flex; align-items:center; gap:12px; min-width:0;">
-            <img src="icons/icon-192.png" width="38" height="38" alt="Spearhead Icon" style="border-radius:6px; border:1px solid var(--border-accent); flex-shrink:0;">
-            <div style="min-width:0;">
-              <div style="font-size:0.84rem; font-weight:800; color:var(--text-main); letter-spacing:0.8px;">SPEARHEAD APP</div>
-              <div style="font-size:0.68rem; color:var(--text-muted);">Install standalone WebAPK / PWA for full-screen access</div>
-            </div>
-          </div>
-          <button id="btnInstallApp" class="btn-primary" onclick="triggerPWAInstall()" title="Install App">
-            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            <span>INSTALL APP</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- LIVE TERMINAL CONSOLE -->
+    <!-- ========================================================= -->
+    <!-- TAB 1: MODES & EMOTIONS -->
+    <!-- ========================================================= -->
+    <section id="tabMascots" class="tab-pane active">
+      
+      <!-- SECTION 1: SYSTEM MODES -->
       <div class="card">
         <div class="card-header">
-          <div class="card-title">
-            <svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
-            LIVE CONSOLE
+          <div class="card-title-group">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+              PRIMARY SYSTEM MODE
+            </div>
+            <div class="card-sub">Choose active visual engine rendered on display</div>
           </div>
-          <button class="btn-opt" style="padding:3px 10px; font-size:0.68rem;" onclick="clearTerminal()">CLEAR</button>
         </div>
-        <div class="terminal" id="terminal">> Spearhead Deck online. Tap PAIR to connect over Bluetooth.</div>
+
+        <div class="grid-options">
+          <button class="btn-opt active" id="modeBtn0" onclick="setMode(0)">
+            <span>CYBERPET</span>
+            <span class="btn-opt-sub">Pixel Mascots</span>
+          </button>
+          <button class="btn-opt" id="modeBtn1" onclick="setMode(1)">
+            <span>CYBERHUD</span>
+            <span class="btn-opt-sub">Tactical Clock</span>
+          </button>
+          <button class="btn-opt" id="modeBtn2" onclick="setMode(2)">
+            <span>ROBOT EYES</span>
+            <span class="btn-opt-sub">Procedural Gaze</span>
+          </button>
+          <button class="btn-opt" id="modeBtn3" onclick="setMode(3)">
+            <span>MATRIX RAIN</span>
+            <span class="btn-opt-sub">Code Streams</span>
+          </button>
+        </div>
+
+        <!-- SUB-PANEL: CYBERPET EMOTIONS -->
+        <div id="panelMode0" class="sub-section">
+          <div class="sub-title">CYBERPET MASCOTS & AVATARS</div>
+          <div class="grid-options">
+            <button class="btn-opt active" id="emoBtn0" onclick="setEmotion(0)">NORMAL</button>
+            <button class="btn-opt" id="emoBtn1" onclick="setEmotion(1)">SHY LOVE</button>
+            <button class="btn-opt" id="emoBtn2" onclick="setEmotion(2)">ANGRY</button>
+            <button class="btn-opt" id="emoBtn3" onclick="setEmotion(3)">COOL AF</button>
+            <button class="btn-opt" id="emoBtn4" onclick="setEmotion(4)">SLEEPY</button>
+            <button class="btn-opt" id="emoBtn5" onclick="setEmotion(5)">COFFEE</button>
+            <button class="btn-opt" id="emoBtn6" onclick="setEmotion(6)">DEAD RIP</button>
+          </div>
+        </div>
+
+        <!-- SUB-PANEL: CYBERHUD CONFIG -->
+        <div id="panelMode1" class="sub-section" style="display:none;">
+          <div class="sub-title">CYBERHUD LAYOUT STYLE</div>
+          <div class="grid-options" style="margin-bottom:12px;">
+            <button class="btn-opt active" id="hudLayBtn0" onclick="setHudLayout(0)">COMPACT HUD</button>
+            <button class="btn-opt" id="hudLayBtn1" onclick="setHudLayout(1)">EXPANDED GAUGES</button>
+            <button class="btn-opt" id="hudLayBtn2" onclick="setHudLayout(2)">MINIMALIST</button>
+          </div>
+
+          <div class="sub-title" style="margin-top:6px;">DISPLAY METRICS & GAUGES</div>
+          <div class="checkbox-grid">
+            <label class="checkbox-tile"><input type="checkbox" id="chkHudSec" checked onchange="syncHudConfig()"> Seconds Pulse</label>
+            <label class="checkbox-tile"><input type="checkbox" id="chkHudBat" checked onchange="syncHudConfig()"> Battery Gauge</label>
+            <label class="checkbox-tile"><input type="checkbox" id="chkHudDate" checked onchange="syncHudConfig()"> Date & Day</label>
+            <label class="checkbox-tile"><input type="checkbox" id="chkHudWave" checked onchange="syncHudConfig()"> Sine Waveform</label>
+            <label class="checkbox-tile"><input type="checkbox" id="chkHudText" checked onchange="syncHudConfig()"> Custom Banner</label>
+          </div>
+
+          <div class="input-row" style="margin-top:10px;">
+            <input type="text" id="txtHudMessage" class="txt-input" placeholder="Custom HUD banner message..." maxlength="32">
+            <button class="btn-primary" onclick="sendHudCustomText()">UPDATE</button>
+          </div>
+        </div>
+
+        <!-- SUB-PANEL: ROBOT EYES -->
+        <div id="panelMode2" class="sub-section" style="display:none;">
+          <div class="sub-title">ROBOT EYE MOODS</div>
+          <div class="grid-options">
+            <button class="btn-opt active" id="robotMoodBtn0" onclick="setRobotMood(0)">CYAN GLOW</button>
+            <button class="btn-opt" id="robotMoodBtn1" onclick="setRobotMood(1)">HEART EYES</button>
+            <button class="btn-opt" id="robotMoodBtn2" onclick="setRobotMood(2)">FOCUSED</button>
+            <button class="btn-opt" id="robotMoodBtn3" onclick="setRobotMood(3)">SUSPICIOUS</button>
+          </div>
+        </div>
+
+        <!-- SUB-PANEL: MATRIX THEMES -->
+        <div id="panelMode3" class="sub-section" style="display:none;">
+          <div class="sub-title">MATRIX DIGITAL THEMES</div>
+          <div class="grid-options">
+            <button class="btn-opt active" id="matrixThmBtn0" onclick="setMatrixTheme(0)">CYBER GREEN</button>
+            <button class="btn-opt" id="matrixThmBtn1" onclick="setMatrixTheme(1)">NEON BLUE</button>
+            <button class="btn-opt" id="matrixThmBtn2" onclick="setMatrixTheme(2)">AMBER GOLD</button>
+            <button class="btn-opt" id="matrixThmBtn3" onclick="setMatrixTheme(3)">HEART RAIN</button>
+          </div>
+        </div>
       </div>
 
-    </main>
+      <!-- SECTION 2: UNIVERSAL 2-SECOND HOLD SECRET REACTION -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+              UNIVERSAL 2-SECOND HOLD REACTION
+            </div>
+            <div class="card-sub">Custom message & secret reaction triggered when holding the touch sensor for 2s</div>
+          </div>
+        </div>
 
-    <!-- FIXED MOBILE NAVIGATION BAR -->
-    <nav class="mobile-nav">
+        <div class="input-row">
+          <input type="text" id="txtUniversalShyMessage" class="txt-input" placeholder="Type secret reaction message..." maxlength="48" value="I LOVE YOU <3">
+          <button class="btn-primary" onclick="sendUniversalShyText()">SAVE MESSAGE</button>
+          <button class="btn-secondary" onclick="testUniversalShyReaction()">TEST PREVIEW</button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ========================================================= -->
+    <!-- TAB 2: BOOTLOADER ENGINE -->
+    <!-- ========================================================= -->
+    <section id="tabBoot" class="tab-pane">
+      
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              BOOTLOADER PROFILE
+            </div>
+            <div class="card-sub">Select boot animation loaded during hardware cold startup</div>
+          </div>
+        </div>
+
+        <div class="grid-options">
+          <button class="btn-opt active" id="bootBtn0" onclick="setBootType(0)">
+            <span>SPEARHEAD TACTICAL</span>
+            <span class="btn-opt-sub">Emblem + Progress Bar</span>
+          </button>
+          <button class="btn-opt" id="bootBtn1" onclick="setBootType(1)">
+            <span>INSTANT FAST BOOT</span>
+            <span class="btn-opt-sub">Direct Active Mode</span>
+          </button>
+          <button class="btn-opt" id="bootBtn2" onclick="setBootType(2)">
+            <span>CUSTOM IMAGE</span>
+            <span class="btn-opt-sub">Flash LittleFS JPG</span>
+          </button>
+          <button class="btn-opt" id="bootBtn3" onclick="setBootType(3)">
+            <span>CUSTOM VIDEO</span>
+            <span class="btn-opt-sub">20 FPS Flash Anim</span>
+          </button>
+        </div>
+
+        <div class="sub-section">
+          <div class="slider-row">
+            <div class="slider-header">
+              <span class="sub-title">BOOT SPLASH DURATION</span>
+              <span id="bootDurVal" class="slider-val">2 Seconds</span>
+            </div>
+            <input type="range" id="bootDurSlider" min="1" max="10" step="1" value="2" oninput="updateBootDuration(this.value)">
+          </div>
+
+          <div style="display:flex; justify-content:flex-end; margin-top:8px;">
+            <button class="btn-primary" onclick="testBootSplash()">PREVIEW BOOT ANIMATION</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+              PERSISTENT BOOT MEDIA UPLOAD
+            </div>
+            <div class="card-sub">Upload custom media saved permanently to ESP32 LittleFS flash</div>
+          </div>
+        </div>
+
+        <div class="grid-options">
+          <label class="btn-opt" style="cursor:pointer;">
+            <span>UPLOAD BOOT IMAGE</span>
+            <span class="btn-opt-sub">240×240 JPEG</span>
+            <input type="file" accept="image/*" style="display:none;" onchange="uploadBootImage(event)">
+          </label>
+          <label class="btn-opt" style="cursor:pointer;">
+            <span>UPLOAD BOOT VIDEO</span>
+            <span class="btn-opt-sub">MP4 / GIF / WEBM</span>
+            <input type="file" accept="video/*,image/gif" style="display:none;" onchange="uploadBootVideo(event)">
+          </label>
+        </div>
+
+        <div id="bootProgressWrap" style="display:none; margin-top:8px;">
+          <div style="font-size:0.68rem; color:var(--beige-muted); margin-bottom:4px;">FLASHING LITTLEFS MEMORY...</div>
+          <div style="background:#000; height:6px; width:100%; border:1px solid var(--border);">
+            <div id="bootProgressBar" style="background:var(--accent); height:100%; width:0%; transition:width 0.1s linear;"></div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ========================================================= -->
+    <!-- TAB 3: POWER, DISPLAY & LOGS -->
+    <!-- ========================================================= -->
+    <section id="tabDisplay" class="tab-pane">
+      
+      <!-- DISPLAY & ROTATION -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+              DISPLAY & ORIENTATION
+            </div>
+            <div class="card-sub">Brightness backlight control and IPS hardware rotation</div>
+          </div>
+        </div>
+
+        <div class="slider-row">
+          <div class="slider-header">
+            <span class="sub-title">BACKLIGHT BRIGHTNESS</span>
+            <span id="brVal" class="slider-val">80%</span>
+          </div>
+          <input type="range" id="brSlider" min="5" max="255" value="200" oninput="updateBrightness(this.value)">
+        </div>
+
+        <div class="sub-section">
+          <div class="sub-title">SCREEN ROTATION</div>
+          <div class="grid-options">
+            <button class="btn-opt active" id="rotBtn0" onclick="setScreenRotation(0)">0° NORMAL</button>
+            <button class="btn-opt" id="rotBtn1" onclick="setScreenRotation(1)">90° CW</button>
+            <button class="btn-opt" id="rotBtn2" onclick="setScreenRotation(2)">180° INVERTED</button>
+            <button class="btn-opt" id="rotBtn3" onclick="setScreenRotation(3)">270° CCW</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- POWER MANAGEMENT & SLEEP -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24"><path d="M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10"/></svg>
+              POWER MANAGEMENT & AUTO-SLEEP
+            </div>
+            <div class="card-sub">Display standby timeout, BLE radio shutdown, and deep sleep</div>
+          </div>
+        </div>
+
+        <div class="slider-row">
+          <div class="slider-header">
+            <span class="sub-title">AUTO-SLEEP INACTIVITY TIMEOUT</span>
+            <span id="sleepVal" class="slider-val">15s</span>
+          </div>
+          <input type="range" id="sleepSlider" min="0" max="5" step="1" value="0" oninput="updateSleepTimeout(this.value)">
+        </div>
+
+        <div class="sub-section">
+          <div class="sub-title">HARDWARE POWER ACTIONS</div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="btn-danger" onclick="enterDeepSleepNow()">ENTER DEEP SLEEP</button>
+            <button class="btn-secondary" onclick="turnOffBLE()">TURN OFF BLUETOOTH RADIO</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- BATTERY TELEMETRY & DISCHARGE LOG -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24"><rect x="1" y="6" width="18" height="12"/><line x1="23" y1="10" x2="23" y2="14"/></svg>
+              BATTERY TELEMETRY & DISCHARGE LOG
+            </div>
+            <div class="card-sub">Non-volatile runtime tracking & discharge diagnostics</div>
+          </div>
+          <div style="display:flex; gap:6px;">
+            <button class="btn-secondary" style="padding:6px 10px; font-size:0.68rem;" onclick="fetchBatteryLog()">REFRESH</button>
+            <button class="btn-danger" style="padding:6px 10px; font-size:0.68rem;" onclick="resetBatteryLog()">CLEAR</button>
+          </div>
+        </div>
+
+        <div class="metrics-grid">
+          <div class="metric-tile">
+            <span class="metric-tile-label">CURRENT RUNTIME</span>
+            <span class="metric-tile-val" id="logCurRun">--</span>
+            <span class="metric-tile-sub" id="logCurVolt">-- V</span>
+          </div>
+          <div class="metric-tile">
+            <span class="metric-tile-label">LAST DISCHARGE RUN</span>
+            <span class="metric-tile-val" id="logLastRun">--</span>
+            <span class="metric-tile-sub" id="logLastVolt">--</span>
+          </div>
+          <div class="metric-tile">
+            <span class="metric-tile-label">DISCHARGE RATE</span>
+            <span class="metric-tile-val" id="logDischargeRate">--</span>
+            <span class="metric-tile-sub">Estimated mV/hr</span>
+          </div>
+          <div class="metric-tile">
+            <span class="metric-tile-label">LIFETIME CYCLES</span>
+            <span class="metric-tile-val" id="logCycles">Cycle #0</span>
+            <span class="metric-tile-sub" id="logAllTime">Total: --</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- PERSISTENT MEMORY SYNC -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              PERSISTENT MEMORY SYNC
+            </div>
+            <div class="card-sub">Save all current active parameters as permanent defaults in ESP32 NVS</div>
+          </div>
+        </div>
+
+        <div>
+          <button class="btn-primary" style="width:100%;" onclick="saveChangesToFlash()">SAVE ALL SETTINGS TO FLASH MEMORY</button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ========================================================= -->
+    <!-- TAB 4: MARQUEE BROADCAST -->
+    <!-- ========================================================= -->
+    <section id="tabMarquee" class="tab-pane">
+      
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>
+              MARQUEE TEXT BROADCAST
+            </div>
+            <div class="card-sub">Stream smooth scrolling ticker banner text to keychain</div>
+          </div>
+        </div>
+
+        <div class="input-row">
+          <input type="text" id="txtMessage" class="txt-input" placeholder="Type banner text to scroll..." maxlength="128">
+          <button class="btn-primary" onclick="sendCustomText()">BROADCAST</button>
+        </div>
+
+        <div class="sub-section">
+          <div class="slider-row">
+            <div class="slider-header">
+              <span class="sub-title">SCROLL SPEED</span>
+              <span id="marqueeSpeedVal" class="slider-val">3 px/f</span>
+            </div>
+            <input type="range" id="marqueeSpeed" min="1" max="10" step="1" value="3" oninput="updateMarqueeSpeed(this.value)">
+          </div>
+
+          <div class="slider-row" style="margin-top:8px;">
+            <div class="slider-header">
+              <span class="sub-title">FONT SIZE / SCALE</span>
+              <span id="marqueeSizeVal" class="slider-val">Size 3 (24px)</span>
+            </div>
+            <input type="range" id="marqueeSize" min="1" max="12" step="1" value="3" oninput="updateMarqueeSize(this.value)">
+          </div>
+
+          <div class="sub-section">
+            <div class="sub-title">SCROLL DIRECTION</div>
+            <div class="grid-options">
+              <button class="btn-opt active" id="btnDirRTL" onclick="setMarqueeDirection(0)">RIGHT TO LEFT (←)</button>
+              <button class="btn-opt" id="btnDirLTR" onclick="setMarqueeDirection(1)">LEFT TO RIGHT (→)</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ========================================================= -->
+    <!-- TAB 5: STREAM ENGINE -->
+    <!-- ========================================================= -->
+    <section id="tabStream" class="tab-pane">
+      
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+              REAL-TIME MEDIA STREAMING
+            </div>
+            <div class="card-sub">Stream live photos or high-framerate video directly to display</div>
+          </div>
+        </div>
+
+        <div class="grid-options">
+          <label class="btn-opt" style="cursor:pointer;">
+            <span>STREAM SINGLE IMAGE</span>
+            <span class="btn-opt-sub">Instant 240×240 Frame</span>
+            <input type="file" accept="image/*" style="display:none;" onchange="uploadLiveImage(event)">
+          </label>
+          <label class="btn-opt" style="cursor:pointer;">
+            <span>STREAM LIVE VIDEO</span>
+            <span class="btn-opt-sub">25 FPS Bluetooth Stream</span>
+            <input type="file" accept="video/*,image/gif" style="display:none;" onchange="uploadLiveVideo(event)">
+          </label>
+        </div>
+
+        <div id="streamProgressWrap" style="display:none; margin-top:8px;">
+          <div style="font-size:0.68rem; color:var(--beige-muted); margin-bottom:4px;">STREAMING TO DISPLAY...</div>
+          <div style="background:#000; height:6px; width:100%; border:1px solid var(--border);">
+            <div id="streamProgressBar" style="background:var(--cyan); height:100%; width:0%; transition:width 0.1s linear;"></div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ========================================================= -->
+    <!-- PWA INSTALLATION BANNER (DIRECTLY ABOVE BLE CONSOLE) -->
+    <!-- ========================================================= -->
+    <div id="installAppCard" class="pwa-banner-card">
+      <div style="display:flex; flex-direction:column; gap:3px;">
+        <div style="font-size:0.78rem; font-weight:800; color:var(--beige-light); letter-spacing:1px; display:flex; align-items:center; gap:8px;">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          INSTALL SPEARHEAD WEB APPLICATION
+        </div>
+        <div style="font-size:0.70rem; color:var(--beige-muted);">
+          Install standalone PWA for full-screen tactile controls & offline caching
+        </div>
+      </div>
+      <button id="btnInstallApp" class="btn-primary" onclick="triggerPWAInstall()">INSTALL APP</button>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- LIVE BLE DIAGNOSTICS & EASTER EGG COUNTER -->
+    <!-- ========================================================= -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title-group">
+          <div class="card-title">
+            <svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+            LIVE BLE DIAGNOSTICS CONSOLE
+          </div>
+          <div class="card-sub">Bi-directional GATT events & sensor triggers</div>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <span id="easterEggCountBadge" class="badge badge-mag" style="cursor:pointer;" onclick="promptEasterEggTrigger()" title="Trigger Easter Egg (Tap 7x or Click)">SECRET PROMPT: #0</span>
+          <button class="btn-secondary" style="padding:6px 10px; font-size:0.68rem;" onclick="clearTerminal()">CLEAR LOGS</button>
+        </div>
+      </div>
+
+      <div class="terminal" id="terminal">> Spearhead Deck online. Tap PAIR to connect over Bluetooth.</div>
+    </div>
+
+    <!-- MOBILE BOTTOM NAVIGATION -->
+    <nav class="mobile-nav-bar">
       <button class="nav-item active" id="mtab-tabMascots" onclick="switchTab('tabMascots')">
-        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><circle cx="15.5" cy="8.5" r="1.5"/><path d="M8 15s1.5 2 4 2 4-2 4-2"/></svg>
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18"/><circle cx="8.5" cy="8.5" r="1.5"/><circle cx="15.5" cy="8.5" r="1.5"/><path d="M8 15s1.5 2 4 2 4-2 4-2"/></svg>
         MODES
       </button>
       <button class="nav-item" id="mtab-tabBoot" onclick="switchTab('tabBoot')">
@@ -1478,7 +1412,7 @@
         BOOT
       </button>
       <button class="nav-item" id="mtab-tabDisplay" onclick="switchTab('tabDisplay')">
-        <svg viewBox="0 0 24 24"><rect x="1" y="6" width="18" height="12" rx="2"/><line x1="23" y1="10" x2="23" y2="14"/></svg>
+        <svg viewBox="0 0 24 24"><rect x="1" y="6" width="18" height="12"/><line x1="23" y1="10" x2="23" y2="14"/></svg>
         POWER
       </button>
       <button class="nav-item" id="mtab-tabMarquee" onclick="switchTab('tabMarquee')">
@@ -1486,20 +1420,22 @@
         MARQUEE
       </button>
       <button class="nav-item" id="mtab-tabStream" onclick="switchTab('tabStream')">
-        <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+        <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
         STREAM
       </button>
     </nav>
 
   </div>
 
-  <!-- HIDDEN 3-TAP ABOUT MODAL (GOURAV KUMAR & SYSTEM SPECS) -->
+  <!-- ========================================================= -->
+  <!-- HIDDEN 3-TAP ABOUT MODAL (GOURAV KUMAR & SPEARHEAD ARCHITECTURE) -->
+  <!-- ========================================================= -->
   <div id="aboutModal" class="modal-backdrop" onclick="closeAboutModal(event)">
     <div class="modal-card" onclick="event.stopPropagation()">
       <div class="modal-header">
         <div class="modal-title">
-          <img src="icons/icon-192.png" width="24" height="24" alt="Spearhead Emblem" style="border-radius:4px; border:1px solid var(--border-accent);">
-          <span>SPEARHEAD // SYSTEM ARCHITECTURE</span>
+          <div class="brand-logo-box" style="padding:2px 6px; font-size:0.72rem;">SPEARHEAD</div>
+          <span>SYSTEM ARCHITECTURE</span>
         </div>
         <button class="modal-close" onclick="closeAboutModal()">&times;</button>
       </div>
@@ -1507,13 +1443,13 @@
         
         <div class="about-section">
           <div class="about-sec-title">ARCHITECT & LEAD ENGINEER</div>
-          <div style="font-size:0.92rem; font-weight:800; color:var(--text-main);">Gourav Kumar</div>
-          <div style="font-size:0.72rem; color:var(--text-muted);">Embedded Firmware, BLE Communication & Hardware UI Development</div>
+          <div style="font-size:0.95rem; font-weight:800; color:var(--beige-light);">Gourav Kumar</div>
+          <div style="font-size:0.72rem; color:var(--beige-muted);">Embedded Firmware, BLE Communication & Hardware UI Development</div>
         </div>
 
         <div class="about-section">
           <div class="about-sec-title">HARDWARE ARCHITECTURE</div>
-          <div style="font-size:0.74rem; color:var(--text-muted); display:flex; flex-direction:column; gap:4px;">
+          <div style="font-size:0.74rem; color:var(--beige-muted); display:flex; flex-direction:column; gap:4px;">
             <div>• <b>Microcontroller:</b> ESP32-C3 RISC-V 32-bit Single-Core @ 160MHz</div>
             <div>• <b>Display Panel:</b> 1.3" 240×240 IPS TFT (ST7789 via LovyanGFX High-Speed SPI)</div>
             <div>• <b>Input Engine:</b> TTP223 Capacitive Touch ISR with Hardware Edge Debounce</div>
@@ -1524,25 +1460,25 @@
 
         <div class="about-section">
           <div class="about-sec-title">VERSION RELEASE HISTORY</div>
-          <div style="font-size:0.72rem; color:var(--text-muted); display:flex; flex-direction:column; gap:6px;">
+          <div style="font-size:0.72rem; color:var(--beige-muted); display:flex; flex-direction:column; gap:6px;">
             <div>
               <b style="color:var(--accent);">v5.0 (Spearhead Release):</b>
               <br>Full Spearhead rebrand, custom bootloader with animated slanted progress telemetry, 3-tap engineer modal, dedicated 2s-hold secret message hub, zero-bloom matte dark professional UI.
             </div>
             <div>
-              <b style="color:var(--text-main);">v4.3:</b>
+              <b style="color:var(--beige-light);">v4.3:</b>
               <br>LittleFS 25 FPS video stream playback, WebAPK Android PWA offline caching, persistent Easter egg trigger counter.
             </div>
             <div>
-              <b style="color:var(--text-main);">v3.0:</b>
+              <b style="color:var(--beige-light);">v3.0:</b>
               <br>Non-Volatile flash battery discharge logger, calibrated multi-point LiPo voltage telemetry.
             </div>
             <div>
-              <b style="color:var(--text-main);">v2.0:</b>
+              <b style="color:var(--beige-light);">v2.0:</b>
               <br>Procedural robot eyes, CyberHUD clock, matrix digital rain, multi-mascot emotion engine.
             </div>
             <div>
-              <b style="color:var(--text-main);">v1.0:</b>
+              <b style="color:var(--beige-light);">v1.0:</b>
               <br>Initial hardware prototype & Bluetooth Low Energy web terminal.
             </div>
           </div>
@@ -1555,32 +1491,19 @@
     </div>
   </div>
 
-  <!-- PWA INSTALLATION GUIDE MODAL -->
+  <!-- INSTALL GUIDE MODAL -->
   <div id="installGuideModal" class="modal-backdrop" onclick="closeInstallGuideModal(event)">
     <div class="modal-card" onclick="event.stopPropagation()">
       <div class="modal-header">
         <div class="modal-title">
-          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          INSTALL SPEARHEAD KEYCHAIN
+          <span>INSTALL AS STANDALONE APP</span>
         </div>
         <button class="modal-close" onclick="closeInstallGuideModal()">&times;</button>
       </div>
-      <div class="modal-body">
-        <div style="display:flex; align-items:center; gap:14px; margin-bottom:6px;">
-          <img src="icons/icon-192.png" width="52" height="52" alt="Spearhead Emblem" style="border-radius:8px; border:1px solid var(--border-accent); flex-shrink:0;">
-          <div>
-            <div style="font-weight:800; font-size:0.92rem; color:var(--text-main);">Spearhead Deck</div>
-            <div style="font-size:0.72rem; color:var(--text-muted);">Install standalone PWA for instantaneous Bluetooth controls and full-screen mobile experience.</div>
-          </div>
-        </div>
-        <div style="display:flex; flex-direction:column; gap:8px;">
-          <div style="background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:10px 12px; font-size:0.74rem;">
-            <b>1. Chrome / Edge (Android & PC):</b> Tap <b>Install App</b> above Live Console or browser menu (⋮) ➔ select <b>"Install Spearhead"</b>.
-          </div>
-          <div style="background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:10px 12px; font-size:0.74rem;">
-            <b>2. Safari (iOS / iPhone):</b> Tap the <b>Share icon</b> ➔ scroll down and tap <b>"Add to Home Screen"</b>.
-          </div>
-        </div>
+      <div class="modal-body" style="font-size:0.74rem; color:var(--beige-muted); display:flex; flex-direction:column; gap:10px;">
+        <p><b>Android (Chrome / Edge / Samsung Internet):</b><br>1. Tap the browser menu (3 dots in top right).<br>2. Select <b>"Install app"</b> or <b>"Add to Home screen"</b>.</p>
+        <p><b>iOS (Safari):</b><br>1. Tap the <b>Share</b> icon at the bottom of Safari.<br>2. Scroll down and tap <b>"Add to Home Screen"</b>.<br><i>Note: For Web Bluetooth on iOS, launch inside the Bluefy browser.</i></p>
+        <p><b>Desktop (Chrome / Edge):</b><br>Click the <b>Install</b> icon on the right side of the URL address bar.</p>
       </div>
       <div class="modal-footer">
         <button class="btn-primary" style="width:100%;" onclick="closeInstallGuideModal()">GOT IT</button>
@@ -1588,6 +1511,7 @@
     </div>
   </div>
 
+  <!-- JAVASCRIPT LOGIC ENGINE -->
   <script>
     // UUIDs for SPEARHEAD GATT Service
     const SERVICE_UUID       = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
@@ -1642,65 +1566,86 @@
       if (modal) modal.classList.remove('active');
     }
 
+    // -------------------------------------------------------------
+    // VIEW MODE SELECTOR
+    // -------------------------------------------------------------
     function setViewMode(mode) {
       vibrate();
       document.body.className = `view-${mode}`;
-      document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
-      const activeBtn = document.getElementById(`btn-mode-${mode}`);
-      if (activeBtn) activeBtn.classList.add('active');
+      ['auto', 'mobile', 'desktop'].forEach(m => {
+        const btn = document.getElementById(`btn-mode-${m}`);
+        if (btn) btn.classList.toggle('active', m === mode);
+      });
     }
 
+    // -------------------------------------------------------------
+    // TAB SWITCHING ENGINE
+    // -------------------------------------------------------------
     function switchTab(tabId) {
       vibrate();
-      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
 
-      const targetTab = document.getElementById(tabId);
-      if (targetTab) targetTab.classList.add('active');
+      const targetPane = document.getElementById(tabId);
+      if (targetPane) targetPane.classList.add('active');
 
-      const dBtn = document.getElementById(`dtab-${tabId}`);
-      if (dBtn) dBtn.classList.add('active');
+      const dTab = document.getElementById(`dtab-${tabId}`);
+      if (dTab) dTab.classList.add('active');
 
-      const mBtn = document.getElementById(`mtab-${tabId}`);
-      if (mBtn) mBtn.classList.add('active');
-
-      if (tabId === 'tabDisplay') {
-        fetchBatteryLog();
-      }
+      const mTab = document.getElementById(`mtab-${tabId}`);
+      if (mTab) mTab.classList.add('active');
     }
 
-    function toggleCheckbox(id) {
-      vibrate();
-      const cb = document.getElementById(id);
-      if (cb) {
-        cb.checked = !cb.checked;
-        cb.dispatchEvent(new Event('change'));
-      }
-    }
-
-    function formatDuration(sec) {
-      if (sec < 60) return `${sec}s`;
-      const m = Math.floor(sec / 60);
-      const s = sec % 60;
-      if (m < 60) return `${m}m ${s}s`;
-      const h = Math.floor(m / 60);
-      const rm = m % 60;
-      return `${h}h ${rm}m ${s}s`;
-    }
-
+    // -------------------------------------------------------------
+    // LOGGING & SAFE BLE WRITES
+    // -------------------------------------------------------------
     function log(msg) {
       const term = document.getElementById('terminal');
       if (!term) return;
-      const d = new Date().toLocaleTimeString();
-      term.innerHTML += `<br>[${d}] ${msg}`;
+      const ts = new Date().toLocaleTimeString();
+      term.innerText += `\n[${ts}] ${msg}`;
       term.scrollTop = term.scrollHeight;
     }
 
     function clearTerminal() {
       vibrate();
       const term = document.getElementById('terminal');
-      if (term) term.innerHTML = `> Console cleared.`;
+      if (term) term.innerText = "> Terminal cleared.";
+    }
+
+    async function safeBleWrite(characteristic, data, isWithoutResponse = false) {
+      if (!characteristic) return false;
+      try {
+        if (isWithoutResponse && characteristic.writeValueWithoutResponse) {
+          await characteristic.writeValueWithoutResponse(data);
+        } else {
+          await characteristic.writeValue(data);
+        }
+        return true;
+      } catch (err) {
+        console.warn("BLE Write error:", err);
+        return false;
+      }
+    }
+
+    let bleThrottleTimers = {};
+    function sendBleThrottled(key, fn, waitMs = 35) {
+      if (bleThrottleTimers[key]) return;
+      fn();
+      bleThrottleTimers[key] = setTimeout(() => {
+        delete bleThrottleTimers[key];
+      }, waitMs);
+    }
+
+    function formatDuration(sec) {
+      if (!sec || isNaN(sec)) return "0s";
+      const h = Math.floor(sec / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      const s = sec % 60;
+      if (h > 0) return `${h}h ${m}m ${s}s`;
+      if (m > 0) return `${m}m ${s}s`;
+      return `${s}s`;
     }
 
     function updateBatteryHUD(voltage, pct, isUsb) {
@@ -1782,6 +1727,7 @@
         log("Error: Web Bluetooth API not supported or blocked (Requires HTTPS).");
         return;
       }
+
       try {
         log("Scanning for SPEARHEAD BLE device...");
         const sb = document.getElementById('statusBadge');
@@ -1986,10 +1932,6 @@
           if (sleepVal) sleepVal.innerText = sleepLabels[sleepIdx];
 
           // Update Rotation UI
-          const angleSlider = document.getElementById('angleSlider');
-          const angleVal = document.getElementById('angleVal');
-          if (angleSlider) angleSlider.value = rot * 90;
-          if (angleVal) angleVal.innerText = `${rot * 90}°`;
           for (let i = 0; i < 4; i++) {
             const b = document.getElementById(`rotBtn${i}`);
             if (b) b.className = (i === rot) ? "btn-opt active" : "btn-opt";
@@ -2026,10 +1968,8 @@
 
           const btnRTL = document.getElementById('btnDirRTL');
           const btnLTR = document.getElementById('btnDirLTR');
-          const dirVal = document.getElementById('marqueeDirVal');
           if (btnRTL) btnRTL.classList.toggle('active', msgDir === 0);
           if (btnLTR) btnLTR.classList.toggle('active', msgDir === 1);
-          if (dirVal) dirVal.innerText = (msgDir === 0) ? "RIGHT TO LEFT (←)" : "LEFT TO RIGHT (→)";
 
           // Parse Easter Egg Counter if present (14th field)
           if (p.length >= 15) {
@@ -2211,8 +2151,7 @@
         if (b) b.className = (i === m) ? "btn-opt active" : "btn-opt";
         const p = document.getElementById(`panelMode${i}`);
         if (p) {
-          if (i === m) p.classList.add('active');
-          else p.classList.remove('active');
+          p.style.display = (i === m) ? 'flex' : 'none';
         }
       }
     }
@@ -2358,153 +2297,64 @@
       if (!charSettings) return;
       const data = new TextEncoder().encode("BOOT:PREVIEW");
       await charSettings.writeValue(data);
-      log("Bootloader preview triggered on Spearhead screen!");
+      log("Bootloader preview triggered.");
     }
 
-    async function setRotation(rot) {
+    async function setScreenRotation(rot) {
       vibrate();
-      if (!charSettings) return;
       for (let i = 0; i < 4; i++) {
         const b = document.getElementById(`rotBtn${i}`);
         if (b) b.className = (i === rot) ? "btn-opt active" : "btn-opt";
       }
-      const deg = rot * 90;
-      document.getElementById('angleSlider').value = deg;
-      document.getElementById('angleVal').innerText = deg + '°';
+      if (!charSettings) return;
       const data = new TextEncoder().encode(`ROT:${rot}`);
-      await safeBleWrite(charSettings, data, false);
-      log(`Rotation: ${deg}°`);
+      await charSettings.writeValue(data);
+      log(`Screen rotation: ${rot * 90}°`);
     }
 
-    function updateAngleSlider(deg) {
-      document.getElementById('angleVal').innerText = deg + '°';
-      const rot = Math.round(deg / 90) % 4;
-      for (let i = 0; i < 4; i++) {
-        const b = document.getElementById(`rotBtn${i}`);
-        if (b) b.className = (i === rot) ? "btn-opt active" : "btn-opt";
-      }
-      if (!charSettings) return;
-      sendBleThrottled('rot', async () => {
-        const data = new TextEncoder().encode(`ROT:${rot}`);
-        await safeBleWrite(charSettings, data, false);
-      }, 35);
-    }
-
-    function updateSleepSlider(idx) {
-      const sec = sleepValues[idx];
+    async function updateSleepTimeout(val) {
+      const idx = parseInt(val, 10);
+      const sleepSec = sleepValues[idx];
       document.getElementById('sleepVal').innerText = sleepLabels[idx];
       if (!charSettings) return;
-      sendBleThrottled('sleep', async () => {
-        const data = new TextEncoder().encode(`SLEEP:${sec}`);
-        await safeBleWrite(charSettings, data, false);
-        log(`Sleep timeout: ${sleepLabels[idx]}`);
-      }, 35);
-    }
-
-    async function saveAsDefault() {
-      vibrate();
-      if (!charSettings) return;
-      const data = new TextEncoder().encode("DEF:SET");
-      await safeBleWrite(charSettings, data, false);
-      log("Saved default settings to flash memory!");
-      alert("Default settings saved!");
+      const data = new TextEncoder().encode(`SLEEP_SEC:${sleepSec}`);
+      await charSettings.writeValue(data);
+      log(`Sleep timeout set to: ${sleepLabels[idx]}`);
     }
 
     // -------------------------------------------------------------
-    // DEADLOCK-FREE SEQUENTIAL GATT QUEUE
+    // SECRET EASTER EGG COUNTER
     // -------------------------------------------------------------
-    let bleWriteQueue = Promise.resolve();
-    let bleThrottleTimers = {};
-
-    function sendBleThrottled(key, fn, delayMs = 35) {
-      if (bleThrottleTimers[key]) clearTimeout(bleThrottleTimers[key]);
-      bleThrottleTimers[key] = setTimeout(() => {
-        fn().catch(err => console.warn(`[BLE Throttle] Error on ${key}:`, err));
-      }, delayMs);
-    }
-
-    async function safeBleWrite(char, data, preferWithoutResponse = false) {
-      if (!char) throw new Error("Characteristic not available");
-      
-      const writeTask = async () => {
-        try {
-          if (preferWithoutResponse && char.writeValueWithoutResponse) {
-            try {
-              await char.writeValueWithoutResponse(data);
-              return;
-            } catch (err) {
-              console.warn("writeValueWithoutResponse fallback:", err);
-            }
-          }
-          if (char.writeValueWithResponse) {
-            await char.writeValueWithResponse(data);
-          } else if (char.writeValue) {
-            await char.writeValue(data);
-          } else if (char.writeValueWithoutResponse) {
-            await char.writeValueWithoutResponse(data);
-          }
-        } catch (err) {
-          console.warn("[safeBleWrite] Error:", err);
-        }
-      };
-
-      bleWriteQueue = bleWriteQueue.then(writeTask, writeTask);
-      return bleWriteQueue;
-    }
-
-    // -------------------------------------------------------------
-    // EASTER EGG STATE & TRIGGER COUNTER
-    // -------------------------------------------------------------
-    let easterEggCount = parseInt(localStorage.getItem('spearhead_egg_count') || '0', 10);
+    let easterEggCount = 0;
 
     function updateEasterEggCountUI(count) {
-      easterEggCount = parseInt(count, 10) || 0;
-      try { localStorage.setItem('spearhead_egg_count', easterEggCount.toString()); } catch(e) {}
+      easterEggCount = count;
       const badge = document.getElementById('easterEggCountBadge');
-      if (badge) badge.innerText = `${easterEggCount} UNLOCKED`;
+      if (badge) {
+        badge.innerText = `SECRET PROMPT: #${easterEggCount}`;
+      }
     }
 
-    async function sendEasterEggMessage() {
+    async function promptEasterEggTrigger() {
       vibrate();
-      if (!charSettings) {
-        alert("Please pair with SPEARHEAD over Bluetooth first!");
-        return;
-      }
-      const textElem = document.getElementById('txtEasterEgg');
-      const text = textElem ? textElem.value.trim() : "";
-      if (!text) return;
-      try {
-        const data = new TextEncoder().encode(`EGG_MSG:${text}`);
+      const customMsg = prompt("Enter a custom Easter Egg secret message to flash on Keychain:", "CYBERPUNK 2077 // GOURAV");
+      if (customMsg && customMsg.trim()) {
+        if (!charSettings) {
+          alert("Please pair with SPEARHEAD over Bluetooth first!");
+          return;
+        }
+        const data = new TextEncoder().encode(`EGG_MSG:${customMsg.trim()}`);
         await safeBleWrite(charSettings, data, false);
-        log(`Secret Easter Egg saved: "${text}"`);
+        log(`Easter Egg message sent: "${customMsg.trim()}"`);
         setTouchBanner("EASTER EGG SAVED", "badge-mag", 2500);
-        alert("Secret Easter Egg message saved to keychain!\n\nRapidly tap the touch sensor 7 times to reveal it!");
-      } catch (err) {
-        console.error(err);
-        log(`Easter Egg error: ${err.message}`);
+        alert("Secret Easter Egg message saved to keychain!\n\nTrigger on device by tapping the Touch Sensor 7 times rapidly.");
       }
     }
 
-    async function testEasterEgg() {
+    async function resetEasterEggCounter() {
       vibrate();
-      if (!charSettings) {
-        alert("Please pair with SPEARHEAD over Bluetooth first!");
-        return;
-      }
-      try {
-        const data = new TextEncoder().encode("EGG:TRIGGER");
-        await safeBleWrite(charSettings, data, false);
-        log("Triggered Easter Egg on screen!");
-        setTouchBanner("EASTER EGG UNLOCKED", "badge-mag", 5000);
-      } catch (err) {
-        console.error(err);
-        log(`Easter Egg test error: ${err.message}`);
-      }
-    }
-
-    async function resetEasterEggCount() {
-      vibrate();
-      if (!confirm("Reset the secret Easter egg trigger counter to 0?")) return;
+      if (!confirm("Reset the secret Easter Egg trigger counter to 0?")) return;
+      easterEggCount = 0;
       updateEasterEggCountUI(0);
       if (charSettings) {
         try {
@@ -2557,10 +2407,8 @@
       curMarqueeDir = dir;
       const btnRTL = document.getElementById('btnDirRTL');
       const btnLTR = document.getElementById('btnDirLTR');
-      const label = document.getElementById('marqueeDirVal');
       if (btnRTL) btnRTL.classList.toggle('active', dir === 0);
       if (btnLTR) btnLTR.classList.toggle('active', dir === 1);
-      if (label) label.innerText = (dir === 0) ? "RIGHT TO LEFT (←)" : "LEFT TO RIGHT (→)";
 
       if (!charSettings) return;
       sendBleThrottled('marqueeDir', async () => {
@@ -2788,7 +2636,7 @@
       deferredInstallPrompt = e;
       const card = document.getElementById('installAppCard');
       const btn = document.getElementById('btnInstallApp');
-      if (card) card.style.display = 'block';
+      if (card) card.style.display = 'flex';
       if (btn) btn.style.display = 'inline-flex';
       log("PWA ready to install! Tap 'INSTALL APP' above Live Console.");
     });
