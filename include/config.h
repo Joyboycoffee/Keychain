@@ -46,10 +46,11 @@ enum SystemMode {
 };
 
 enum BootSplashType {
-    BOOT_JOYBOY_INTRO = 0, // Built-in 2s Cyber Coffee Animation
-    BOOT_CUSTOM_IMAGE = 1, // Stored /boot_splash.jpg from LittleFS
-    BOOT_CUSTOM_ANIM  = 2, // Stored /boot_anim.bin from LittleFS
-    BOOT_INSTANT      = 3  // Skip boot splash entirely
+    BOOT_SPEARHEAD_INTRO = 0, // Built-in Spearhead Tactical Bootloader
+    BOOT_JOYBOY_INTRO    = 0, // Backward compatibility alias
+    BOOT_CUSTOM_IMAGE    = 1, // Stored /boot_splash.jpg from LittleFS
+    BOOT_CUSTOM_ANIM     = 2, // Stored /boot_anim.bin from LittleFS
+    BOOT_INSTANT         = 3  // Skip boot splash entirely
 };
 
 enum PetMood {

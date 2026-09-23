@@ -7,6 +7,7 @@
 #include "esp_sleep.h"
 #include "config.h"
 #include "display_setup.h"
+#include "spearhead_boot.h"
 #include "emoji_renderer.h"
 #include "meme_pet.h"
 #include "robot_eyes.h"
@@ -29,14 +30,14 @@ MatrixRain  matrixRain;
 
 SystemMode     currentMode      = MODE_CYBERPET;
 SystemMode     defaultMode      = MODE_CYBERPET;
-BootSplashType bootSplashType   = BOOT_JOYBOY_INTRO;
+BootSplashType bootSplashType   = BOOT_SPEARHEAD_INTRO;
 uint8_t        bootDurationSec  = 2;
 uint8_t        screenBrightness = 240;
 uint8_t        screenRotation   = 3;
 uint32_t       sleepTimeoutMs   = 0; // Default to NEVER sleep for battery discharge runs!
 
 // Scrolling Marquee Message State & Advanced Controls
-String   customMessage = "I AM JOY BOY COFFEE :coffee: :fire:";
+String   customMessage = "SPEARHEAD // SYSTEM ONLINE";
 int      scrollX       = 240;
 uint8_t  msgSpeed      = 3; // 1 to 15 px/frame
 uint8_t  msgSize       = 3; // 1 to 12 (1=8px, 2=16px, 3=24px, 4=32px, 5=40px, 6=48px, ... 12=96px Mega)
@@ -414,16 +415,41 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
             isVideoPlaying = false;
             Serial.printf("[SETTINGS] Matrix Theme: %d\n", matrixRain.currentTheme);
         }
-        // 13. CyberHUD / Universal Shy Secret Message: "HUD_SHY:<custom text>"
-        else if (cmd.startsWith("HUD_SHY:")) {
-            String msg = cmd.substring(8);
+        // 13. Universal 2-Second Hold Secret Message: "SHY_MSG:<custom text>" or "HUD_SHY:<custom text>"
+        else if (cmd.startsWith("SHY_MSG:") || cmd.startsWith("HUD_SHY:")) {
+            String msg = cmd.startsWith("SHY_MSG:") ? cmd.substring(8) : cmd.substring(8);
             cyberHUD.setShyText(msg);
             robotEyes.setShyText(msg);
             matrixRain.setShyText(msg);
             prefs.putString("hud_shy", msg);
-            Serial.printf("[SETTINGS] Synced Shy Secret Text: %s\n", msg.c_str());
+            if (pCharSet) {
+                pCharSet->setValue(std::string("SHY:SAVED"));
+                pCharSet->notify();
+            }
+            triggerTouchVisual("2s HOLD SAVED", 0x8A3F, 1500, "SHY:SAVED");
+            Serial.printf("[SETTINGS] Synced Universal 2s Hold Text: %s\n", msg.c_str());
         }
-        // 14. Developer Secret Easter Egg Message: "EGG_MSG:<custom text>"
+        // 14. Preview/Trigger 2-Second Hold Secret Message: "SHY:TRIGGER" or "SHY:PREVIEW"
+        else if (cmd == "SHY:TRIGGER" || cmd == "SHY:PREVIEW") {
+            if (currentMode == MODE_CYBER_HUD) {
+                cyberHUD.triggerShy(5000);
+                triggerTouchVisual("SECRET MSG", 0x8A3F, 5000, "TOUCH:SHY:HUD");
+            } else if (currentMode == MODE_MATRIX_RAIN) {
+                matrixRain.triggerHeartRain(5000);
+                triggerTouchVisual("HEART RAIN", 0x8A3F, 5000, "TOUCH:SHY:MATRIX");
+            } else if (currentMode == MODE_ROBOT_EYES) {
+                robotEyes.triggerShyLove(5000);
+                triggerTouchVisual("HEART EYES", 0x8A3F, 5000, "TOUCH:SHY:ROBOT");
+            } else {
+                preHoldEmotion = memePet.currentEmotion;
+                isTemporaryLove = true;
+                loveStartTime = millis();
+                memePet.setEmotion(EMOTION_SHY);
+                triggerTouchVisual("SHY LOVE", 0x8A3F, 5000, "TOUCH:SHY:PET");
+            }
+            Serial.println("[SETTINGS] Previewed 2-Second Hold Reaction!");
+        }
+        // 15. Developer Secret Easter Egg Message: "EGG_MSG:<custom text>"
         else if (cmd.startsWith("EGG_MSG:")) {
             easterEggMessage = cmd.substring(8);
             prefs.putString("egg_msg", easterEggMessage);
@@ -984,7 +1010,7 @@ void startBLE(bool notifyVisual) {
     if (pAdv) pAdv->start();
     bleStartTimeMs = millis();
     lastActivityTime = millis();
-    if (notifyVisual) triggerTouchVisual("BLE ON (60s) ⚡", 0x07FF, 2000, "BLE:ONLINE");
+    if (notifyVisual) triggerTouchVisual("BLE ON (60s)", 0x07FF, 2000, "BLE:ONLINE");
     Serial.println("[BLE] BLE Radio Activated! 60s pairing window started. CPU @ 160MHz.");
 }
 
@@ -998,7 +1024,7 @@ void stopBLE(bool notifyVisual) {
         bleConnected = false;
     }
     blinkDebugLed(1, 40); // Quick 40ms pulse
-    if (notifyVisual) triggerTouchVisual("BLE OFF 💤", 0x8410, 1500, "BLE:OFFLINE");
+    if (notifyVisual) triggerTouchVisual("BLE OFF", 0x8410, 1500, "BLE:OFFLINE");
     Serial.println("[BLE] BLE Radio Deactivated! Standby mode.");
 }
 
@@ -1526,54 +1552,84 @@ void playBootSplash() {
         }
     }
 
-    // 3. Default Built-in Joyboy Cyber Boot Intro
-    Serial.println("[BOOT] Playing Built-in Joyboy Cyber Intro with smooth 0.7s fade-in...");
+    // 3. Default Built-in Spearhead Tactical Bootloader
+    Serial.println("[BOOT] Playing Spearhead Boot Splash with Slanted Segmented Progress Bar...");
     uint32_t startIntro = millis();
-    int pulse = 0;
-    while (millis() - startIntro < (uint32_t)(bootDurationSec * 1000)) {
+    uint32_t totalIntroMs = (uint32_t)(bootDurationSec * 1000);
+    if (totalIntroMs < 1500) totalIntroMs = 1500;
+
+    const int totalSegments = 20; // 20 slanted parallelogram blocks
+    const int barX = 22;
+    const int barY = 194;
+    const int barW = 196;
+    const int barH = 14;
+    const int segW = 6;
+    const int segH = 8;
+    const int segSlant = 3;
+    const int segSpacing = 9;
+
+    while (millis() - startIntro < totalIntroMs) {
         canvas.fillScreen(0x0000);
-        pulse = (pulse + 5) % 360;
-        float rad = pulse * 0.0174533f;
-        int ringR = 90 + (int)(sin(rad) * 6);
 
-        // Cyber Grid Lines
-        canvas.drawFastHLine(20, 120, 200, 0x18E3);
-        canvas.drawFastVLine(120, 20, 200, 0x18E3);
+        // 1. Draw Spearhead Emblem
+        canvas.drawJpg(EMO_SPEARHEAD_BOOT_JPG, EMO_SPEARHEAD_BOOT_LEN, 0, 0);
 
-        // Cyber Concentric Glowing Rings
-        canvas.drawCircle(120, 120, ringR, 0x07FF);
-        canvas.drawCircle(120, 120, ringR - 2, 0x03EF);
-        canvas.drawCircle(120, 120, 48, 0xFD20);
-
-        // Neon Border Frame
-        canvas.drawRoundRect(6, 6, 228, 228, 8, 0x07FF);
-        canvas.drawRoundRect(8, 8, 224, 224, 6, 0x0210);
-
-        // Coffee Icon in center
-        EmojiRenderer::drawEmoji(&canvas, EMOJI_COFFEE, 108, 64);
-
-        // Glowing Typography
-        canvas.setTextColor(0x07FF, 0x0000);
-        canvas.setTextSize(2);
-        canvas.drawCenterString("JOYBOY", 120, 112);
-
-        canvas.setTextColor(0xFD20, 0x0000);
-        canvas.setTextSize(2);
-        canvas.drawCenterString("COFFEE", 120, 134);
-
-        canvas.setTextColor(0x07E0, 0x0000);
-        canvas.setTextSize(1);
-        canvas.drawCenterString("DIGI KEYCHAIN v4.3", 120, 168);
-
-        // Cyber Progress Bar
-        float pct = (float)(millis() - startIntro) / (float)(bootDurationSec * 1000);
+        // 2. Progress Calculation
+        float pct = (float)(millis() - startIntro) / (float)totalIntroMs;
         if (pct > 1.0f) pct = 1.0f;
-        canvas.drawRoundRect(40, 192, 160, 8, 3, 0x07FF);
-        canvas.fillRect(42, 194, (int)(156 * pct), 4, 0x07E0);
+        int filledSegments = (int)(pct * totalSegments);
+        if (filledSegments > totalSegments) filledSegments = totalSegments;
+        int pctInt = (int)(pct * 100.0f);
+
+        // 3. Sub-Header: OS Label & Dynamic Percentage
+        canvas.setTextSize(1);
+        canvas.setTextColor(0x9CF3, 0x0000); // Slate titanium
+        canvas.drawString("SPEARHEAD // OS v5.0", 22, 181);
+
+        char pctBuf[16];
+        snprintf(pctBuf, sizeof(pctBuf), "BOOT %d%%", pctInt);
+        canvas.setTextColor(0xD69A, 0x0000); // Purple / Silver accent
+        canvas.drawRightString(pctBuf, 218, 181);
+
+        // 4. Outer Tactical Progress Housing
+        canvas.drawRoundRect(barX - 2, barY - 2, barW + 4, barH + 4, 3, 0x39E7); // Dark titanium frame
+        canvas.drawRoundRect(barX - 1, barY - 1, barW + 2, barH + 2, 2, 0x18C3);
+        canvas.fillRect(barX, barY, barW, barH, 0x0821); // Inner slot
+
+        // 5. Tilted Boxy / Slanted Parallelogram Segments
+        for (int i = 0; i < totalSegments; i++) {
+            int sx = barX + 4 + i * segSpacing;
+            int sy = barY + 3;
+
+            uint16_t segCol;
+            if (i < filledSegments) {
+                float segPct = (float)i / (float)totalSegments;
+                if (i == filledSegments - 1) {
+                    segCol = 0xFFFF; // Bright leading edge spark
+                } else if (segPct > 0.7f) {
+                    segCol = 0x94BF; // Vivid Violet
+                } else if (segPct > 0.35f) {
+                    segCol = 0x727F; // Royal Purple
+                } else {
+                    segCol = 0x597B; // Deep Indigo
+                }
+            } else {
+                segCol = 0x18C3; // Empty dark slot
+            }
+
+            // Draw slanted parallelogram
+            canvas.fillTriangle(sx + segSlant, sy, sx + segSlant + segW, sy, sx + segW, sy + segH, segCol);
+            canvas.fillTriangle(sx + segSlant, sy, sx + segW, sy + segH, sx, sy + segH, segCol);
+        }
+
+        // 6. Subtly pulse leading corner bracket
+        uint16_t bracketCol = ((millis() / 250) % 2 == 0) ? 0x7B5D : 0x39E7;
+        canvas.drawFastHLine(barX - 6, barY + barH / 2, 3, bracketCol);
+        canvas.drawFastHLine(barX + barW + 3, barY + barH / 2, 3, bracketCol);
 
         canvas.pushSprite(0, 0);
 
-        // Smooth 0.7s (700ms) fade in during boot intro start
+        // Smooth 0.7s (700ms) fade in during boot start
         uint32_t elapsed = millis() - startIntro;
         if (elapsed < 700) {
             float progress = (float)elapsed / 700.0f;
@@ -1583,7 +1639,7 @@ void playBootSplash() {
             tft.setBrightness(screenBrightness);
         }
 
-        delay(30);
+        delay(25);
     }
     tft.setBrightness(screenBrightness);
 }
@@ -1615,7 +1671,7 @@ void setup() {
 
     Serial.begin(115200);
     delay(200);
-    Serial.println("\n=== DIGI KEYCHAIN ENGINE v4.3 STARTUP ===");
+    Serial.println("\n=== SPEARHEAD ENGINE v5.0 STARTUP ===");
 
     // 1. Release Deep Sleep GPIO Hold & Ensure Backlight & LED start OFF
     gpio_hold_dis((gpio_num_t)PIN_TFT_BL);
@@ -1656,22 +1712,22 @@ void setup() {
     cyberHUD.showDate = prefs.getBool("hud_date", true);
     cyberHUD.showWaveform = prefs.getBool("hud_wave", true);
     cyberHUD.showCustomText = prefs.getBool("hud_text", true);
-    cyberHUD.setCustomText(prefs.getString("hud_msg", "DIGI_HUD // SYS_ONLINE"));
-    String shyMsg = prefs.getString("hud_shy", "I LOVE YOU :heart: :sparkles:");
+    cyberHUD.setCustomText(prefs.getString("hud_msg", "SPEARHEAD // SYS_ONLINE"));
+    String shyMsg = prefs.getString("hud_shy", "I LOVE YOU");
     cyberHUD.setShyText(shyMsg);
     robotEyes.setShyText(shyMsg);
     matrixRain.setShyText(shyMsg);
     robotEyes.setStyle(prefs.getUChar("robot_mood", 0));
     matrixRain.setTheme(prefs.getUChar("matrix_thm", 0));
-    bootSplashType = (BootSplashType)prefs.getUChar("boot_type", (uint8_t)BOOT_JOYBOY_INTRO);
+    bootSplashType = (BootSplashType)prefs.getUChar("boot_type", (uint8_t)BOOT_SPEARHEAD_INTRO);
     bootDurationSec = prefs.getUChar("boot_dur", 2);
     screenBrightness = prefs.getUChar("br", 240);
     if (screenBrightness < 10) screenBrightness = 240;
     screenRotation = prefs.getUChar("rot", 3);
     if (screenRotation > 3) screenRotation = 3;
     sleepTimeoutMs = prefs.getUInt("sleep", 0); // 0 = Never sleep by default
-    customMessage = prefs.getString("msg", "I AM JOY BOY COFFEE :coffee: :fire:");
-    easterEggMessage = prefs.getString("egg_msg", "YOU ARE AWESOME :sparkles: :heart: :fire:");
+    customMessage = prefs.getString("msg", "SPEARHEAD // SYSTEM ONLINE");
+    easterEggMessage = prefs.getString("egg_msg", "YOU FOUND THE SECRET");
     easterEggCount = prefs.getUInt("egg_cnt", 0);
     msgSpeed = prefs.getUChar("msg_spd", 3);
     msgSize = prefs.getUChar("msg_sz", 3);
@@ -1713,7 +1769,7 @@ void setup() {
 
     // 3. Initialize NimBLE Bluetooth
     Serial.println("[BLE] Initializing NimBLE stack...");
-    NimBLEDevice::init("DIGI_KEYCHAIN");
+    NimBLEDevice::init("SPEARHEAD");
     NimBLEDevice::setPower(ESP_PWR_LVL_P9);
     NimBLEDevice::setSecurityAuth(false, false, false);
     NimBLEDevice::setMTU(512);

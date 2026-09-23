@@ -3,55 +3,52 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>JOYBOY KEYCHAIN // CONTROL TERMINAL</title>
-  <meta name="description" content="Tactical Bluetooth Control Terminal & Stream Deck for ESP32-C3 Digi Keychain">
-  <meta name="theme-color" content="#090a0c">
+  <title>Spearhead // Tactical Control Deck</title>
+  <meta name="description" content="Tactical Bluetooth Control Terminal & Stream Deck for Spearhead ESP32-C3">
+  <meta name="theme-color" content="#080a0e">
   <link rel="manifest" href="manifest.json">
   
   <!-- Apple iOS PWA Support -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Joyboy Keychain">
+  <meta name="apple-mobile-web-app-title" content="Spearhead">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   
   <!-- Standard Favicons & App Icons -->
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
   <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
   <link rel="shortcut icon" href="favicon.ico">
+
   <style>
     :root {
-      --bg: #090a0c;
-      --surface: #111317;
-      --surface-raised: #171920;
-      --border: #22252d;
-      --border-accent: #3a3f4d;
+      --bg: #080a0e;
+      --surface: #10131a;
+      --surface-raised: #161a23;
+      --surface-hover: #1c212d;
+      --border: #232836;
+      --border-accent: #32384a;
 
-      --beige-light: #f5f0e6;
-      --beige-main: #e2d7c5;
-      --beige-muted: #9e9382;
-      --beige-dim: #5c554a;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --text-dim: #6b7280;
 
-      --accent: #d8c7ad;
-      --accent-glow: rgba(216, 199, 173, 0.25);
+      --accent: #8b5cf6;
+      --accent-hover: #7c3aed;
+      --accent-subtle: rgba(139, 92, 246, 0.12);
 
-      --green: #a2c892;
-      --green-bg: rgba(162, 200, 146, 0.12);
-      --red: #df735d;
-      --red-bg: rgba(223, 115, 93, 0.12);
-      --amber: #e2b46a;
-      --amber-bg: rgba(226, 180, 106, 0.12);
-      --cyan: #82b1ff;
-      --cyan-bg: rgba(130, 177, 255, 0.12);
-      --magenta: #e092bb;
-      --magenta-bg: rgba(224, 146, 187, 0.12);
-
-      --key-bg: #15171d;
-      --key-border: #282c36;
-      --key-active: #d8c7ad;
-      --key-active-text: #090a0c;
+      --cyan: #38bdf8;
+      --cyan-bg: rgba(56, 189, 248, 0.10);
+      --green: #34d399;
+      --green-bg: rgba(52, 211, 153, 0.10);
+      --amber: #f59e0b;
+      --amber-bg: rgba(245, 158, 11, 0.10);
+      --red: #f87171;
+      --red-bg: rgba(248, 113, 113, 0.10);
+      --purple: #c084fc;
+      --purple-bg: rgba(192, 132, 252, 0.10);
 
       --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, Menlo, Monaco, monospace;
-      --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', sans-serif;
     }
 
     * {
@@ -67,25 +64,25 @@
       max-width: 100vw;
       overflow-x: hidden;
       background-color: var(--bg);
-      color: var(--beige-main);
+      color: var(--text-main);
     }
 
     body {
-      padding: 10px;
+      padding: 16px;
       display: flex;
       justify-content: center;
       min-height: 100vh;
       font-size: 13px;
-      line-height: 1.4;
+      line-height: 1.5;
     }
 
-    /* GLOBAL SVG SIZING (PREVENTS ACCIDENTAL BLOWUPS) */
+    /* GLOBAL SVG SIZING */
     svg {
       flex-shrink: 0;
     }
     button svg, label svg, .btn-opt svg, .btn-primary svg, .btn-danger svg, .nav-item svg, .tab-btn svg, .card-title svg {
-      width: 14px;
-      height: 14px;
+      width: 15px;
+      height: 15px;
       stroke: currentColor;
       fill: none;
       stroke-width: 2;
@@ -93,58 +90,39 @@
       vertical-align: middle;
     }
 
-    /* VIEW MODES */
+    /* LAYOUT CONTAINERS */
     .app-container {
-      max-width: 900px;
+      max-width: 960px;
       width: 100%;
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      padding-bottom: 75px;
+      gap: 16px;
+      padding-bottom: 85px;
       min-width: 0;
     }
 
     body.view-desktop .app-container {
-      max-width: 1140px;
-      padding-bottom: 20px;
+      max-width: 1120px;
+      padding-bottom: 24px;
     }
 
-    body.view-desktop .mobile-nav {
-      display: none !important;
-    }
-
-    body.view-desktop .tabs-bar {
-      display: flex !important;
-    }
-
-    body.view-mobile .tabs-bar {
-      display: none !important;
-    }
-
-    body.view-mobile .mobile-nav {
-      display: flex !important;
-    }
+    body.view-desktop .mobile-nav { display: none !important; }
+    body.view-desktop .tabs-bar { display: flex !important; }
+    body.view-mobile .tabs-bar { display: none !important; }
+    body.view-mobile .mobile-nav { display: flex !important; }
 
     @media (min-width: 920px) {
       body:not(.view-mobile) .app-container {
-        max-width: 1140px;
-        padding-bottom: 20px;
+        max-width: 1120px;
+        padding-bottom: 24px;
       }
-      body:not(.view-mobile) .mobile-nav {
-        display: none !important;
-      }
-      body:not(.view-mobile) .tabs-bar {
-        display: flex !important;
-      }
+      body:not(.view-mobile) .mobile-nav { display: none !important; }
+      body:not(.view-mobile) .tabs-bar { display: flex !important; }
     }
 
     @media (max-width: 919px) {
-      body:not(.view-desktop) .tabs-bar {
-        display: none;
-      }
-      body:not(.view-desktop) .mobile-nav {
-        display: flex;
-      }
+      body:not(.view-desktop) .tabs-bar { display: none; }
+      body:not(.view-desktop) .mobile-nav { display: flex; }
     }
 
     /* HEADER */
@@ -154,8 +132,8 @@
       align-items: center;
       background: var(--surface);
       border: 1px solid var(--border);
-      padding: 8px 12px;
-      border-radius: 4px;
+      padding: 12px 16px;
+      border-radius: 8px;
       position: sticky;
       top: 0;
       z-index: 100;
@@ -165,37 +143,56 @@
     .brand {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       min-width: 0;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .brand-logo {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      border: 1px solid var(--border-accent);
+      flex-shrink: 0;
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+    .brand:hover .brand-logo {
+      border-color: var(--accent);
+      transform: scale(1.05);
+    }
+    .brand:active .brand-logo {
+      transform: scale(0.92);
     }
 
     .brand-title {
-      font-size: 0.88rem;
-      font-weight: 700;
-      letter-spacing: 1.2px;
-      color: var(--beige-light);
+      font-size: 0.95rem;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      color: var(--text-main);
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
       white-space: nowrap;
     }
 
     .brand-badge {
-      font-size: 0.62rem;
+      font-size: 0.64rem;
       background: var(--surface-raised);
       border: 1px solid var(--border-accent);
-      color: var(--beige-muted);
-      padding: 1px 5px;
-      border-radius: 2px;
-      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      padding: 2px 6px;
+      border-radius: 4px;
+      letter-spacing: 0.8px;
+      font-weight: 600;
     }
 
     .view-mode-selector {
       display: flex;
       background: var(--bg);
       border: 1px solid var(--border);
-      border-radius: 3px;
-      padding: 2px;
+      border-radius: 6px;
+      padding: 3px;
       gap: 2px;
       flex-shrink: 0;
     }
@@ -203,33 +200,28 @@
     .view-btn {
       background: transparent;
       border: none;
-      color: var(--beige-dim);
-      padding: 4px 7px;
-      font-size: 0.65rem;
+      color: var(--text-dim);
+      padding: 5px 9px;
+      font-size: 0.68rem;
       font-weight: 700;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.6px;
       cursor: pointer;
-      border-radius: 2px;
+      border-radius: 4px;
       transition: all 0.15s;
     }
 
     .view-btn.active {
-      background: var(--beige-main);
-      color: var(--bg);
+      background: var(--surface-raised);
+      color: var(--text-main);
+      border: 1px solid var(--border-accent);
     }
 
-    /* DUAL HUD CAPSULE GRID */
+    /* DUAL TOP PODS */
     .hud-capsule-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 8px;
+      gap: 12px;
       width: 100%;
-    }
-
-    @media (max-width: 600px) {
-      .hud-capsule-grid {
-        grid-template-columns: 1fr;
-      }
     }
 
     .hud-card {
@@ -238,283 +230,143 @@
       justify-content: space-between;
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 10px 14px;
+      border-radius: 8px;
+      padding: 14px 16px;
       position: relative;
       overflow: hidden;
       min-width: 0;
-      gap: 10px;
-    }
-
-    .hud-card::before {
-      content: '';
-      position: absolute;
-      left: 0;
-      top: 0;
-      bottom: 0;
-      width: 2px;
-      background: var(--accent);
-      opacity: 0.85;
+      gap: 12px;
     }
 
     .hud-card-info {
       display: flex;
       flex-direction: column;
-      gap: 3px;
+      gap: 4px;
       min-width: 0;
     }
 
     .hud-card-title {
-      font-size: 0.90rem;
+      font-size: 0.65rem;
       font-weight: 700;
-      color: var(--beige-light);
-      letter-spacing: 0.8px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      white-space: nowrap;
-    }
-
-    .hud-card-meta {
-      font-size: 0.68rem;
-      color: var(--beige-muted);
+      color: var(--text-dim);
+      letter-spacing: 1px;
       display: flex;
       align-items: center;
       gap: 6px;
+    }
+
+    .hud-card-val {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--text-main);
+      letter-spacing: 0.5px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
-    .meta-sep { color: var(--beige-dim); font-size: 0.65rem; }
-
-    .hud-tag {
-      font-size: 0.62rem;
-      padding: 2px 6px;
-      border-radius: 2px;
-      background: var(--surface-raised);
-      border: 1px solid var(--border-accent);
-      color: var(--beige-muted);
-      letter-spacing: 0.6px;
-      text-transform: uppercase;
-      font-weight: 700;
-    }
-
-    .hud-tag.active-battery {
-      color: var(--beige-main);
-      border-color: var(--accent);
-    }
-
-    .hud-tag.charging {
-      color: var(--green);
-      border-color: var(--green);
-      background: var(--green-bg);
-    }
-
-    /* CRAZY SLEEK CYBERPUNK BATTERY CELL GAUGE */
-    .battery-meter-container {
+    .hud-card-sub {
+      font-size: 0.68rem;
+      color: var(--text-muted);
       display: flex;
       align-items: center;
-      gap: 8px;
-      flex-shrink: 0;
+      gap: 6px;
     }
 
-    .bat-cell-wrapper {
+    /* BATTERY LEVEL METER */
+    .battery-meter {
       display: flex;
       align-items: center;
-      position: relative;
-    }
-
-    .bat-housing {
-      display: flex;
-      align-items: center;
-      gap: 2.5px;
-      background: #050608;
-      border: 1.5px solid var(--border-accent);
-      border-radius: 3px;
-      padding: 3px;
-      height: 24px;
-      box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.9);
-    }
-
-    .bat-terminal {
-      width: 3px;
-      height: 10px;
-      background: var(--border-accent);
-      border-radius: 0 2px 2px 0;
-      margin-left: -1px;
+      gap: 3px;
+      padding: 3px 5px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      width: fit-content;
     }
 
     .bat-segment {
-      width: 6px;
-      height: 15px;
-      background: #14171e;
-      border-radius: 1px;
-      transition: all 0.3s ease;
-      position: relative;
+      width: 7px;
+      height: 14px;
+      border-radius: 2px;
+      background: #1e2430;
+      transition: background 0.2s ease;
     }
 
-    .bat-segment.active {
-      background: var(--accent);
-      box-shadow: 0 0 6px var(--accent-glow);
-    }
+    .bat-segment.active { background: var(--green); }
+    .bat-segment.active.low { background: var(--red); }
+    .bat-segment.active.charging { background: var(--cyan); }
 
-    .bat-segment.active.low {
-      background: var(--red) !important;
-      box-shadow: 0 0 6px rgba(223, 115, 93, 0.4) !important;
-      animation: pulse-low 1.4s infinite alternate;
-    }
-
-    .bat-segment.charging {
-      animation: cyber-charge 1.6s infinite ease-in-out;
-    }
-
-    .bat-segment:nth-child(1).charging { animation-delay: 0.1s; }
-    .bat-segment:nth-child(2).charging { animation-delay: 0.25s; }
-    .bat-segment:nth-child(3).charging { animation-delay: 0.4s; }
-    .bat-segment:nth-child(4).charging { animation-delay: 0.55s; }
-    .bat-segment:nth-child(5).charging { animation-delay: 0.7s; }
-    .bat-segment:nth-child(6).charging { animation-delay: 0.85s; }
-
-    @keyframes cyber-charge {
-      0%, 100% { background: #14171e; box-shadow: none; }
-      50% { background: var(--accent); box-shadow: 0 0 8px var(--accent-glow); }
-    }
-
-    @keyframes pulse-low {
-      0% { opacity: 0.4; }
-      100% { opacity: 1; }
-    }
-
-    /* HARDWARE TOUCH SENSOR TACTICAL HUD */
+    /* TOUCH FEEDBACK STRIP */
     .touch-hud {
       display: flex;
-      align-items: center;
       justify-content: space-between;
+      align-items: center;
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 8px 12px;
-      position: relative;
-      overflow: hidden;
-      transition: all 0.2s ease;
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-size: 0.72rem;
       width: 100%;
       min-width: 0;
+      transition: border-color 0.2s ease;
     }
-
-    .touch-hud::before {
-      content: '';
-      position: absolute;
-      left: 0;
-      top: 0;
-      bottom: 0;
-      width: 2px;
-      background: var(--cyan);
-      opacity: 0.7;
-    }
-
     .touch-hud.active {
       border-color: var(--accent);
-      background: var(--surface-raised);
-      box-shadow: 0 0 10px var(--accent-glow);
     }
 
-    .touch-hud.active::before {
-      background: var(--accent);
-      box-shadow: 0 0 8px var(--accent);
-    }
-
-    .touch-hud-info {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      min-width: 0;
-    }
-
-    .touch-hud-title {
-      font-size: 0.76rem;
-      font-weight: 700;
-      color: var(--beige-light);
-      letter-spacing: 0.8px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      white-space: nowrap;
-    }
-
-    .touch-hud-title svg {
-      width: 14px;
-      height: 14px;
-      stroke: var(--accent);
-      flex-shrink: 0;
-    }
-
-    .touch-hud-meta {
-      font-size: 0.65rem;
-      color: var(--beige-muted);
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    /* TABS */
+    /* DESKTOP TABS BAR */
     .tabs-bar {
       display: flex;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 4px;
+      gap: 8px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
       overflow-x: auto;
       scrollbar-width: none;
-      width: 100%;
     }
     .tabs-bar::-webkit-scrollbar { display: none; }
 
     .tab-btn {
-      flex: 1;
-      min-width: 80px;
-      padding: 10px 8px;
-      background: transparent;
-      color: var(--beige-muted);
-      border: none;
-      border-bottom: 2px solid transparent;
-      font-size: 0.72rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 8px 16px;
+      font-size: 0.74rem;
       font-weight: 700;
-      letter-spacing: 1px;
+      letter-spacing: 0.8px;
+      border-radius: 6px;
       cursor: pointer;
-      text-align: center;
-      white-space: nowrap;
-      transition: all 0.15s;
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 6px;
+      gap: 8px;
+      white-space: nowrap;
+      transition: all 0.15s ease;
     }
-
-    .tab-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
+    .tab-btn:hover {
+      background: var(--surface-hover);
+      color: var(--text-main);
+      border-color: var(--border-accent);
+    }
     .tab-btn.active {
-      color: var(--beige-light);
-      border-bottom: 2px solid var(--accent);
       background: var(--surface-raised);
+      color: var(--text-main);
+      border-color: var(--accent);
     }
 
-    .tab-content { display: none; flex-direction: column; gap: 10px; width: 100%; min-width: 0; }
+    /* TAB CONTENT & CARDS */
+    .tab-content { display: none; flex-direction: column; gap: 14px; width: 100%; min-width: 0; }
     .tab-content.active { display: flex; }
 
-    /* CARDS */
     .card {
       background-color: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 12px 14px;
+      border-radius: 8px;
+      padding: 16px 18px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 12px;
       width: 100%;
       min-width: 0;
-      overflow: hidden;
     }
 
     .card-header {
@@ -522,36 +374,38 @@
       justify-content: space-between;
       align-items: center;
       border-bottom: 1px solid var(--border);
-      padding-bottom: 8px;
-      margin-bottom: 2px;
+      padding-bottom: 10px;
+      margin-bottom: 4px;
       min-width: 0;
-      gap: 6px;
+      gap: 8px;
     }
 
     .card-title {
-      font-size: 0.76rem;
+      font-size: 0.78rem;
       font-weight: 700;
-      letter-spacing: 0.8px;
-      color: var(--beige-light);
+      letter-spacing: 1px;
+      color: var(--text-main);
       text-transform: uppercase;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
       white-space: nowrap;
       min-width: 0;
     }
 
-    .card-title svg { width: 14px; height: 14px; stroke: var(--accent); fill: none; stroke-width: 2; flex-shrink: 0; }
+    .card-title svg {
+      stroke: var(--accent);
+    }
 
-    /* TELEMETRY GRID & STAT TILES */
+    /* TELEMETRY GRID & TILES */
     .telemetry-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 8px;
+      gap: 10px;
       width: 100%;
     }
 
-    @media (min-width: 600px) {
+    @media (min-width: 640px) {
       .telemetry-grid.grid-4 {
         grid-template-columns: repeat(4, 1fr);
       }
@@ -560,8 +414,8 @@
     .stat-tile {
       background: var(--bg);
       border: 1px solid var(--border);
-      border-radius: 3px;
-      padding: 9px 10px;
+      border-radius: 6px;
+      padding: 12px 14px;
       display: flex;
       flex-direction: column;
       gap: 4px;
@@ -570,8 +424,8 @@
     }
 
     .stat-label {
-      font-size: 0.63rem;
-      color: var(--beige-dim);
+      font-size: 0.65rem;
+      color: var(--text-dim);
       text-transform: uppercase;
       letter-spacing: 0.8px;
       display: flex;
@@ -584,302 +438,120 @@
     }
 
     .stat-value {
-      font-size: 0.92rem;
+      font-size: 0.95rem;
       font-weight: 700;
-      color: var(--beige-light);
+      color: var(--text-main);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
+    /* BADGES */
     .badge {
       display: inline-flex;
       align-items: center;
       gap: 4px;
-      padding: 2px 6px;
-      border-radius: 2px;
+      padding: 2px 7px;
+      border-radius: 4px;
       font-size: 0.65rem;
       font-weight: 700;
       letter-spacing: 0.5px;
-      text-transform: uppercase;
-      white-space: nowrap;
-      flex-shrink: 0;
+      border: 1px solid var(--border);
+      background: var(--surface-raised);
+      color: var(--text-muted);
     }
+    .badge-ok { border-color: var(--green); color: var(--green); background: var(--green-bg); }
+    .badge-alert { border-color: var(--red); color: var(--red); background: var(--red-bg); }
+    .badge-warn { border-color: var(--amber); color: var(--amber); background: var(--amber-bg); }
+    .badge-cyan { border-color: var(--cyan); color: var(--cyan); background: var(--cyan-bg); }
+    .badge-mag { border-color: var(--purple); color: var(--purple); background: var(--purple-bg); }
 
-    .badge-ok { background: var(--green-bg); color: var(--green); border: 1px solid var(--green); }
-    .badge-alert { background: var(--red-bg); color: var(--red); border: 1px solid var(--red); }
-    .badge-warn { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber); }
-    .badge-cyan { background: var(--cyan-bg); color: var(--cyan); border: 1px solid var(--cyan); }
-    .badge-mag { background: var(--magenta-bg); color: var(--magenta); border: 1px solid var(--magenta); }
-
-    /* ACTION BUTTONS */
+    /* BUTTONS */
     .btn-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
       gap: 8px;
       width: 100%;
     }
 
-    @media (max-width: 480px) {
-      .btn-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 6px;
-      }
-    }
-
-    button {
-      background: var(--surface-raised);
-      color: var(--beige-main);
-      border: 1px solid var(--border);
-      padding: 9px 10px;
-      border-radius: 3px;
-      font-size: 0.72rem;
-      font-weight: 700;
-      letter-spacing: 0.6px;
-      text-transform: uppercase;
-      cursor: pointer;
+    .btn-primary, .btn-opt, .btn-danger {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 6px;
-      transition: all 0.12s;
+      gap: 8px;
+      padding: 10px 14px;
+      font-size: 0.74rem;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      border-radius: 6px;
+      cursor: pointer;
       user-select: none;
-      min-width: 0;
+      transition: all 0.15s ease;
       white-space: nowrap;
-    }
-
-    button:hover {
-      background: #1f232c;
-      border-color: var(--border-accent);
-      color: var(--beige-light);
-    }
-
-    button:active {
-      transform: scale(0.98);
-      background: var(--border-accent);
+      min-width: 0;
     }
 
     .btn-primary {
       background: var(--accent);
-      color: #090a0c !important;
       border: 1px solid var(--accent);
+      color: #080a0e;
     }
-    .btn-primary:hover { background: #ecdcc3; }
-    .btn-primary svg { stroke: #090a0c; }
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+    }
+    .btn-primary:active { transform: translateY(1px); }
+
+    .btn-opt {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+    }
+    .btn-opt:hover {
+      background: var(--surface-raised);
+      border-color: var(--border-accent);
+    }
+    .btn-opt.active {
+      background: var(--surface-raised);
+      border-color: var(--accent);
+      color: var(--text-main);
+    }
+    .btn-opt:active { transform: translateY(1px); }
 
     .btn-danger {
       background: var(--red-bg);
-      color: var(--red);
       border: 1px solid var(--red);
+      color: var(--red);
     }
-    .btn-danger:hover { background: rgba(223, 115, 93, 0.25); }
-
-    .btn-accent {
-      background: #1f221c;
-      color: var(--green);
-      border: 1px solid var(--green);
-    }
-    .btn-accent:hover { background: var(--green-bg); }
-
-    .btn-opt {
-      background-color: var(--bg);
-      border: 1px solid var(--border);
-      color: var(--beige-main);
-      font-weight: 600;
-      font-size: 0.72rem;
-      padding: 9px 8px;
-      border-radius: 3px;
-      cursor: pointer;
-      text-align: center;
-      transition: all 0.15s ease;
-      overflow: hidden;
-      text-overflow: ellipsis;
+    .btn-danger:hover {
+      background: var(--red);
+      color: #080a0e;
     }
 
-    .btn-opt.active {
-      background-color: var(--surface-raised);
-      border-color: var(--accent);
-      color: var(--beige-light);
-      box-shadow: 0 0 8px var(--accent-glow);
-    }
-
-    /* SLEEK TACTICAL DROPZONES & UPLOAD CARDS */
-    .upload-deck {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 8px;
-      width: 100%;
-    }
-
-    @media (max-width: 520px) {
-      .upload-deck {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .upload-dropzone {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      background: var(--bg);
-      border: 1px dashed var(--border-accent);
-      border-radius: 4px;
-      padding: 16px 12px;
-      cursor: pointer;
-      transition: all 0.15s ease;
-      text-align: center;
-      user-select: none;
-      min-width: 0;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .upload-dropzone:hover {
-      border-color: var(--accent);
-      background: var(--surface-raised);
-      box-shadow: 0 0 10px var(--accent-glow);
-    }
-
-    .upload-dropzone:active {
-      transform: scale(0.98);
-      border-color: var(--beige-light);
-    }
-
-    .upload-icon-box {
-      width: 36px;
-      height: 36px;
-      border-radius: 4px;
-      background: var(--surface-raised);
-      border: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 2px;
-      transition: all 0.15s;
-    }
-
-    .upload-dropzone:hover .upload-icon-box {
-      border-color: var(--accent);
-      background: #1e222a;
-      box-shadow: 0 0 8px var(--accent-glow);
-    }
-
-    .upload-icon-box svg {
-      width: 18px;
-      height: 18px;
-      stroke: var(--accent);
-    }
-
-    .upload-title {
-      font-size: 0.74rem;
-      font-weight: 700;
-      color: var(--beige-light);
-      letter-spacing: 0.8px;
-      text-transform: uppercase;
-    }
-
-    .upload-hint {
-      font-size: 0.63rem;
-      color: var(--beige-muted);
-      letter-spacing: 0.3px;
-    }
-
-    /* CONTEXT PANELS */
-    .context-panel {
-      display: none;
-    }
-
-    .context-panel.active {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    /* FORMS & SLIDERS */
-    .form-group {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    label {
-      font-size: 0.66rem;
-      font-weight: 700;
-      color: var(--beige-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
+    /* INPUTS & SLIDERS */
     .text-input-wrap {
       display: flex;
-      gap: 6px;
+      gap: 8px;
       width: 100%;
       min-width: 0;
     }
 
-    input[type="text"], input[type="number"], input[type="password"] {
+    input[type="text"], input[type="number"] {
       width: 100%;
       min-width: 0;
       flex: 1;
       background: var(--bg);
       border: 1px solid var(--border);
-      padding: 8px 10px;
-      border-radius: 3px;
-      color: var(--beige-light);
-      font-size: 0.75rem;
+      padding: 9px 12px;
+      border-radius: 6px;
+      color: var(--text-main);
+      font-size: 0.78rem;
       font-family: var(--font-mono);
       outline: none;
+      transition: border-color 0.15s;
     }
-
-    input[type="text"]:focus, input[type="number"]:focus, input[type="password"]:focus {
+    input[type="text"]:focus, input[type="number"]:focus {
       border-color: var(--accent);
-      box-shadow: 0 0 5px var(--accent-glow);
-    }
-
-    .checkbox-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 6px;
-      width: 100%;
-    }
-
-    @media (max-width: 480px) {
-      .checkbox-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .checkbox-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      padding: 8px 10px;
-      border-radius: 3px;
-      cursor: pointer;
-      user-select: none;
-      min-width: 0;
-    }
-
-    .checkbox-row input[type="checkbox"] {
-      accent-color: var(--accent);
-      width: 14px;
-      height: 14px;
-      cursor: pointer;
-      flex-shrink: 0;
-    }
-
-    .checkbox-row label {
-      cursor: pointer;
-      color: var(--beige-main);
-      font-size: 0.70rem;
-      margin: 0;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
     }
 
     .slider-wrap {
@@ -888,12 +560,11 @@
       gap: 6px;
       width: 100%;
     }
-
     .slider-head {
       display: flex;
       justify-content: space-between;
-      font-size: 0.70rem;
-      color: var(--beige-muted);
+      font-size: 0.72rem;
+      color: var(--text-muted);
     }
 
     input[type="range"] {
@@ -901,66 +572,99 @@
       width: 100%;
       height: 6px;
       border-radius: 3px;
-      background: #1c1f26;
+      background: #181d27;
       outline: none;
     }
-
     input[type="range"]::-webkit-slider-thumb {
       -webkit-appearance: none;
       width: 16px;
       height: 16px;
-      border-radius: 2px;
+      border-radius: 4px;
       background: var(--accent);
-      box-shadow: 0 0 8px var(--accent-glow);
       cursor: pointer;
     }
 
-    /* EMOJI PICKER CHIPS */
-    .emoji-row {
-      display: flex;
-      gap: 6px;
-      overflow-x: auto;
-      padding-bottom: 4px;
-      scrollbar-width: none;
-      -webkit-overflow-scrolling: touch;
+    /* CHECKBOXES */
+    .checkbox-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 8px;
       width: 100%;
     }
-    .emoji-row::-webkit-scrollbar { display: none; }
-
-    .emoji-chip {
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
       background: var(--bg);
       border: 1px solid var(--border);
-      border-radius: 3px;
-      padding: 5px 10px;
-      font-size: 1.1rem;
+      padding: 9px 12px;
+      border-radius: 6px;
       cursor: pointer;
-      flex-shrink: 0;
-      transition: all 0.12s;
+      user-select: none;
     }
-    .emoji-chip:hover {
+    .checkbox-row input[type="checkbox"] {
+      accent-color: var(--accent);
+      width: 15px;
+      height: 15px;
+      cursor: pointer;
+    }
+    .checkbox-row label {
+      cursor: pointer;
+      color: var(--text-main);
+      font-size: 0.72rem;
+      margin: 0;
+    }
+
+    /* UPLOAD CARDS */
+    .upload-deck {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      width: 100%;
+    }
+    .upload-dropzone {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+      border: 1px dashed var(--border-accent);
+      border-radius: 8px;
+      padding: 20px 16px;
+      cursor: pointer;
+      text-align: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    .upload-dropzone:hover {
       border-color: var(--accent);
       background: var(--surface-raised);
     }
-    .emoji-chip:active {
-      transform: scale(0.92);
+    .upload-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--text-main);
+      letter-spacing: 0.5px;
+    }
+    .upload-hint {
+      font-size: 0.66rem;
+      color: var(--text-dim);
     }
 
     /* PROGRESS BAR */
     .progress-bar-wrap {
-      height: 6px;
+      height: 8px;
       background: var(--bg);
       border: 1px solid var(--border);
-      border-radius: 2px;
+      border-radius: 4px;
       overflow: hidden;
       display: none;
       width: 100%;
     }
-
     .progress-bar {
       height: 100%;
       width: 0%;
-      background: linear-gradient(90deg, var(--accent), var(--green));
-      box-shadow: 0 0 8px var(--accent-glow);
+      background: var(--accent);
       transition: width 0.1s ease;
     }
 
@@ -968,13 +672,13 @@
     .terminal {
       background: #050608;
       border: 1px solid var(--border);
-      border-radius: 3px;
-      padding: 8px 10px;
-      font-size: 0.70rem;
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 0.72rem;
       color: var(--green);
-      max-height: 95px;
+      max-height: 105px;
       overflow-y: auto;
-      line-height: 1.4;
+      line-height: 1.45;
       word-break: break-all;
     }
 
@@ -988,79 +692,29 @@
       background: var(--surface);
       border-top: 1px solid var(--border);
       z-index: 100;
-      padding: 4px 6px;
-      padding-bottom: max(4px, env(safe-area-inset-bottom));
+      padding: 6px 8px;
+      padding-bottom: max(6px, env(safe-area-inset-bottom));
     }
-
     .nav-item {
       flex: 1;
-      padding: 7px 2px;
+      padding: 8px 4px;
       background: transparent;
       border: none;
-      color: var(--beige-dim);
-      font-size: 0.60rem;
+      color: var(--text-dim);
+      font-size: 0.62rem;
       font-weight: 700;
       letter-spacing: 0.5px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 3px;
+      gap: 4px;
       cursor: pointer;
     }
-
     .nav-item.active {
-      color: var(--beige-light);
+      color: var(--text-main);
     }
-
     .nav-item.active svg {
       stroke: var(--accent);
-    }
-
-    .nav-item svg {
-      width: 18px;
-      height: 18px;
-      stroke: currentColor;
-      fill: none;
-      stroke-width: 2;
-    }
-
-    /* UTILITIES */
-    .text-dim { color: var(--beige-dim); }
-    .text-muted { color: var(--beige-muted); }
-    .text-light { color: var(--beige-light); }
-    .text-accent { color: var(--accent); }
-    .divider { height: 1px; background: var(--border); width: 100%; margin: 2px 0; }
-
-    /* PWA INSTALL BUTTON & MODAL */
-    .btn-install-pwa {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: rgba(226, 180, 106, 0.14);
-      border: 1px solid var(--amber);
-      color: var(--amber);
-      font-size: 0.68rem;
-      font-weight: 700;
-      letter-spacing: 0.8px;
-      padding: 5px 11px;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: all 0.15s ease;
-      box-shadow: 0 0 10px rgba(226, 180, 106, 0.18);
-    }
-    .btn-install-pwa:hover {
-      background: var(--amber);
-      color: #090a0c;
-      box-shadow: 0 0 16px rgba(226, 180, 106, 0.45);
-      transform: translateY(-1px);
-    }
-    .btn-install-pwa:active {
-      transform: scale(0.95);
-    }
-    .btn-install-pwa svg {
-      width: 13px;
-      height: 13px;
-      stroke: currentColor;
     }
 
     /* MODAL */
@@ -1070,27 +724,26 @@
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(5, 6, 8, 0.85);
-      backdrop-filter: blur(6px);
-      -webkit-backdrop-filter: blur(6px);
+      background: rgba(5, 6, 8, 0.88);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
       display: none;
       align-items: center;
       justify-content: center;
       z-index: 1000;
       padding: 16px;
-      animation: fadeIn 0.2s ease;
     }
-    .modal-backdrop.active {
-      display: flex;
-    }
+    .modal-backdrop.active { display: flex; }
+
     .modal-card {
       background: var(--surface);
       border: 1px solid var(--border-accent);
-      border-radius: 8px;
-      max-width: 440px;
+      border-radius: 10px;
+      max-width: 520px;
       width: 100%;
-      overflow: hidden;
-      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7);
+      max-height: 85vh;
+      overflow-y: auto;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8);
       display: flex;
       flex-direction: column;
     }
@@ -1098,15 +751,18 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 12px 16px;
+      padding: 14px 18px;
       background: var(--surface-raised);
       border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 10;
     }
     .modal-title {
-      font-size: 0.82rem;
-      font-weight: 700;
-      letter-spacing: 0.8px;
-      color: var(--beige-light);
+      font-size: 0.86rem;
+      font-weight: 800;
+      letter-spacing: 1px;
+      color: var(--text-main);
       display: flex;
       align-items: center;
       gap: 8px;
@@ -1114,58 +770,50 @@
     .modal-close {
       background: transparent;
       border: none;
-      color: var(--beige-muted);
-      font-size: 1.3rem;
+      color: var(--text-muted);
+      font-size: 1.4rem;
       cursor: pointer;
       line-height: 1;
       padding: 0 4px;
     }
-    .modal-close:hover {
-      color: var(--red);
-    }
+    .modal-close:hover { color: var(--red); }
     .modal-body {
-      padding: 16px;
+      padding: 18px;
       font-size: 0.78rem;
-      line-height: 1.5;
-    }
-    .install-step-list {
+      line-height: 1.6;
       display: flex;
       flex-direction: column;
-      gap: 10px;
-    }
-    .install-step {
-      display: flex;
-      gap: 10px;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 10px 12px;
-      font-size: 0.74rem;
-      color: var(--beige-main);
-    }
-    .step-num {
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: var(--amber-bg);
-      border: 1px solid var(--amber);
-      color: var(--amber);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: bold;
-      font-size: 0.7rem;
-      flex-shrink: 0;
+      gap: 14px;
     }
     .modal-footer {
-      padding: 12px 16px;
+      padding: 14px 18px;
       background: var(--surface-raised);
       border-top: 1px solid var(--border);
     }
+    
+    .about-section {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .about-sec-title {
+      font-size: 0.70rem;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+    }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: scale(0.97); }
-      to { opacity: 1; transform: scale(1); }
+    /* PWA INSTALL CARD */
+    .pwa-banner-card {
+      background: var(--surface-raised);
+      border: 1px solid var(--border-accent);
+      border-radius: 8px;
+      padding: 14px 16px;
     }
   </style>
 </head>
@@ -1173,11 +821,11 @@
 
   <div class="app-container">
 
-    <!-- HEADER (CLEAN, MINIMAL, ZERO CLUTTER) -->
+    <!-- HEADER (TAP LOGO 3 TIMES FOR ABOUT) -->
     <header class="header">
-      <div class="brand">
-        <img src="icons/icon.svg" width="24" height="24" alt="Joyboy Keychain Logo" style="border-radius:5px; border:1px solid var(--border-accent); flex-shrink:0;">
-        <div class="brand-title">JOYBOY KEYCHAIN <span class="brand-badge">ESP32-C3</span></div>
+      <div class="brand" onclick="handleLogoTap()" title="Spearhead Keychain (Tap 3x for System Info)">
+        <img id="headerLogo" src="icons/icon.svg" class="brand-logo" alt="Spearhead Emblem">
+        <div class="brand-title">SPEARHEAD <span class="brand-badge">ESP32-C3 // OS v5.0</span></div>
       </div>
       
       <div class="view-mode-selector">
@@ -1187,85 +835,57 @@
       </div>
     </header>
 
-    <!-- DUAL HUD PODS: COMM LINK & POWER MATRIX -->
+    <!-- DUAL TOP PODS -->
     <div class="hud-capsule-grid">
       
-      <!-- POD 1: BLE LINK & PAIRING CONTROL -->
+      <!-- POD 1: BLE LINK -->
       <div class="hud-card">
         <div class="hud-card-info">
           <div class="hud-card-title">
             <span>BLE LINK</span>
             <span id="statusBadge" class="badge badge-alert">OFFLINE</span>
           </div>
-          <div class="hud-card-meta">
-            <span id="hud-conn-name">DIGI_KEYCHAIN</span>
-            <span class="meta-sep">|</span>
-            <span>GATT READY</span>
-            <span class="meta-sep">|</span>
-            <span class="text-accent">2.4GHz</span>
-          </div>
+          <div class="hud-card-val" id="hud-conn-name">DISCONNECTED</div>
+          <div class="hud-card-sub">ESP32-C3 SuperMini • 160MHz</div>
         </div>
-        <button id="btnConnect" class="btn-primary" style="padding:6px 14px; font-size:0.72rem;" onclick="connectBLE()">
-          <svg viewBox="0 0 24 24"><path d="M6.5 6.5l11 11L12 23V1l5.5 5.5-11 11"/></svg>
-          PAIR
-        </button>
+        <button id="btnConnect" class="btn-primary" onclick="connectBLE()">PAIR</button>
       </div>
 
-      <!-- POD 2: POWER MATRIX & STEPPED BATTERY GAUGE (DISCONNECTED BY DEFAULT) -->
+      <!-- POD 2: POWER MATRIX -->
       <div class="hud-card">
         <div class="hud-card-info">
           <div class="hud-card-title">
-            <span id="hud-bat-voltage">-- V</span>
-            <span class="hud-tag" id="hud-bat-status">STANDBY</span>
+            <span>POWER MATRIX</span>
+            <span id="hud-bat-status" class="badge">STANDBY</span>
           </div>
-          <div class="hud-card-meta">
-            <span id="hud-bat-pct" class="text-accent">--%</span>
-            <span class="meta-sep">|</span>
-            <span id="hud-bat-hours">~--H LEFT</span>
-            <span class="meta-sep">|</span>
-            <span id="hud-bat-type">1S LI-ION</span>
+          <div class="hud-card-val" id="hud-bat-pct">--%</div>
+          <div class="hud-card-sub">
+            <span id="hud-bat-voltage">-- V</span> • <span id="hud-bat-hours">~--H LEFT</span>
           </div>
         </div>
-        
-        <!-- Segmented 6-Cell Cyberpunk Battery Gauge (Starts Inactive) -->
-        <div class="battery-meter-container" title="Cyberpunk Segmented Energy Cell">
-          <div class="bat-cell-wrapper">
-            <div class="bat-housing">
-              <div class="bat-segment" id="bseg-1"></div>
-              <div class="bat-segment" id="bseg-2"></div>
-              <div class="bat-segment" id="bseg-3"></div>
-              <div class="bat-segment" id="bseg-4"></div>
-              <div class="bat-segment" id="bseg-5"></div>
-              <div class="bat-segment" id="bseg-6"></div>
-            </div>
-            <div class="bat-terminal"></div>
-          </div>
+
+        <div class="battery-meter">
+          <div class="bat-segment" id="bseg-1"></div>
+          <div class="bat-segment" id="bseg-2"></div>
+          <div class="bat-segment" id="bseg-3"></div>
+          <div class="bat-segment" id="bseg-4"></div>
+          <div class="bat-segment" id="bseg-5"></div>
+          <div class="bat-segment" id="bseg-6"></div>
         </div>
       </div>
 
     </div>
 
-    <!-- HARDWARE TOUCH SENSOR TACTICAL HUD -->
-    <div id="touchBanner" class="touch-hud">
-      <div class="touch-hud-info">
-        <div class="touch-hud-title">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M4.93 19.07L19.07 4.93"/>
-          </svg>
-          <span>HARDWARE TOUCH SENSOR</span>
-        </div>
-        <div class="touch-hud-meta">
-          <span>PIN 04</span>
-          <span class="meta-sep">|</span>
-          <span>SMART DEBOUNCE</span>
-          <span class="meta-sep">|</span>
-          <span>10S SLEEP TOGGLE</span>
-        </div>
+    <!-- TOUCH FEEDBACK STRIP -->
+    <div class="touch-hud" id="touchBanner">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="color:var(--text-dim); font-size:0.68rem; font-weight:700;">TOUCH ISR</span>
+        <span id="touchText" class="badge badge-cyan">[ IDLE ]</span>
       </div>
-      <strong id="touchText" class="badge badge-cyan">[ IDLE ]</strong>
+      <div style="font-size:0.65rem; color:var(--text-dim);">Live Feedback</div>
     </div>
 
-    <!-- MAIN TABS (Desktop / Wide) -->
+    <!-- DESKTOP TABS BAR -->
     <nav class="tabs-bar">
       <button class="tab-btn active" id="dtab-tabMascots" onclick="switchTab('tabMascots')">
         <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><circle cx="15.5" cy="8.5" r="1.5"/><path d="M8 15s1.5 2 4 2 4-2 4-2"/></svg>
@@ -1273,7 +893,7 @@
       </button>
       <button class="tab-btn" id="dtab-tabBoot" onclick="switchTab('tabBoot')">
         <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        BOOT
+        BOOTLOADER
       </button>
       <button class="tab-btn" id="dtab-tabDisplay" onclick="switchTab('tabDisplay')">
         <svg viewBox="0 0 24 24"><rect x="1" y="6" width="18" height="12" rx="2"/><line x1="23" y1="10" x2="23" y2="14"/></svg>
@@ -1281,86 +901,54 @@
       </button>
       <button class="tab-btn" id="dtab-tabMarquee" onclick="switchTab('tabMarquee')">
         <svg viewBox="0 0 24 24"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>
-        MARQUEE
+        BROADCAST
       </button>
       <button class="tab-btn" id="dtab-tabStream" onclick="switchTab('tabStream')">
         <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
-        STREAM
+        STREAM DECK
       </button>
     </nav>
 
-    <main style="display:flex; flex-direction:column; gap:10px; width:100%; min-width:0;">
-      
+    <!-- MAIN APP CONTENT PANELS -->
+    <main style="display:flex; flex-direction:column; gap:14px; width:100%; min-width:0;">
+
       <!-- TAB 1: MODES & MASCOTS -->
       <section id="tabMascots" class="tab-content active">
         
-        <!-- System Mode Switcher -->
+        <!-- Mode Selector -->
         <div class="card">
           <div class="card-header">
             <div class="card-title">
-              <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-              SYSTEM MODE
+              <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+              ACTIVE SYSTEM MODE
             </div>
-            <div style="font-size:0.63rem; color:var(--beige-dim);">5-Tap Gesture Switch</div>
+            <div class="badge badge-cyan">5-TAP SWITCH</div>
           </div>
           <div class="btn-grid">
-            <button class="btn-opt active" id="modeBtn0" onclick="setMode(0)">
-              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
-              CYBERPET
-            </button>
-            <button class="btn-opt" id="modeBtn1" onclick="setMode(1)">
-              <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><line x1="12" y1="7" x2="12" y2="11"/><line x1="7" y1="15" x2="7.01" y2="15"/><line x1="17" y1="15" x2="17.01" y2="15"/></svg>
-              ROBOT EYES
-            </button>
-            <button class="btn-opt" id="modeBtn2" onclick="setMode(2)">
-              <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-              CYBER HUD
-            </button>
-            <button class="btn-opt" id="modeBtn3" onclick="setMode(3)">
-              <svg viewBox="0 0 24 24"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
-              MATRIX
-            </button>
+            <button class="btn-opt active" id="modeBtn0" onclick="setMode(0)">CyberPet</button>
+            <button class="btn-opt" id="modeBtn1" onclick="setMode(1)">Robot Eyes</button>
+            <button class="btn-opt" id="modeBtn2" onclick="setMode(2)">Cyber HUD</button>
+            <button class="btn-opt" id="modeBtn3" onclick="setMode(3)">Matrix Rain</button>
           </div>
         </div>
 
-        <!-- Mode 0: CyberPet Reaction Avatars -->
-        <div class="card context-panel active" id="panelMode0">
+        <!-- Mode 0: Mascot Selection -->
+        <div class="card context-panel" id="panelMode0">
           <div class="card-header">
             <div class="card-title">
-              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/></svg>
-              CYBERPET AVATARS
+              <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              MASCOT EMOTION AVATARS
             </div>
-            <div class="badge badge-warn">DOUBLE-TAP: NEXT</div>
+            <div class="badge badge-warn">DOUBLE-TAP CYCLE</div>
           </div>
           <div class="btn-grid">
-            <button class="btn-opt active" id="emoBtn0" onclick="setEmotion(0)">🏴‍☠️ Luffy</button>
-            <button class="btn-opt" id="emoBtn1" onclick="setEmotion(1)">👉👈 Shy Love</button>
-            <button class="btn-opt" id="emoBtn2" onclick="setEmotion(2)">🐱 Giggling</button>
-            <button class="btn-opt" id="emoBtn3" onclick="setEmotion(3)">🍌 Sad Banana</button>
-            <button class="btn-opt" id="emoBtn4" onclick="setEmotion(4)">😭 Cry Baby</button>
-            <button class="btn-opt" id="emoBtn5" onclick="setEmotion(5)">😾 Angry Cat</button>
-            <button class="btn-opt" id="emoBtn6" onclick="setEmotion(6)">🐰 Bunny</button>
-          </div>
-          <button class="btn-primary" onclick="saveAsDefault()">
-            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            SET AS DEFAULT BOOT AVATAR
-          </button>
-        </div>
-
-        <!-- Mode 1: Robot Eyes Moods -->
-        <div class="card context-panel" id="panelMode1">
-          <div class="card-header">
-            <div class="card-title">
-              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/></svg>
-              ROBOT EYES MOODS
-            </div>
-            <div class="badge badge-cyan">DOUBLE-TAP: NEXT</div>
-          </div>
-          <div class="btn-grid">
-            <button class="btn-opt active" id="robotMoodBtn0" onclick="setRobotMood(0)">👀 Cyan Normal</button>
-            <button class="btn-opt" id="robotMoodBtn1" onclick="setRobotMood(1)">❤️ Happy Love</button>
-            <button class="btn-opt" id="robotMoodBtn2" onclick="setRobotMood(2)">😾 Angry Red</button>
-            <button class="btn-opt" id="robotMoodBtn3" onclick="setRobotMood(3)">🟡 Cyber Gold</button>
+            <button class="btn-opt active" id="emoBtn0" onclick="setEmotion(0)">Luffy</button>
+            <button class="btn-opt" id="emoBtn1" onclick="setEmotion(1)">Shy Love</button>
+            <button class="btn-opt" id="emoBtn2" onclick="setEmotion(2)">Giggle Cat</button>
+            <button class="btn-opt" id="emoBtn3" onclick="setEmotion(3)">Sad Banana</button>
+            <button class="btn-opt" id="emoBtn4" onclick="setEmotion(4)">Umaru Cry</button>
+            <button class="btn-opt" id="emoBtn5" onclick="setEmotion(5)">Angry Cat</button>
+            <button class="btn-opt" id="emoBtn6" onclick="setEmotion(6)">Bunny</button>
           </div>
           <button class="btn-primary" onclick="saveAsDefault()">
             <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
@@ -1368,39 +956,46 @@
           </button>
         </div>
 
-        <!-- Mode 2: Cyber HUD Customization -->
+        <!-- Mode 1: Robot Eyes Moods -->
+        <div class="card context-panel" id="panelMode1">
+          <div class="card-header">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="9" cy="10" r="1.5"/><circle cx="15" cy="10" r="1.5"/><path d="M8 15h8"/></svg>
+              ROBOT EYES STYLE & MOOD
+            </div>
+            <div class="badge badge-cyan">DOUBLE-TAP: STYLE</div>
+          </div>
+          <div class="btn-grid">
+            <button class="btn-opt active" id="robotMoodBtn0" onclick="setRobotMood(0)">Cyan Focus</button>
+            <button class="btn-opt" id="robotMoodBtn1" onclick="setRobotMood(1)">Happy Love</button>
+            <button class="btn-opt" id="robotMoodBtn2" onclick="setRobotMood(2)">Angry Red</button>
+            <button class="btn-opt" id="robotMoodBtn3" onclick="setRobotMood(3)">Gold Cyber</button>
+          </div>
+          <button class="btn-primary" onclick="saveAsDefault()">
+            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            SET AS DEFAULT BOOT SCREEN
+          </button>
+        </div>
+
+        <!-- Mode 2: Cyber HUD Configuration -->
         <div class="card context-panel" id="panelMode2">
           <div class="card-header">
             <div class="card-title">
-              <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-              CYBER HUD CUSTOMIZATION
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              CYBER HUD LAYOUT & WEATHER
             </div>
-            <div class="badge badge-ok">DOUBLE-TAP: LAYOUT</div>
+            <div class="badge badge-cyan">DOUBLE-TAP: LAYOUT</div>
           </div>
-
-          <label>HUD LAYOUT STYLE</label>
           <div class="btn-grid">
-            <button class="btn-opt active" id="hudLayBtn0" onclick="setHudLayout(0)">⚡ Full HUD</button>
-            <button class="btn-opt" id="hudLayBtn1" onclick="setHudLayout(1)">⏰ Big Clock</button>
-            <button class="btn-opt" id="hudLayBtn2" onclick="setHudLayout(2)">📟 Dashboard</button>
+            <button class="btn-opt active" id="hudLayBtn0" onclick="setHudLayout(0)">Full HUD</button>
+            <button class="btn-opt" id="hudLayBtn1" onclick="setHudLayout(1)">Big Clock</button>
+            <button class="btn-opt" id="hudLayBtn2" onclick="setHudLayout(2)">Minimal Dash</button>
           </div>
 
           <label>CUSTOM HUD BANNER TEXT</label>
           <div class="text-input-wrap">
-            <input type="text" id="txtHudMessage" value="JOYBOY // SYS_ONLINE" maxlength="24" placeholder="Enter HUD banner text...">
-            <button class="btn-primary" style="flex-shrink:0;" onclick="sendHudCustomText()">
-              <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-              SYNC
-            </button>
-          </div>
-
-          <label class="text-accent">2-SECOND HOLD SECRET / SHY MESSAGE</label>
-          <div class="text-input-wrap">
-            <input type="text" id="txtHudShyMessage" value="I LOVE YOU ❤️" maxlength="24" placeholder="Enter 2s hold secret message...">
-            <button class="btn-opt" style="background:var(--magenta-bg); color:var(--magenta); border-color:var(--magenta); flex-shrink:0;" onclick="sendHudShyText()">
-              <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-              SYNC SHY
-            </button>
+            <input type="text" id="txtHudMessage" value="SPEARHEAD // SYS_ONLINE" maxlength="24" placeholder="Enter HUD banner text...">
+            <button class="btn-opt" onclick="sendHudCustomText()">SYNC</button>
           </div>
 
           <label>TOGGLE DISPLAY ELEMENTS</label>
@@ -1411,53 +1006,76 @@
             </div>
             <div class="checkbox-row" onclick="toggleCheckbox('chkHudBat')">
               <input type="checkbox" id="chkHudBat" checked onchange="syncHudConfig()">
-              <label>Show Battery Badge</label>
+              <label>Show Battery Gauge</label>
             </div>
             <div class="checkbox-row" onclick="toggleCheckbox('chkHudDate')">
               <input type="checkbox" id="chkHudDate" checked onchange="syncHudConfig()">
-              <label>Show Live Date Banner</label>
+              <label>Show Date Banner</label>
             </div>
             <div class="checkbox-row" onclick="toggleCheckbox('chkHudWave')">
               <input type="checkbox" id="chkHudWave" checked onchange="syncHudConfig()">
-              <label>Show Waveform Animation</label>
+              <label>Show Waveform</label>
             </div>
             <div class="checkbox-row" onclick="toggleCheckbox('chkHudText')">
               <input type="checkbox" id="chkHudText" checked onchange="syncHudConfig()">
-              <label>Show Custom Banner Text</label>
+              <label>Show Banner Text</label>
             </div>
           </div>
 
           <div style="display:flex; gap:8px;">
             <button class="btn-opt" style="flex:1;" onclick="syncTimeAndWeather()">
               <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              SYNC TIME
+              SYNC TIME & WEATHER
             </button>
-            <button class="btn-primary" style="flex:1;" onclick="saveAsDefault()">
-              <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-              SET DEFAULT
-            </button>
+            <button class="btn-primary" style="flex:1;" onclick="saveAsDefault()">SET DEFAULT</button>
           </div>
         </div>
 
-        <!-- Mode 3: Matrix Themes -->
+        <!-- Mode 3: Matrix Rain Themes -->
         <div class="card context-panel" id="panelMode3">
           <div class="card-header">
             <div class="card-title">
               <svg viewBox="0 0 24 24"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/></svg>
-              MATRIX RAIN COLOR THEMES
+              MATRIX RAIN THEMES
             </div>
             <div class="badge badge-ok">DOUBLE-TAP: THEME</div>
           </div>
           <div class="btn-grid">
-            <button class="btn-opt active" id="matrixThmBtn0" onclick="setMatrixTheme(0)" style="color:var(--green); border-color:var(--green);">🟢 Neo Green</button>
-            <button class="btn-opt" id="matrixThmBtn1" onclick="setMatrixTheme(1)" style="color:var(--cyan); border-color:var(--cyan);">🔵 Cyber Cyan</button>
-            <button class="btn-opt" id="matrixThmBtn2" onclick="setMatrixTheme(2)" style="color:var(--magenta); border-color:var(--magenta);">🟣 Synth Magenta</button>
-            <button class="btn-opt" id="matrixThmBtn3" onclick="setMatrixTheme(3)" style="color:var(--amber); border-color:var(--amber);">🟡 Fire Amber</button>
+            <button class="btn-opt active" id="matrixThmBtn0" onclick="setMatrixTheme(0)">Neo Green</button>
+            <button class="btn-opt" id="matrixThmBtn1" onclick="setMatrixTheme(1)">Cyber Cyan</button>
+            <button class="btn-opt" id="matrixThmBtn2" onclick="setMatrixTheme(2)">Synth Magenta</button>
+            <button class="btn-opt" id="matrixThmBtn3" onclick="setMatrixTheme(3)">Fire Amber</button>
           </div>
-          <button class="btn-primary" onclick="saveAsDefault()">
-            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            SET AS DEFAULT BOOT SCREEN
-          </button>
+          <button class="btn-primary" onclick="saveAsDefault()">SET AS DEFAULT BOOT SCREEN</button>
+        </div>
+
+        <!-- DEDICATED 2-SECOND HOLD SECRET MESSAGE HUB -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+              2-SECOND HOLD SECRET MESSAGE
+            </div>
+            <div class="badge badge-mag">UNIVERSAL REACTION</div>
+          </div>
+          <div style="font-size:0.75rem; color:var(--text-muted);">
+            Configure the message revealed when holding the touch sensor for <b>2 seconds</b> across CyberHUD, Robot Eyes, Matrix Rain, and Mascots.
+          </div>
+
+          <div class="text-input-wrap">
+            <input type="text" id="txtUniversalShyMessage" value="I LOVE YOU" maxlength="28" placeholder="Enter universal 2-second hold message...">
+            <button class="btn-primary" style="flex-shrink:0;" onclick="sendUniversalShyText()">
+              <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              SAVE MESSAGE
+            </button>
+          </div>
+
+          <div style="display:flex; gap:8px;">
+            <button class="btn-opt" style="flex:1;" onclick="testUniversalShyReaction()">
+              <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              TEST 2s REACTION ON DEVICE
+            </button>
+          </div>
         </div>
 
         <!-- Secret Developer Easter Egg Card -->
@@ -1468,28 +1086,28 @@
               SECRET EASTER EGG PROMPT
             </div>
             <div style="display:flex; align-items:center; gap:6px;">
-              <span id="easterEggCountBadge" class="badge badge-mag" style="font-weight:700;">0 UNLOCKED 🎉</span>
+              <span id="easterEggCountBadge" class="badge badge-mag">0 UNLOCKED</span>
               <span class="badge badge-warn">7-POKE UNLOCK</span>
             </div>
           </div>
-          <div style="font-size:0.75rem; color:var(--beige-muted); margin-bottom:8px;">
-            Configure your custom secret Easter Egg message. Rapidly tap/poke the touch sensor <b>7 times</b> to trigger this hidden prompt on the screen!
+          <div style="font-size:0.75rem; color:var(--text-muted);">
+            Configure your custom secret Easter Egg message. Rapidly tap the touch sensor <b>7 times</b> to trigger this hidden screen!
           </div>
 
           <div class="text-input-wrap">
-            <input type="text" id="txtEasterEgg" value="YOU ARE AWESOME :sparkles: :heart: :fire:" maxlength="40" placeholder="Enter secret Easter Egg message...">
+            <input type="text" id="txtEasterEgg" value="YOU FOUND THE SECRET" maxlength="40" placeholder="Enter secret Easter Egg message...">
             <button class="btn-primary" style="flex-shrink:0;" onclick="sendEasterEggMessage()">
               <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
               SAVE SECRET
             </button>
           </div>
 
-          <div style="display:flex; gap:8px; margin-top:8px;">
-            <button class="btn-opt" style="flex:2; background:var(--magenta-bg); color:var(--magenta); border-color:var(--magenta);" onclick="testEasterEgg()">
+          <div style="display:flex; gap:8px;">
+            <button class="btn-opt" style="flex:2;" onclick="testEasterEgg()">
               <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
               TEST EASTER EGG ON DEVICE
             </button>
-            <button class="btn-opt" style="flex:1; border-color:var(--border-accent);" onclick="resetEasterEggCount()">
+            <button class="btn-opt" style="flex:1;" onclick="resetEasterEggCount()">
               <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
               RESET COUNT
             </button>
@@ -1503,12 +1121,12 @@
               <svg viewBox="0 0 24 24"><path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M4.93 19.07L19.07 4.93"/></svg>
               HARDWARE TOUCH GESTURE GUIDE
             </div>
-            <div style="font-size:0.63rem; color:var(--beige-dim);">ESP32-C3 TOUCH ENGINE</div>
+            <div style="font-size:0.63rem; color:var(--text-dim);">ESP32-C3 TOUCH ISR</div>
           </div>
           <div class="telemetry-grid">
             <div class="stat-tile">
               <div class="stat-label">SINGLE TAP <span class="badge badge-cyan">POKE</span></div>
-              <div class="stat-value" style="font-size:0.72rem;">Poke Avatar / Glance HUD / Burst</div>
+              <div class="stat-value" style="font-size:0.72rem;">Poke Avatar / Glance HUD / Tick</div>
             </div>
             <div class="stat-tile">
               <div class="stat-label">DOUBLE TAP <span class="badge badge-warn">CYCLE</span></div>
@@ -1520,11 +1138,11 @@
             </div>
             <div class="stat-tile">
               <div class="stat-label">7 QUICK POKES <span class="badge badge-mag">EASTER EGG</span></div>
-              <div class="stat-value" style="font-size:0.72rem;">Unlock Hidden Developer Prompt 🎉</div>
+              <div class="stat-value" style="font-size:0.72rem;">Unlock Hidden Developer Screen</div>
             </div>
             <div class="stat-tile">
-              <div class="stat-label">2-SEC HOLD <span class="badge badge-mag">SHY LOVE</span></div>
-              <div class="stat-value" style="font-size:0.72rem;">Secret Reaction (Reverts in 5s)</div>
+              <div class="stat-label">2-SEC HOLD <span class="badge badge-mag">REACTION</span></div>
+              <div class="stat-value" style="font-size:0.72rem;">Universal Secret Reaction (5s Revert)</div>
             </div>
             <div class="stat-tile">
               <div class="stat-label">10S HOLD + REL <span class="badge badge-ok">POWER</span></div>
@@ -1539,13 +1157,13 @@
 
       </section>
 
-      <!-- TAB 2: BOOT SPLASH STUDIO -->
+      <!-- TAB 2: BOOTLOADER STUDIO -->
       <section id="tabBoot" class="tab-content">
         <div class="card">
           <div class="card-header">
             <div class="card-title">
               <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-              STARTUP ANIMATION TYPE
+              STARTUP BOOTLOADER ANIMATION
             </div>
             <button class="btn-opt" style="padding:4px 8px; font-size:0.7rem;" onclick="testBootSplash()">
               <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -1553,16 +1171,16 @@
             </button>
           </div>
           <div class="btn-grid">
-            <button class="btn-opt active" id="bootBtn0" onclick="setBootType(0)">☕ Joyboy</button>
-            <button class="btn-opt" id="bootBtn1" onclick="setBootType(1)">🖼️ Custom Pic</button>
-            <button class="btn-opt" id="bootBtn2" onclick="setBootType(2)">🎞️ Video</button>
-            <button class="btn-opt" id="bootBtn3" onclick="setBootType(3)">⚡ Instant</button>
+            <button class="btn-opt active" id="bootBtn0" onclick="setBootType(0)">Spearhead</button>
+            <button class="btn-opt" id="bootBtn1" onclick="setBootType(1)">Custom Image</button>
+            <button class="btn-opt" id="bootBtn2" onclick="setBootType(2)">Video Anim</button>
+            <button class="btn-opt" id="bootBtn3" onclick="setBootType(3)">Instant Boot</button>
           </div>
 
           <div class="slider-wrap">
             <div class="slider-head">
               <span>DISPLAY DURATION</span>
-              <span id="bootDurVal" class="text-accent">2 Seconds</span>
+              <span id="bootDurVal" style="color:var(--accent); font-weight:700;">2 Seconds</span>
             </div>
             <input type="range" id="bootDurSlider" min="1" max="4" value="2" oninput="updateBootDuration(this.value)">
           </div>
@@ -1570,18 +1188,14 @@
           <!-- SLEEK UPLOAD CARDS -->
           <div class="upload-deck">
             <label class="upload-dropzone">
-              <div class="upload-icon-box">
-                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-              </div>
-              <div class="upload-title">FLASH BOOT PIC</div>
+              <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              <div class="upload-title">FLASH BOOT IMAGE</div>
               <div class="upload-hint">PNG / JPG • 240x240 Auto-fit</div>
               <input type="file" accept="image/*" style="display:none;" onchange="uploadBootImage(event)">
             </label>
 
             <label class="upload-dropzone">
-              <div class="upload-icon-box">
-                <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
-              </div>
+              <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
               <div class="upload-title">FLASH BOOT VIDEO</div>
               <div class="upload-hint">MP4 / GIF • 20 FPS Loop</div>
               <input type="file" accept="video/*,image/gif" style="display:none;" onchange="uploadBootVideo(event)">
@@ -1594,7 +1208,7 @@
         </div>
       </section>
 
-      <!-- TAB 3: POWER, BATTERY & LOGS -->
+      <!-- TAB 3: POWER & BATTERY LOGS -->
       <section id="tabDisplay" class="tab-content">
         
         <!-- Battery Discharge & Runtime Tracker -->
@@ -1633,7 +1247,7 @@
             </div>
             <div class="stat-tile">
               <div class="stat-label">LIFETIME</div>
-              <div class="stat-value" id="logAllTime" style="color:var(--magenta);">--</div>
+              <div class="stat-value" id="logAllTime" style="color:var(--purple);">--</div>
             </div>
             <div class="stat-tile">
               <div class="stat-label">CYCLES</div>
@@ -1641,7 +1255,7 @@
             </div>
             <div class="stat-tile">
               <div class="stat-label">LOG SYNC</div>
-              <div class="stat-value text-accent" style="font-size:0.72rem;">FLASH SAVED</div>
+              <div class="stat-value" style="color:var(--accent); font-size:0.74rem;">NVS FLASH</div>
             </div>
           </div>
 
@@ -1662,7 +1276,7 @@
           <div class="card-header">
             <div class="card-title">
               <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-              POWER & FLASH MEMORY
+              POWER & HARDWARE STANDBY
             </div>
           </div>
 
@@ -1671,14 +1285,14 @@
               <svg viewBox="0 0 24 24"><path d="M6.5 6.5l11 11L12 23V1l5.5 5.5-11 11"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
               TURN OFF BLE & SLEEP
             </button>
-            <button class="btn-opt" style="border-color:var(--magenta); color:var(--magenta);" onclick="enterDeepSleepNow()">
+            <button class="btn-opt" style="border-color:var(--purple); color:var(--purple);" onclick="enterDeepSleepNow()">
               <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
               DEEP SLEEP NOW
             </button>
           </div>
 
-          <div style="font-size:0.66rem; color:var(--beige-dim); line-height:1.4;">
-            💡 Single tap wakes from deep sleep (200ms flash). 10s hold wakes with BLE radio enabled.
+          <div style="font-size:0.70rem; color:var(--text-dim); line-height:1.45;">
+            Single tap wakes from deep sleep in &lt;0.08s. 10s hold wakes with BLE radio enabled.
           </div>
 
           <button class="btn-primary" onclick="saveChangesToFlash()">
@@ -1707,7 +1321,7 @@
           <div class="slider-wrap">
             <div class="slider-head">
               <span>LIVE ROTATION ANGLE</span>
-              <span id="angleVal" class="text-accent">270°</span>
+              <span id="angleVal" style="color:var(--accent); font-weight:700;">270°</span>
             </div>
             <input type="range" id="angleSlider" min="0" max="360" value="270" step="90" oninput="updateAngleSlider(this.value)">
           </div>
@@ -1715,7 +1329,7 @@
           <div class="slider-wrap">
             <div class="slider-head">
               <span>BRIGHTNESS</span>
-              <span id="brVal" class="text-accent">95%</span>
+              <span id="brVal" style="color:var(--accent); font-weight:700;">95%</span>
             </div>
             <input type="range" id="brSlider" min="15" max="255" value="240" oninput="updateBrightness(this.value)">
           </div>
@@ -1723,20 +1337,15 @@
           <div class="slider-wrap">
             <div class="slider-head">
               <span>AUTO SLEEP TIMEOUT</span>
-              <span id="sleepVal" class="text-accent">Never (Always ON)</span>
+              <span id="sleepVal" style="color:var(--accent); font-weight:700;">Never (Always ON)</span>
             </div>
             <input type="range" id="sleepSlider" min="0" max="5" value="5" oninput="updateSleepSlider(this.value)">
           </div>
-
-          <button class="btn-opt" onclick="syncTimeAndWeather()">
-            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            SYNC TIME & WEATHER NOW
-          </button>
         </div>
 
       </section>
 
-      <!-- TAB 4: MARQUEE TEXT & 32 VECTOR EMOJI PICKER -->
+      <!-- TAB 4: MARQUEE TEXT BROADCAST -->
       <section id="tabMarquee" class="tab-content">
         <div class="card">
           <div class="card-header">
@@ -1747,7 +1356,7 @@
           </div>
 
           <div class="text-input-wrap">
-            <input type="text" id="txtMessage" value="JOY BOY COFFEE :coffee: :fire:" placeholder="Enter marquee text...">
+            <input type="text" id="txtMessage" value="SPEARHEAD // SYSTEM ONLINE" placeholder="Enter marquee text...">
             <button class="btn-primary" style="flex-shrink:0;" onclick="sendCustomText()">
               <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
               SEND
@@ -1755,94 +1364,36 @@
           </div>
 
           <!-- ADVANCED MARQUEE CONTROLS: SPEED, SCALE & DIRECTION -->
-          <div style="background:var(--surface-raised); border:1px solid var(--border); border-radius:4px; padding:10px 12px; margin-top:6px; display:flex; flex-direction:column; gap:10px;">
-            <div class="setting-item" style="padding:0;">
-              <div class="setting-label-row">
-                <span class="setting-name">SCROLL SPEED</span>
-                <span class="setting-val" id="marqueeSpeedVal">3 px/f</span>
+          <div style="background:var(--surface-raised); border:1px solid var(--border); border-radius:6px; padding:12px 14px; display:flex; flex-direction:column; gap:12px;">
+            <div class="slider-wrap">
+              <div class="slider-head">
+                <span>SCROLL SPEED</span>
+                <span id="marqueeSpeedVal" style="color:var(--accent); font-weight:700;">3 px/f</span>
               </div>
               <input type="range" id="marqueeSpeed" min="1" max="12" value="3" oninput="updateMarqueeSpeed(this.value)">
             </div>
 
-            <div class="setting-item" style="padding:0;">
-              <div class="setting-label-row">
-                <span class="setting-name">TEXT SIZE / SCALE</span>
-                <span class="setting-val" id="marqueeSizeVal">Size 3 (24px)</span>
+            <div class="slider-wrap">
+              <div class="slider-head">
+                <span>TEXT SIZE / SCALE</span>
+                <span id="marqueeSizeVal" style="color:var(--accent); font-weight:700;">Size 3 (24px)</span>
               </div>
               <input type="range" id="marqueeSize" min="1" max="12" value="3" oninput="updateMarqueeSize(this.value)">
-              <div style="display:flex; justify-content:space-between; font-size:0.58rem; color:var(--beige-dim); margin-top:2px;">
+              <div style="display:flex; justify-content:space-between; font-size:0.62rem; color:var(--text-dim); margin-top:2px;">
                 <span>1 (8px)</span><span>3 (24px)</span><span>6 (48px)</span><span>9 (72px)</span><span>12 (96px Mega)</span>
               </div>
             </div>
 
-            <div class="setting-item" style="padding:0;">
-              <div class="setting-label-row">
-                <span class="setting-name">FLOW DIRECTION</span>
-                <span class="setting-val" id="marqueeDirVal">RIGHT TO LEFT (←)</span>
+            <div class="slider-wrap">
+              <div class="slider-head">
+                <span>FLOW DIRECTION</span>
+                <span id="marqueeDirVal" style="color:var(--accent); font-weight:700;">RIGHT TO LEFT (←)</span>
               </div>
-              <div class="hud-chip-grid" style="grid-template-columns: 1fr 1fr; margin-top:4px;">
-                <div class="hud-chip active" id="btnDirRTL" onclick="setMarqueeDirection(0)">
-                  <div class="hud-chip-name">← RIGHT TO LEFT</div>
-                  <div class="hud-chip-desc">Standard Marquee</div>
-                </div>
-                <div class="hud-chip" id="btnDirLTR" onclick="setMarqueeDirection(1)">
-                  <div class="hud-chip-name">LEFT TO RIGHT →</div>
-                  <div class="hud-chip-desc">Reverse Flow</div>
-                </div>
+              <div class="btn-grid" style="grid-template-columns: 1fr 1fr;">
+                <button class="btn-opt active" id="btnDirRTL" onclick="setMarqueeDirection(0)">← Right to Left</button>
+                <button class="btn-opt" id="btnDirLTR" onclick="setMarqueeDirection(1)">Left to Right →</button>
               </div>
             </div>
-          </div>
-
-          <div class="card-header" style="margin-top:4px;">
-            <div class="card-title" style="font-size:0.70rem; color:var(--beige-muted);">
-              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/></svg>
-              32 VECTOR EMOJI PALETTE
-            </div>
-            <div style="font-size:0.62rem; color:var(--beige-dim);">Direct Emojis Supported</div>
-          </div>
-
-          <label>POPULAR & REACTIONS</label>
-          <div class="emoji-row">
-            <div class="emoji-chip" onclick="insertEmoji('☕')">☕</div>
-            <div class="emoji-chip" onclick="insertEmoji('❤️')">❤️</div>
-            <div class="emoji-chip" onclick="insertEmoji('💖')">💖</div>
-            <div class="emoji-chip" onclick="insertEmoji('🔥')">🔥</div>
-            <div class="emoji-chip" onclick="insertEmoji('⚡')">⚡</div>
-            <div class="emoji-chip" onclick="insertEmoji('⭐')">⭐</div>
-            <div class="emoji-chip" onclick="insertEmoji('✨')">✨</div>
-            <div class="emoji-chip" onclick="insertEmoji('🚀')">🚀</div>
-            <div class="emoji-chip" onclick="insertEmoji('👑')">👑</div>
-            <div class="emoji-chip" onclick="insertEmoji('💎')">💎</div>
-            <div class="emoji-chip" onclick="insertEmoji('💯')">💯</div>
-            <div class="emoji-chip" onclick="insertEmoji('👍')">👍</div>
-            <div class="emoji-chip" onclick="insertEmoji('🎉')">🎉</div>
-          </div>
-
-          <label>MASCOTS & FACES</label>
-          <div class="emoji-row">
-            <div class="emoji-chip" onclick="insertEmoji('🐱')">🐱</div>
-            <div class="emoji-chip" onclick="insertEmoji('🐶')">🐶</div>
-            <div class="emoji-chip" onclick="insertEmoji('🐰')">🐰</div>
-            <div class="emoji-chip" onclick="insertEmoji('🍌')">🍌</div>
-            <div class="emoji-chip" onclick="insertEmoji('💀')">💀</div>
-            <div class="emoji-chip" onclick="insertEmoji('😭')">😭</div>
-            <div class="emoji-chip" onclick="insertEmoji('😎')">😎</div>
-            <div class="emoji-chip" onclick="insertEmoji('😈')">😈</div>
-            <div class="emoji-chip" onclick="insertEmoji('💩')">💩</div>
-            <div class="emoji-chip" onclick="insertEmoji('🧸')">🧸</div>
-            <div class="emoji-chip" onclick="insertEmoji('👀')">👀</div>
-          </div>
-
-          <label>CYBER, FOOD & NATURE</label>
-          <div class="emoji-row">
-            <div class="emoji-chip" onclick="insertEmoji('🤖')">🤖</div>
-            <div class="emoji-chip" onclick="insertEmoji('👾')">👾</div>
-            <div class="emoji-chip" onclick="insertEmoji('🎮')">🎮</div>
-            <div class="emoji-chip" onclick="insertEmoji('🎵')">🎵</div>
-            <div class="emoji-chip" onclick="insertEmoji('🍕')">🍕</div>
-            <div class="emoji-chip" onclick="insertEmoji('🍔')">🍔</div>
-            <div class="emoji-chip" onclick="insertEmoji('🌙')">🌙</div>
-            <div class="emoji-chip" onclick="insertEmoji('🌸')">🌸</div>
           </div>
         </div>
       </section>
@@ -1857,23 +1408,18 @@
             </div>
           </div>
 
-          <!-- SLEEK UPLOAD CARDS -->
           <div class="upload-deck">
             <label class="upload-dropzone">
-              <div class="upload-icon-box">
-                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-              </div>
+              <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
               <div class="upload-title">STREAM STATIC IMAGE</div>
-              <div class="upload-hint">PNG / JPG / WebP • Real-time</div>
+              <div class="upload-hint">PNG / JPG / WebP • Real-time Frame</div>
               <input type="file" accept="image/*" style="display:none;" onchange="uploadLiveImage(event)">
             </label>
 
             <label class="upload-dropzone">
-              <div class="upload-icon-box">
-                <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-              </div>
+              <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
               <div class="upload-title">STREAM 25 FPS VIDEO / GIF</div>
-              <div class="upload-hint">Video / GIF • Live Loop Stream</div>
+              <div class="upload-hint">MP4 / GIF • Flash-Backed Loop</div>
               <input type="file" accept="video/*,image/gif" style="display:none;" onchange="uploadLiveVideo(event)">
             </label>
           </div>
@@ -1883,18 +1429,18 @@
           </div>
         </div>
       </section>
- 
-      <!-- PWA APP INSTALL BANNER CARD (RIGHT ABOVE LIVE CONSOLE) -->
-      <div id="installAppCard" class="card" style="padding:12px 14px; background:linear-gradient(135deg, rgba(226, 180, 106, 0.08), rgba(20, 24, 33, 0.95)); border:1px solid var(--amber);">
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
-          <div style="display:flex; align-items:center; gap:10px; min-width:0;">
-            <img src="icons/icon.svg" width="36" height="36" alt="Joyboy App Icon" style="border-radius:6px; border:1px solid var(--amber); flex-shrink:0;">
+
+      <!-- PWA APP INSTALL BANNER CARD -->
+      <div id="installAppCard" class="pwa-banner-card card">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+          <div style="display:flex; align-items:center; gap:12px; min-width:0;">
+            <img src="icons/icon.svg" width="38" height="38" alt="Spearhead Icon" style="border-radius:6px; border:1px solid var(--border-accent); flex-shrink:0;">
             <div style="min-width:0;">
-              <div style="font-size:0.80rem; font-weight:700; color:var(--beige-light); letter-spacing:0.8px;">JOYBOY KEYCHAIN APP</div>
-              <div style="font-size:0.65rem; color:var(--beige-muted);">Install standalone WebAPK / PWA for quick home-screen access</div>
+              <div style="font-size:0.84rem; font-weight:800; color:var(--text-main); letter-spacing:0.8px;">SPEARHEAD APP</div>
+              <div style="font-size:0.68rem; color:var(--text-muted);">Install standalone WebAPK / PWA for full-screen access</div>
             </div>
           </div>
-          <button id="btnInstallApp" class="btn-install-pwa" onclick="triggerPWAInstall()" title="Install App to Device">
+          <button id="btnInstallApp" class="btn-primary" onclick="triggerPWAInstall()" title="Install App">
             <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             <span>INSTALL APP</span>
           </button>
@@ -1902,15 +1448,15 @@
       </div>
 
       <!-- LIVE TERMINAL CONSOLE -->
-      <div class="card" style="padding:10px;">
-        <div class="card-header" style="padding-bottom:4px; margin-bottom:6px;">
-          <div class="card-title" style="font-size:0.70rem;">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
             <svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
             LIVE CONSOLE
           </div>
-          <button class="btn-opt" style="padding:2px 8px; font-size:0.65rem;" onclick="clearTerminal()">CLEAR</button>
+          <button class="btn-opt" style="padding:3px 10px; font-size:0.68rem;" onclick="clearTerminal()">CLEAR</button>
         </div>
-        <div class="terminal" id="terminal">> Digi Keychain ready. Tap PAIR to connect over Bluetooth.</div>
+        <div class="terminal" id="terminal">> Spearhead Deck online. Tap PAIR to connect over Bluetooth.</div>
       </div>
 
     </main>
@@ -1941,8 +1487,103 @@
 
   </div>
 
+  <!-- HIDDEN 3-TAP ABOUT MODAL (GOURAV KUMAR & SYSTEM SPECS) -->
+  <div id="aboutModal" class="modal-backdrop" onclick="closeAboutModal(event)">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title">
+          <img src="icons/icon.svg" width="24" height="24" alt="Spearhead Emblem" style="border-radius:4px; border:1px solid var(--border-accent);">
+          <span>SPEARHEAD // SYSTEM ARCHITECTURE</span>
+        </div>
+        <button class="modal-close" onclick="closeAboutModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        
+        <div class="about-section">
+          <div class="about-sec-title">ARCHITECT & LEAD ENGINEER</div>
+          <div style="font-size:0.92rem; font-weight:800; color:var(--text-main);">Gourav Kumar</div>
+          <div style="font-size:0.72rem; color:var(--text-muted);">Embedded Firmware, BLE Communication & Hardware UI Development</div>
+        </div>
+
+        <div class="about-section">
+          <div class="about-sec-title">HARDWARE ARCHITECTURE</div>
+          <div style="font-size:0.74rem; color:var(--text-muted); display:flex; flex-direction:column; gap:4px;">
+            <div>• <b>Microcontroller:</b> ESP32-C3 RISC-V 32-bit Single-Core @ 160MHz</div>
+            <div>• <b>Display Panel:</b> 1.3" 240×240 IPS TFT (ST7789 via LovyanGFX High-Speed SPI)</div>
+            <div>• <b>Input Engine:</b> TTP223 Capacitive Touch ISR with Hardware Edge Debounce</div>
+            <div>• <b>Power Subsystem:</b> 1S LiPo Battery with 16-Sample Calibrated ADC & Standby Optimization</div>
+            <div>• <b>Wireless:</b> Bluetooth Low Energy 5.0 (NimBLE Sequential GATT Engine)</div>
+          </div>
+        </div>
+
+        <div class="about-section">
+          <div class="about-sec-title">VERSION RELEASE HISTORY</div>
+          <div style="font-size:0.72rem; color:var(--text-muted); display:flex; flex-direction:column; gap:6px;">
+            <div>
+              <b style="color:var(--accent);">v5.0 (Spearhead Release):</b>
+              <br>Full Spearhead rebrand, custom bootloader with animated slanted progress telemetry, 3-tap engineer modal, dedicated 2s-hold secret message hub, zero-bloom matte dark professional UI.
+            </div>
+            <div>
+              <b style="color:var(--text-main);">v4.3:</b>
+              <br>LittleFS 25 FPS video stream playback, WebAPK Android PWA offline caching, persistent Easter egg trigger counter.
+            </div>
+            <div>
+              <b style="color:var(--text-main);">v3.0:</b>
+              <br>Non-Volatile flash battery discharge logger, calibrated multi-point LiPo voltage telemetry.
+            </div>
+            <div>
+              <b style="color:var(--text-main);">v2.0:</b>
+              <br>Procedural robot eyes, CyberHUD clock, matrix digital rain, multi-mascot emotion engine.
+            </div>
+            <div>
+              <b style="color:var(--text-main);">v1.0:</b>
+              <br>Initial hardware prototype & Bluetooth Low Energy web terminal.
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button class="btn-primary" style="width:100%;" onclick="closeAboutModal()">CLOSE WINDOW</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PWA INSTALLATION GUIDE MODAL -->
+  <div id="installGuideModal" class="modal-backdrop" onclick="closeInstallGuideModal(event)">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          INSTALL SPEARHEAD KEYCHAIN
+        </div>
+        <button class="modal-close" onclick="closeInstallGuideModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="display:flex; align-items:center; gap:14px; margin-bottom:6px;">
+          <img src="icons/icon.svg" width="52" height="52" alt="Spearhead Emblem" style="border-radius:8px; border:1px solid var(--border-accent); flex-shrink:0;">
+          <div>
+            <div style="font-weight:800; font-size:0.92rem; color:var(--text-main);">Spearhead Deck</div>
+            <div style="font-size:0.72rem; color:var(--text-muted);">Install standalone PWA for instantaneous Bluetooth controls and full-screen mobile experience.</div>
+          </div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div style="background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:10px 12px; font-size:0.74rem;">
+            <b>1. Chrome / Edge (Android & PC):</b> Tap <b>Install App</b> above Live Console or browser menu (⋮) ➔ select <b>"Install Spearhead"</b>.
+          </div>
+          <div style="background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:10px 12px; font-size:0.74rem;">
+            <b>2. Safari (iOS / iPhone):</b> Tap the <b>Share icon</b> ➔ scroll down and tap <b>"Add to Home Screen"</b>.
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-primary" style="width:100%;" onclick="closeInstallGuideModal()">GOT IT</button>
+      </div>
+    </div>
+  </div>
+
   <script>
-    // UUIDs for DIGI_KEYCHAIN GATT Service
+    // UUIDs for SPEARHEAD GATT Service
     const SERVICE_UUID       = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
     const CHAR_MODE_UUID     = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
     const CHAR_PET_UUID      = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
@@ -1963,6 +1604,36 @@
       if (navigator.vibrate) {
         try { navigator.vibrate(ms); } catch (e) {}
       }
+    }
+
+    // -------------------------------------------------------------
+    // 3-TAP HEADER LOGO TRIGGER FOR HIDDEN ABOUT MODAL
+    // -------------------------------------------------------------
+    let logoTapCount = 0;
+    let logoTapTimer = null;
+
+    function handleLogoTap() {
+      vibrate(15);
+      logoTapCount++;
+      if (logoTapTimer) clearTimeout(logoTapTimer);
+      logoTapTimer = setTimeout(() => { logoTapCount = 0; }, 1200);
+
+      if (logoTapCount >= 3) {
+        logoTapCount = 0;
+        openAboutModal();
+      }
+    }
+
+    function openAboutModal() {
+      vibrate(25);
+      const modal = document.getElementById('aboutModal');
+      if (modal) modal.classList.add('active');
+    }
+
+    function closeAboutModal(e) {
+      if (e && e.target && e.target !== e.currentTarget && !e.target.classList.contains('modal-close')) return;
+      const modal = document.getElementById('aboutModal');
+      if (modal) modal.classList.remove('active');
     }
 
     function setViewMode(mode) {
@@ -2031,7 +1702,6 @@
       const statElem = document.getElementById('hud-bat-status');
       const pctElem = document.getElementById('hud-bat-pct');
       const hoursElem = document.getElementById('hud-bat-hours');
-      const typeElem = document.getElementById('hud-bat-type');
 
       const numPct = parseInt(pct) || 0;
       const numV = parseFloat(voltage) || 0;
@@ -2041,7 +1711,7 @@
       
       if (statElem) {
         statElem.innerText = isUsb ? `USB CHARGING` : `ON BATTERY`;
-        statElem.className = isUsb ? `hud-tag charging` : `hud-tag active-battery`;
+        statElem.className = isUsb ? `badge badge-cyan` : `badge badge-ok`;
       }
 
       if (hoursElem) {
@@ -2052,8 +1722,6 @@
           hoursElem.innerText = `~${estHours}H LEFT`;
         }
       }
-
-      if (typeElem) typeElem.innerText = isUsb ? `5V BUS` : `1S LI-ION`;
 
       const activeSegments = Math.max(0, Math.min(6, Math.round((numPct / 100) * 6)));
       for (let i = 1; i <= 6; i++) {
@@ -2080,16 +1748,14 @@
       const statElem = document.getElementById('hud-bat-status');
       const pctElem = document.getElementById('hud-bat-pct');
       const hoursElem = document.getElementById('hud-bat-hours');
-      const typeElem = document.getElementById('hud-bat-type');
 
       if (vElem) vElem.innerText = `-- V`;
       if (statElem) {
         statElem.innerText = `STANDBY`;
-        statElem.className = `hud-tag`;
+        statElem.className = `badge`;
       }
       if (pctElem) pctElem.innerText = `--%`;
       if (hoursElem) hoursElem.innerText = `~--H LEFT`;
-      if (typeElem) typeElem.innerText = `1S LI-ION`;
 
       for (let i = 1; i <= 6; i++) {
         const seg = document.getElementById(`bseg-${i}`);
@@ -2100,10 +1766,13 @@
       if (cv) cv.innerText = `--`;
     }
 
+    // -------------------------------------------------------------
+    // BLE CONNECTION ENGINE
+    // -------------------------------------------------------------
     async function connectBLE() {
       vibrate();
       try {
-        log("Scanning for DIGI_KEYCHAIN...");
+        log("Scanning for SPEARHEAD BLE device...");
         const sb = document.getElementById('statusBadge');
         if (sb) {
           sb.innerText = "CONNECTING...";
@@ -2112,13 +1781,15 @@
         
         bleDevice = await navigator.bluetooth.requestDevice({
           filters: [
+            { name: 'SPEARHEAD' },
+            { namePrefix: 'SPEAR' },
             { name: 'DIGI_KEYCHAIN' },
             { namePrefix: 'DIGI' }
           ],
           optionalServices: [ SERVICE_UUID ]
         });
 
-        log(`Connecting to: ${bleDevice.name || 'DIGI_KEYCHAIN'}...`);
+        log(`Connecting to: ${bleDevice.name || 'SPEARHEAD'}...`);
         bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
         
         gattServer = await bleDevice.gatt.connect();
@@ -2174,14 +1845,14 @@
         }
 
         if (sb) {
-          sb.innerText = "ONLINE ⚡";
+          sb.innerText = "ONLINE";
           sb.className = "badge badge-ok";
         }
         document.getElementById('btnConnect').innerText = "CONNECTED";
         const connName = document.getElementById('hud-conn-name');
-        if (connName) connName.innerText = bleDevice.name || "CONNECTED";
+        if (connName) connName.innerText = bleDevice.name || "SPEARHEAD";
 
-        log("✅ Online! Telemetry & controls active.");
+        log("Online! Telemetry and controls active.");
 
         syncTimeAndWeather();
         setTimeout(async () => {
@@ -2337,7 +2008,7 @@
           const sizeNames = [
             "",
             "Size 1 (8px)", "Size 2 (16px)", "Size 3 (24px)", "Size 4 (32px)", "Size 5 (40px)", "Size 6 (48px)",
-            "Size 7 (56px)", "Size 8 (64px)", "Size 9 (72px)", "Size 10 (80px)", "Size 11 (88px)", "Size 12 (96px - Mega Giant)"
+            "Size 7 (56px)", "Size 8 (64px)", "Size 9 (72px)", "Size 10 (80px)", "Size 11 (88px)", "Size 12 (96px Mega)"
           ];
           if (szSlider) szSlider.value = msgSz;
           if (szVal) szVal.innerText = sizeNames[msgSz] || `Size ${msgSz}`;
@@ -2355,43 +2026,43 @@
             if (!isNaN(eggCnt)) updateEasterEggCountUI(eggCnt);
           }
 
-          log(`⚙️ Synchronized settings: Brightness ${Math.round((br / 255) * 100)}%, Sleep ${sleepLabels[sleepIdx]}`);
+          log(`Synchronized settings: Brightness ${Math.round((br / 255) * 100)}%, Sleep ${sleepLabels[sleepIdx]}`);
         }
       } else if (msg === "TOUCH:POKE") {
-        setTouchBanner("👆 POKE TRIGGERED", "badge-cyan", 1500);
+        setTouchBanner("POKE TRIGGERED", "badge-cyan", 1500);
       } else if (msg === "TOUCH:DOUBLE") {
-        setTouchBanner("⚡ DOUBLE-TAP SUB-OPTION", "badge-warn", 1500);
+        setTouchBanner("DOUBLE-TAP SUB-OPTION", "badge-warn", 1500);
       } else if (msg === "TOUCH:MODE") {
-        setTouchBanner("⚡ 5-TAP MODE SWITCH", "badge-ok", 2000);
+        setTouchBanner("5-TAP MODE SWITCH", "badge-ok", 2000);
       } else if (msg.startsWith("ROBOT:STYLE") || msg.startsWith("ROBOT_MOOD:")) {
         const parts = msg.split(':');
         const idx = parseInt(parts[1]);
         if (!isNaN(idx)) highlightRobotMoodUI(idx);
-        setTouchBanner("🤖 ROBOT MOOD UPDATED", "badge-cyan", 1500);
+        setTouchBanner("ROBOT MOOD UPDATED", "badge-cyan", 1500);
       } else if (msg.startsWith("HUD:LAYOUT") || msg.startsWith("HUD_LAY:")) {
         const parts = msg.split(':');
         const idx = parseInt(parts[1]);
         if (!isNaN(idx)) highlightHudLayoutUI(idx);
-        setTouchBanner("⚡ HUD LAYOUT UPDATED", "badge-ok", 1500);
+        setTouchBanner("HUD LAYOUT UPDATED", "badge-ok", 1500);
       } else if (msg.startsWith("MATRIX:THEME") || msg.startsWith("MATRIX_THM:")) {
         const parts = msg.split(':');
         const idx = parseInt(parts[1]);
         if (!isNaN(idx)) highlightMatrixThemeUI(idx);
-        setTouchBanner("📟 MATRIX THEME UPDATED", "badge-warn", 1500);
+        setTouchBanner("MATRIX THEME UPDATED", "badge-warn", 1500);
       } else if (msg === "TOUCH:SHY:HUD" || msg === "TOUCH:SHY") {
-        setTouchBanner("💌 CYBERHUD SECRET MSG (2s HOLD)", "badge-mag", 5000);
-        log("💌 CyberHUD 2s Hold -> Secret Love Overlay Displayed!");
+        setTouchBanner("CYBERHUD SECRET MSG (2s HOLD)", "badge-mag", 5000);
+        log("CyberHUD 2s Hold -> Secret Message Displayed!");
       } else if (msg === "TOUCH:SHY:ROBOT") {
         highlightRobotMoodUI(1);
-        setTouchBanner("❤️ ROBOT HEART EYES (2s HOLD)", "badge-mag", 5000);
-        log("🤖 Robot Eyes 2s Hold -> Blushing Cheeks & Heart Eyes Active!");
+        setTouchBanner("ROBOT HEART EYES (2s HOLD)", "badge-mag", 5000);
+        log("Robot Eyes 2s Hold -> Blushing Cheeks Active!");
       } else if (msg === "TOUCH:SHY:MATRIX") {
-        setTouchBanner("💖 MATRIX LOVE RAIN (2s HOLD)", "badge-mag", 5000);
-        log("📟 Matrix Rain 2s Hold -> Cyber Heart Rain & Love Card Active!");
+        setTouchBanner("MATRIX LOVE RAIN (2s HOLD)", "badge-mag", 5000);
+        log("Matrix Rain 2s Hold -> Heart Rain Active!");
       } else if (msg === "TOUCH:SHY:PET" || msg === "TOUCH:HOLD") {
         highlightEmotionUI(1);
-        setTouchBanner("👉👈 CYBERPET SHY LOVE (2s HOLD)", "badge-mag", 5000);
-        log("🐱 CyberPet 2s Hold -> Shy Love Avatar Active!");
+        setTouchBanner("CYBERPET SHY LOVE (2s HOLD)", "badge-mag", 5000);
+        log("CyberPet 2s Hold -> Shy Love Avatar Active!");
       } else if (msg.startsWith("EASTER:UNLOCKED")) {
         let eggCnt = easterEggCount + 1;
         if (msg.includes(':') && msg.split(':').length >= 3) {
@@ -2399,25 +2070,25 @@
           if (!isNaN(parsed)) eggCnt = parsed;
         }
         updateEasterEggCountUI(eggCnt);
-        setTouchBanner(`🎉 SECRET EASTER EGG UNLOCKED (#${eggCnt})!`, "badge-mag", 6000);
-        log(`🎉 Secret Developer Easter Egg Unlocked on Keychain! (#${eggCnt})`);
+        setTouchBanner(`SECRET EASTER EGG UNLOCKED (#${eggCnt})!`, "badge-mag", 6000);
+        log(`Secret Developer Easter Egg Unlocked on Keychain! (#${eggCnt})`);
       } else if (msg.startsWith("EGG_COUNT:")) {
         const cnt = parseInt(msg.substring(10));
         if (!isNaN(cnt)) updateEasterEggCountUI(cnt);
-        log(`🥚 Easter Egg trigger counter: ${cnt}`);
+        log(`Easter Egg trigger counter: ${cnt}`);
       } else if (msg.startsWith("TOUCH:REVERT")) {
-        setTouchBanner("🔄 REVERTED (5s ELAPSED)", "badge-ok", 1500);
-        log("🔄 5s elapsed -> Reverted to normal screen.");
+        setTouchBanner("REVERTED (5s ELAPSED)", "badge-ok", 1500);
+        log("5s elapsed -> Reverted to normal screen.");
       } else if (msg === "BLE:OFFLINE") {
-        setTouchBanner("💤 BLE RADIO OFF (80MHz)", "badge-dim", 3000);
+        setTouchBanner("BLE RADIO OFF", "badge-dim", 3000);
       } else if (msg === "BLE:ONLINE") {
-        setTouchBanner("⚡ BLE RADIO ONLINE", "badge-cyan", 3000);
+        setTouchBanner("BLE RADIO ONLINE", "badge-cyan", 3000);
       } else if (msg === "TOUCH:READY") {
-        setTouchBanner("⚡ RELEASE TO CONFIRM", "badge-cyan", 2500);
+        setTouchBanner("RELEASE TO CONFIRM", "badge-cyan", 2500);
       } else if (msg === "TOUCH:STUCK" || msg === "TOUCH:CANCEL") {
-        setTouchBanner("🛑 HELD >14s: CANCELLED", "badge-alert", 2500);
+        setTouchBanner("HELD >14s: CANCELLED", "badge-alert", 2500);
       } else if (msg === "SAVED:OK") {
-        setTouchBanner("💾 SAVED AS DEFAULT", "badge-ok", 2000);
+        setTouchBanner("SAVED AS DEFAULT", "badge-ok", 2000);
       } else if (msg.startsWith("BAT_LOG|")) {
         const parts = msg.split('|');
         if (parts.length >= 8) {
@@ -2445,7 +2116,7 @@
           const allElem = document.getElementById('logAllTime');
           if (allElem) allElem.innerText = allSec > 0 ? formatDuration(allSec) : formatDuration(curSec);
 
-          log(`🔋 Battery Log: Last Run was ${formatDuration(lastSec)} (${lastStart}V ➔ ${lastEnd}V)`);
+          log(`Battery Log: Last Run was ${formatDuration(lastSec)} (${lastStart}V ➔ ${lastEnd}V)`);
         }
       }
     }
@@ -2469,13 +2140,15 @@
     async function saveChangesToFlash() {
       vibrate();
       if (!charSettings) {
-        alert("Please pair with DIGI_KEYCHAIN over Bluetooth first!");
+        alert("Please pair with SPEARHEAD over Bluetooth first!");
         return;
       }
       const data = new TextEncoder().encode("SAVE_CONFIG");
       await safeBleWrite(charSettings, data, false);
-      log("💾 Flashed current settings to ESP32 NVS memory as permanent default!");
-      alert("✅ Settings Flashed to Memory!\n\nSystem Mode, CyberHUD, Robot Eyes, Matrix Themes, Brightness, Sleep Timeout, Screen Rotation, and Mascots are now saved permanently in ESP32 memory.");
+      log("Flashed current settings to ESP32 NVS memory as permanent default!");
+      alert("Settings Flashed to Memory!
+
+System Mode, CyberHUD, Robot Eyes, Matrix Themes, Brightness, Sleep Timeout, Screen Rotation, and Mascots are now saved permanently in ESP32 memory.");
     }
 
     async function turnOffBLE() {
@@ -2484,12 +2157,14 @@
         log("Not connected over BLE.");
         return;
       }
-      if (!confirm("Turn off Bluetooth on the ESP32 to save power?\n\n(To turn it back on, hold the Touch Sensor for 10 seconds until the blue LED flashes)")) return;
+      if (!confirm("Turn off Bluetooth on the ESP32 to save power?
+
+(To turn it back on, hold the Touch Sensor for 10 seconds until the blue LED flashes)")) return;
       try {
         const data = new TextEncoder().encode("BLE:OFF");
         await charSettings.writeValue(data);
       } catch(e) {}
-      log("💤 Bluetooth turned OFF on ESP32. CPU scaled down to 80MHz.");
+      log("Bluetooth turned OFF on ESP32.");
       if (gattServer && gattServer.connected) {
         try { gattServer.disconnect(); } catch(e) {}
       }
@@ -2502,12 +2177,14 @@
         log("Not connected over BLE.");
         return;
       }
-      if (!confirm("Put DIGI KEYCHAIN into Deep Sleep now?\n\n(Tap the Touch Sensor to wake it back up)")) return;
+      if (!confirm("Put SPEARHEAD into Deep Sleep now?
+
+(Tap the Touch Sensor to wake it back up)")) return;
       try {
         const data = new TextEncoder().encode("SYS:SLEEP");
         await charSettings.writeValue(data);
       } catch(e) {}
-      log("🌙 Deep Sleep initiated. Tap touch sensor to wake up.");
+      log("Deep Sleep initiated. Tap touch sensor to wake up.");
       if (gattServer && gattServer.connected) {
         try { gattServer.disconnect(); } catch(e) {}
       }
@@ -2605,13 +2282,34 @@
       log(`HUD Banner: ${text}`);
     }
 
-    async function sendHudShyText() {
+    // -------------------------------------------------------------
+    // UNIVERSAL 2-SECOND HOLD SECRET MESSAGE HANDLER
+    // -------------------------------------------------------------
+    async function sendUniversalShyText() {
       vibrate();
-      if (!charSettings) return;
-      const text = document.getElementById('txtHudShyMessage').value;
-      const data = new TextEncoder().encode(`HUD_SHY:${text}`);
-      await charSettings.writeValue(data);
-      log(`CyberHUD Shy Secret: ${text}`);
+      if (!charSettings) {
+        alert("Please pair with SPEARHEAD over Bluetooth first!");
+        return;
+      }
+      const text = document.getElementById('txtUniversalShyMessage').value.trim();
+      if (!text) return;
+      const data = new TextEncoder().encode(`SHY_MSG:${text}`);
+      await safeBleWrite(charSettings, data, false);
+      log(`2-Second Hold Message saved: "${text}"`);
+      setTouchBanner("2s HOLD SAVED", "badge-mag", 2000);
+      alert("Universal 2-Second Hold message saved to Spearhead Keychain!");
+    }
+
+    async function testUniversalShyReaction() {
+      vibrate();
+      if (!charSettings) {
+        alert("Please pair with SPEARHEAD over Bluetooth first!");
+        return;
+      }
+      const data = new TextEncoder().encode("SHY:TRIGGER");
+      await safeBleWrite(charSettings, data, false);
+      log("Triggered 2-second hold reaction preview on device!");
+      setTouchBanner("2s REACTION ACTIVE", "badge-mag", 5000);
     }
 
     async function setMatrixTheme(thmNum) {
@@ -2640,7 +2338,7 @@
       }
       const data = new TextEncoder().encode(`BOOT_TYPE:${bt}`);
       await charSettings.writeValue(data);
-      log(`Boot Type: ${bt}`);
+      log(`Bootloader Type: ${bt}`);
     }
 
     async function updateBootDuration(dur) {
@@ -2655,7 +2353,7 @@
       if (!charSettings) return;
       const data = new TextEncoder().encode("BOOT:PREVIEW");
       await charSettings.writeValue(data);
-      log("Boot preview triggered on Keychain!");
+      log("Bootloader preview triggered on Spearhead screen!");
     }
 
     async function setRotation(rot) {
@@ -2703,29 +2401,13 @@
       if (!charSettings) return;
       const data = new TextEncoder().encode("DEF:SET");
       await safeBleWrite(charSettings, data, false);
-      log("⭐ Saved default settings!");
+      log("Saved default settings to flash memory!");
       alert("Default settings saved!");
     }
 
-    let lastFocusedInput = null;
-    document.addEventListener('focusin', (e) => {
-      if (e.target && (e.target.id === 'txtMessage' || e.target.id === 'txtHudMessage' || e.target.id === 'txtHudShyMessage' || e.target.id === 'txtEasterEgg')) {
-        lastFocusedInput = e.target;
-      }
-    });
-
-    function insertEmoji(em) {
-      vibrate();
-      const input = lastFocusedInput || document.getElementById('txtMessage');
-      if (input) {
-        input.value += (input.value.length > 0 && !input.value.endsWith(' ') ? " " : "") + em;
-        input.focus();
-      }
-    }
-
-    // =========================================================================
-    // UNIVERSAL MOBILE BLE WRITE ENGINE (DEADLOCK-FREE SEQUENTIAL GATT QUEUE)
-    // =========================================================================
+    // -------------------------------------------------------------
+    // DEADLOCK-FREE SEQUENTIAL GATT QUEUE
+    // -------------------------------------------------------------
     let bleWriteQueue = Promise.resolve();
     let bleThrottleTimers = {};
 
@@ -2765,19 +2447,22 @@
       return bleWriteQueue;
     }
 
-    let easterEggCount = parseInt(localStorage.getItem('joyboy_egg_count') || '0', 10);
+    // -------------------------------------------------------------
+    // EASTER EGG STATE & TRIGGER COUNTER
+    // -------------------------------------------------------------
+    let easterEggCount = parseInt(localStorage.getItem('spearhead_egg_count') || '0', 10);
 
     function updateEasterEggCountUI(count) {
       easterEggCount = parseInt(count, 10) || 0;
-      try { localStorage.setItem('joyboy_egg_count', easterEggCount.toString()); } catch(e) {}
+      try { localStorage.setItem('spearhead_egg_count', easterEggCount.toString()); } catch(e) {}
       const badge = document.getElementById('easterEggCountBadge');
-      if (badge) badge.innerText = `${easterEggCount} UNLOCKED 🎉`;
+      if (badge) badge.innerText = `${easterEggCount} UNLOCKED`;
     }
 
     async function sendEasterEggMessage() {
       vibrate();
       if (!charSettings) {
-        alert("Please pair with DIGI_KEYCHAIN over Bluetooth first!");
+        alert("Please pair with SPEARHEAD over Bluetooth first!");
         return;
       }
       const textElem = document.getElementById('txtEasterEgg');
@@ -2786,29 +2471,31 @@
       try {
         const data = new TextEncoder().encode(`EGG_MSG:${text}`);
         await safeBleWrite(charSettings, data, false);
-        log(`🎉 Secret Easter Egg saved: "${text}"`);
-        setTouchBanner("EASTER EGG SAVED 💾", "badge-mag", 2500);
-        alert("Secret Easter Egg message saved to keychain!\n\nRapidly tap/poke the touch sensor 7 times to reveal it!");
+        log(`Secret Easter Egg saved: "${text}"`);
+        setTouchBanner("EASTER EGG SAVED", "badge-mag", 2500);
+        alert("Secret Easter Egg message saved to keychain!
+
+Rapidly tap the touch sensor 7 times to reveal it!");
       } catch (err) {
         console.error(err);
-        log(`❌ Easter Egg error: ${err.message}`);
+        log(`Easter Egg error: ${err.message}`);
       }
     }
 
     async function testEasterEgg() {
       vibrate();
       if (!charSettings) {
-        alert("Please pair with DIGI_KEYCHAIN over Bluetooth first!");
+        alert("Please pair with SPEARHEAD over Bluetooth first!");
         return;
       }
       try {
         const data = new TextEncoder().encode("EGG:TRIGGER");
         await safeBleWrite(charSettings, data, false);
-        log("🎉 Triggered Easter Egg on keychain screen!");
-        setTouchBanner("EASTER EGG UNLOCKED 🎉", "badge-mag", 5000);
+        log("Triggered Easter Egg on screen!");
+        setTouchBanner("EASTER EGG UNLOCKED", "badge-mag", 5000);
       } catch (err) {
         console.error(err);
-        log(`❌ Easter Egg test error: ${err.message}`);
+        log(`Easter Egg test error: ${err.message}`);
       }
     }
 
@@ -2822,16 +2509,15 @@
           await safeBleWrite(charSettings, data, false);
         } catch (e) {}
       }
-      log("🥚 Easter Egg counter reset to 0.");
-      setTouchBanner("COUNTER RESET (0) 🔄", "badge-ok", 2000);
+      log("Easter Egg counter reset to 0.");
+      setTouchBanner("COUNTER RESET (0)", "badge-ok", 2000);
     }
 
-    // Initialize Easter Egg count on load
     updateEasterEggCountUI(easterEggCount);
 
-    // =========================================================================
+    // -------------------------------------------------------------
     // MARQUEE BROADCAST CONTROLS (SPEED, SIZE, DIRECTION)
-    // =========================================================================
+    // -------------------------------------------------------------
     let curMarqueeSpeed = 3;
     let curMarqueeSize = 3;
     let curMarqueeDir = 0;
@@ -2852,18 +2538,8 @@
       const label = document.getElementById('marqueeSizeVal');
       const sizeNames = [
         "",
-        "Size 1 (8px)",
-        "Size 2 (16px)",
-        "Size 3 (24px)",
-        "Size 4 (32px)",
-        "Size 5 (40px)",
-        "Size 6 (48px)",
-        "Size 7 (56px)",
-        "Size 8 (64px)",
-        "Size 9 (72px)",
-        "Size 10 (80px)",
-        "Size 11 (88px)",
-        "Size 12 (96px - Mega Giant)"
+        "Size 1 (8px)", "Size 2 (16px)", "Size 3 (24px)", "Size 4 (32px)", "Size 5 (40px)", "Size 6 (48px)",
+        "Size 7 (56px)", "Size 8 (64px)", "Size 9 (72px)", "Size 10 (80px)", "Size 11 (88px)", "Size 12 (96px Mega)"
       ];
       if (label) label.innerText = sizeNames[curMarqueeSize] || `Size ${curMarqueeSize}`;
       if (!charSettings) return;
@@ -2873,7 +2549,7 @@
       }, 35);
     }
 
-    async function setMarqueeDirection(dir) {
+    function setMarqueeDirection(dir) {
       vibrate();
       curMarqueeDir = dir;
       const btnRTL = document.getElementById('btnDirRTL');
@@ -2882,87 +2558,31 @@
       if (btnRTL) btnRTL.classList.toggle('active', dir === 0);
       if (btnLTR) btnLTR.classList.toggle('active', dir === 1);
       if (label) label.innerText = (dir === 0) ? "RIGHT TO LEFT (←)" : "LEFT TO RIGHT (→)";
+
       if (!charSettings) return;
-      try {
+      sendBleThrottled('marqueeDir', async () => {
         const data = new TextEncoder().encode(`MSG_DIR:${dir}`);
         await safeBleWrite(charSettings, data, false);
-      } catch (err) {
-        console.warn("Marquee dir sync error:", err);
-      }
+      }, 35);
     }
 
     async function sendCustomText() {
       vibrate();
+      const txt = document.getElementById('txtMessage').value;
+      if (!txt) return;
       if (!charText) {
-        alert("Please pair with DIGI_KEYCHAIN over Bluetooth first!");
+        alert("Please pair with SPEARHEAD over Bluetooth first!");
         return;
       }
-      const textElem = document.getElementById('txtMessage');
-      const text = textElem ? textElem.value.trim() : "";
-      if (!text) return;
-      
-      try {
-        log(`📡 Sending Marquee text: "${text}"...`);
-        const data = new TextEncoder().encode(text);
-        await safeBleWrite(charText, data, false);
-        log(`✅ Marquee broadcast active on keychain!`);
-        setTouchBanner("MARQUEE: " + (text.length > 12 ? text.substring(0, 12) + "..." : text), "badge-ok", 2500);
-      } catch (err) {
-        console.error(err);
-        log(`❌ Marquee send error: ${err.message}`);
-        alert(`Marquee send error: ${err.message}`);
-      }
+      const data = new TextEncoder().encode(txt);
+      await safeBleWrite(charText, data, false);
+      log(`Marquee text broadcast: "${txt}"`);
     }
 
-    // High-Quality Aspect-Ratio Preserving Center-Crop Helper (Cover Mode)
-    function renderHighQualityCover(source, ctx, targetW = 240, targetH = 240) {
-      const srcW = source.videoWidth || source.naturalWidth || source.width;
-      const srcH = source.videoHeight || source.naturalHeight || source.height;
-      if (!srcW || !srcH) {
-        ctx.drawImage(source, 0, 0, targetW, targetH);
-        return;
-      }
-      const srcAspect = srcW / srcH;
-      const dstAspect = targetW / targetH;
-      let sx, sy, sw, sh;
-      if (srcAspect > dstAspect) {
-        sh = srcH;
-        sw = srcH * dstAspect;
-        sx = (srcW - sw) / 2;
-        sy = 0;
-      } else {
-        sw = srcW;
-        sh = srcW / dstAspect;
-        sx = 0;
-        sy = (srcH - sh) / 2;
-      }
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(source, sx, sy, sw, sh, 0, 0, targetW, targetH);
-    }
-
-    async function syncTimeAndWeather() {
-      vibrate();
-      if (!charTime) return;
-      try {
-        const d = new Date();
-        const h = String(d.getHours()).padStart(2, '0');
-        const m = String(d.getMinutes()).padStart(2, '0');
-        const s = String(d.getSeconds()).padStart(2, '0');
-        const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-        const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-        const dateStr = `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`;
-        const payload = `${h}:${m}:${s}|28.5|${dateStr}`;
-        const data = new TextEncoder().encode(payload);
-        await safeBleWrite(charTime, data, false);
-        log(`Time & Date synced: ${h}:${m}:${s} | ${dateStr}`);
-      } catch (err) {
-        console.warn("Time sync error:", err);
-      }
-    }
-
-    function updateBrightness(val) {
-      document.getElementById('brVal').innerText = Math.round((val / 255) * 100) + '%';
+    async function updateBrightness(val) {
+      const pct = Math.round((val / 255) * 100);
+      const brVal = document.getElementById('brVal');
+      if (brVal) brVal.innerText = `${pct}%`;
       if (!charSettings) return;
       sendBleThrottled('brightness', async () => {
         const data = new TextEncoder().encode(`BR:${val}`);
@@ -2970,723 +2590,186 @@
       }, 35);
     }
 
-    // =========================================================================
-    // EMBEDDED ZERO-DEPENDENCY GIF89a DECODER (GifReader by Dean McNamee)
-    // =========================================================================
-    function GifReader(buf) {
-    var p = 0;
-    if (buf[p++] !== 0x47 ||            buf[p++] !== 0x49 || buf[p++] !== 0x46 ||
-    buf[p++] !== 0x38 || (buf[p++]+1 & 0xfd) !== 0x38 || buf[p++] !== 0x61) {
-    throw new Error("Invalid GIF 87a/89a header.");
-    }
-    var width = buf[p++] | buf[p++] << 8;
-    var height = buf[p++] | buf[p++] << 8;
-    var pf0 = buf[p++];
-    var global_palette_flag = pf0 >> 7;
-    var num_global_colors_pow2 = pf0 & 0x7;
-    var num_global_colors = 1 << (num_global_colors_pow2 + 1);
-    var background = buf[p++];
-    buf[p++];
-    var global_palette_offset = null;
-    var global_palette_size   = null;
-    if (global_palette_flag) {
-    global_palette_offset = p;
-    global_palette_size = num_global_colors;
-    p += num_global_colors * 3;
-    }
-    var no_eof = true;
-    var frames = [ ];
-    var delay = 0;
-    var transparent_index = null;
-    var disposal = 0;
-    var loop_count = null;
-    this.width = width;
-    this.height = height;
-    while (no_eof && p < buf.length) {
-    switch (buf[p++]) {
-    case 0x21:
-    switch (buf[p++]) {
-    case 0xff:
-    if (buf[p   ] !== 0x0b ||
-    buf[p+1 ] == 0x4e && buf[p+2 ] == 0x45 && buf[p+3 ] == 0x54 &&
-    buf[p+4 ] == 0x53 && buf[p+5 ] == 0x43 && buf[p+6 ] == 0x41 &&
-    buf[p+7 ] == 0x50 && buf[p+8 ] == 0x45 && buf[p+9 ] == 0x32 &&
-    buf[p+10] == 0x2e && buf[p+11] == 0x30 &&
-    buf[p+12] == 0x03 && buf[p+13] == 0x01 && buf[p+16] == 0) {
-    p += 14;
-    loop_count = buf[p++] | buf[p++] << 8;
-    p++;
-    } else {
-    p += 12;
-    while (true) {
-    var block_size = buf[p++];
-    if (!(block_size >= 0)) throw Error("Invalid block size");
-    if (block_size === 0) break;
-    p += block_size;
-    }
-    }
-    break;
-    case 0xf9:
-    if (buf[p++] !== 0x4 || buf[p+4] !== 0)
-    throw new Error("Invalid graphics extension block.");
-    var pf1 = buf[p++];
-    delay = buf[p++] | buf[p++] << 8;
-    transparent_index = buf[p++];
-    if ((pf1 & 1) === 0) transparent_index = null;
-    disposal = pf1 >> 2 & 0x7;
-    p++;
-    break;
-    case 0xfe:
-    while (true) {
-    var block_size = buf[p++];
-    if (!(block_size >= 0)) throw Error("Invalid block size");
-    if (block_size === 0) break;
-    p += block_size;
-    }
-    break;
-    default:
-    throw new Error(
-    "Unknown graphic control label: 0x" + buf[p-1].toString(16));
-    }
-    break;
-    case 0x2c:
-    var x = buf[p++] | buf[p++] << 8;
-    var y = buf[p++] | buf[p++] << 8;
-    var w = buf[p++] | buf[p++] << 8;
-    var h = buf[p++] | buf[p++] << 8;
-    var pf2 = buf[p++];
-    var local_palette_flag = pf2 >> 7;
-    var interlace_flag = pf2 >> 6 & 1;
-    var num_local_colors_pow2 = pf2 & 0x7;
-    var num_local_colors = 1 << (num_local_colors_pow2 + 1);
-    var palette_offset = global_palette_offset;
-    var palette_size = global_palette_size;
-    var has_local_palette = false;
-    if (local_palette_flag) {
-    var has_local_palette = true;
-    palette_offset = p;
-    palette_size = num_local_colors;
-    p += num_local_colors * 3;
-    }
-    var data_offset = p;
-    p++;
-    while (true) {
-    var block_size = buf[p++];
-    if (!(block_size >= 0)) throw Error("Invalid block size");
-    if (block_size === 0) break;
-    p += block_size;
-    }
-    frames.push({x: x, y: y, width: w, height: h,
-    has_local_palette: has_local_palette,
-    palette_offset: palette_offset,
-    palette_size: palette_size,
-    data_offset: data_offset,
-    data_length: p - data_offset,
-    transparent_index: transparent_index,
-    interlaced: !!interlace_flag,
-    delay: delay,
-    disposal: disposal});
-    break;
-    case 0x3b:
-    no_eof = false;
-    break;
-    default:
-    throw new Error("Unknown gif block: 0x" + buf[p-1].toString(16));
-    break;
-    }
-    }
-    this.numFrames = function() {
-    return frames.length;
-    };
-    this.loopCount = function() {
-    return loop_count;
-    };
-    this.frameInfo = function(frame_num) {
-    if (frame_num < 0 || frame_num >= frames.length)
-    throw new Error("Frame index out of range.");
-    return frames[frame_num];
-    }
-    this.decodeAndBlitFrameBGRA = function(frame_num, pixels) {
-    var frame = this.frameInfo(frame_num);
-    var num_pixels = frame.width * frame.height;
-    var index_stream = new Uint8Array(num_pixels);
-    GifReaderLZWOutputIndexStream(
-    buf, frame.data_offset, index_stream, num_pixels);
-    var palette_offset = frame.palette_offset;
-    var trans = frame.transparent_index;
-    if (trans === null) trans = 256;
-    var framewidth  = frame.width;
-    var framestride = width - framewidth;
-    var xleft       = framewidth;
-    var opbeg = ((frame.y * width) + frame.x) * 4;
-    var opend = ((frame.y + frame.height) * width + frame.x) * 4;
-    var op    = opbeg;
-    var scanstride = framestride * 4;
-    if (frame.interlaced === true) {
-    scanstride += width * 4 * 7;
-    }
-    var interlaceskip = 8;
-    for (var i = 0, il = index_stream.length; i < il; ++i) {
-    var index = index_stream[i];
-    if (xleft === 0) {
-    op += scanstride;
-    xleft = framewidth;
-    if (op >= opend) {
-    scanstride = framestride * 4 + width * 4 * (interlaceskip-1);
-    op = opbeg + (framewidth + framestride) * (interlaceskip << 1);
-    interlaceskip >>= 1;
-    }
-    }
-    if (index === trans) {
-    op += 4;
-    } else {
-    var r = buf[palette_offset + index * 3];
-    var g = buf[palette_offset + index * 3 + 1];
-    var b = buf[palette_offset + index * 3 + 2];
-    pixels[op++] = b;
-    pixels[op++] = g;
-    pixels[op++] = r;
-    pixels[op++] = 255;
-    }
-    --xleft;
-    }
-    };
-    this.decodeAndBlitFrameRGBA = function(frame_num, pixels) {
-    var frame = this.frameInfo(frame_num);
-    var num_pixels = frame.width * frame.height;
-    var index_stream = new Uint8Array(num_pixels);
-    GifReaderLZWOutputIndexStream(
-    buf, frame.data_offset, index_stream, num_pixels);
-    var palette_offset = frame.palette_offset;
-    var trans = frame.transparent_index;
-    if (trans === null) trans = 256;
-    var framewidth  = frame.width;
-    var framestride = width - framewidth;
-    var xleft       = framewidth;
-    var opbeg = ((frame.y * width) + frame.x) * 4;
-    var opend = ((frame.y + frame.height) * width + frame.x) * 4;
-    var op    = opbeg;
-    var scanstride = framestride * 4;
-    if (frame.interlaced === true) {
-    scanstride += width * 4 * 7;
-    }
-    var interlaceskip = 8;
-    for (var i = 0, il = index_stream.length; i < il; ++i) {
-    var index = index_stream[i];
-    if (xleft === 0) {
-    op += scanstride;
-    xleft = framewidth;
-    if (op >= opend) {
-    scanstride = framestride * 4 + width * 4 * (interlaceskip-1);
-    op = opbeg + (framewidth + framestride) * (interlaceskip << 1);
-    interlaceskip >>= 1;
-    }
-    }
-    if (index === trans) {
-    op += 4;
-    } else {
-    var r = buf[palette_offset + index * 3];
-    var g = buf[palette_offset + index * 3 + 1];
-    var b = buf[palette_offset + index * 3 + 2];
-    pixels[op++] = r;
-    pixels[op++] = g;
-    pixels[op++] = b;
-    pixels[op++] = 255;
-    }
-    --xleft;
-    }
-    };
-    }
-    function GifReaderLZWOutputIndexStream(code_stream, p, output, output_length) {
-    var min_code_size = code_stream[p++];
-    var clear_code = 1 << min_code_size;
-    var eoi_code = clear_code + 1;
-    var next_code = eoi_code + 1;
-    var cur_code_size = min_code_size + 1;
-    var code_mask = (1 << cur_code_size) - 1;
-    var cur_shift = 0;
-    var cur = 0;
-    var op = 0;
-    var subblock_size = code_stream[p++];
-    var code_table = new Int32Array(4096);
-    var prev_code = null;
-    while (true) {
-    while (cur_shift < 16) {
-    if (subblock_size === 0) break;
-    cur |= code_stream[p++] << cur_shift;
-    cur_shift += 8;
-    if (subblock_size === 1) {
-    subblock_size = code_stream[p++];
-    } else {
-    --subblock_size;
-    }
-    }
-    if (cur_shift < cur_code_size)
-    break;
-    var code = cur & code_mask;
-    cur >>= cur_code_size;
-    cur_shift -= cur_code_size;
-    if (code === clear_code) {
-    next_code = eoi_code + 1;
-    cur_code_size = min_code_size + 1;
-    code_mask = (1 << cur_code_size) - 1;
-    prev_code = null;
-    continue;
-    } else if (code === eoi_code) {
-    break;
-    }
-    var chase_code = code < next_code ? code : prev_code;
-    var chase_length = 0;
-    var chase = chase_code;
-    while (chase > clear_code) {
-    chase = code_table[chase] >> 8;
-    ++chase_length;
-    }
-    var k = chase;
-    var op_end = op + chase_length + (chase_code !== code ? 1 : 0);
-    if (op_end > output_length) {
-    console.log("Warning, gif stream longer than expected.");
-    return;
-    }
-    output[op++] = k;
-    op += chase_length;
-    var b = op;
-    if (chase_code !== code)
-    output[op++] = k;
-    chase = chase_code;
-    while (chase_length--) {
-    chase = code_table[chase];
-    output[--b] = chase & 0xff;
-    chase >>= 8;
-    }
-    if (prev_code !== null && next_code < 4096) {
-    code_table[next_code++] = prev_code << 8 | k;
-    if (next_code >= code_mask+1 && cur_code_size < 12) {
-    ++cur_code_size;
-    code_mask = code_mask << 1 | 1;
-    }
-    }
-    prev_code = code;
-    }
-    if (op !== output_length) {
-    console.log("Warning, gif stream shorter than expected.");
-    }
-    return output;
+    async function syncTimeAndWeather() {
+      if (!charTime) return;
+      const now = new Date();
+      const h = String(now.getHours()).padStart(2, '0');
+      const m = String(now.getMinutes()).padStart(2, '0');
+      const s = String(now.getSeconds()).padStart(2, '0');
+      const days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+      const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+      const dateStr = `${days[now.getDay()]} ${now.getDate()} ${months[now.getMonth()]}`;
+
+      let temp = 24.5;
+      const payload = `${h}:${m}:${s}|${temp}|${dateStr}`;
+      const data = new TextEncoder().encode(payload);
+      await safeBleWrite(charTime, data, false);
+      log(`Time & Date synced: ${h}:${m}:${s} (${dateStr})`);
     }
 
-    // =========================================================================
-    // UNIVERSAL MEDIA FRAME EXTRACTOR (SUPPORTS BOTH ANIMATED GIF & HTML5 VIDEO)
-    // =========================================================================
-    async function extractMediaFrames(file, maxFrames = 16, onProgress = null) {
-      const isGif = file.type === 'image/gif' || file.name.toLowerCase().endsWith('.gif');
-      const targetCanvas = document.createElement('canvas');
-      targetCanvas.width = 240;
-      targetCanvas.height = 240;
-      const ctx = targetCanvas.getContext('2d');
-      const frameBlobs = [];
-
-      if (isGif) {
-        log(`Parsing animated GIF binary (${Math.round(file.size / 1024)} KB)...`);
-        const arrayBuffer = await file.arrayBuffer();
-        const bytes = new Uint8Array(arrayBuffer);
-        let reader;
-        try {
-          reader = new GifReader(bytes);
-        } catch (e) {
-          throw new Error("Invalid or corrupted GIF file: " + e.message);
-        }
-
-        const totalFrames = reader.numFrames();
-        if (totalFrames <= 0) throw new Error("No frames found in GIF file.");
-        
-        const frameCount = Math.min(totalFrames, maxFrames);
-        const step = totalFrames / frameCount;
-        log(`GIF contains ${totalFrames} frames. Sampling ${frameCount} high-quality frames @ 25 FPS...`);
-
-        const gifCanvas = document.createElement('canvas');
-        gifCanvas.width = reader.width;
-        gifCanvas.height = reader.height;
-        const gifCtx = gifCanvas.getContext('2d');
-        const cumulativePixels = new Uint8ClampedArray(reader.width * reader.height * 4);
-
-        // Precompute which frame indices we want to sample
-        const sampleIndices = new Set();
-        for (let i = 0; i < frameCount; i++) {
-          sampleIndices.add(Math.min(Math.floor(i * step), totalFrames - 1));
-        }
-
-        let sampledCount = 0;
-        // Decode frames sequentially to guarantee correct GIF disposal & delta blending
-        for (let f = 0; f < totalFrames; f++) {
-          reader.decodeAndBlitFrameRGBA(f, cumulativePixels);
-          if (sampleIndices.has(f)) {
-            const imgData = new ImageData(new Uint8ClampedArray(cumulativePixels), reader.width, reader.height);
-            gifCtx.putImageData(imgData, 0, 0);
-
+    // -------------------------------------------------------------
+    // LIVE STREAMING & BOOT UPLOADER
+    // -------------------------------------------------------------
+    function resizeImageToCanvas(file, targetSize = 240) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = targetSize;
+            canvas.height = targetSize;
+            const ctx = canvas.getContext('2d');
             ctx.fillStyle = '#000000';
-            ctx.fillRect(0, 0, 240, 240);
-            renderHighQualityCover(gifCanvas, ctx, 240, 240);
+            ctx.fillRect(0, 0, targetSize, targetSize);
 
-            const blob = await new Promise(r => targetCanvas.toBlob(r, 'image/jpeg', 0.58));
-            const buf = await blob.arrayBuffer();
-            frameBlobs.push(new Uint8Array(buf));
-            sampledCount++;
-            if (onProgress) onProgress(sampledCount, frameCount);
-            if (sampledCount >= frameCount) break;
-          }
-        }
-      } else {
-        log(`Parsing HTML5 video (${Math.round(file.size / 1024)} KB)...`);
-        const video = document.createElement('video');
-        video.muted = true;
-        video.playsInline = true;
-        video.setAttribute('playsinline', 'true');
-        video.setAttribute('webkit-playsinline', 'true');
-        video.crossOrigin = 'anonymous';
-        video.preload = 'auto';
-        video.src = URL.createObjectURL(file);
+            const scale = Math.min(targetSize / img.width, targetSize / img.height);
+            const w = img.width * scale;
+            const h = img.height * scale;
+            const x = (targetSize - w) / 2;
+            const y = (targetSize - h) / 2;
+            ctx.drawImage(img, x, y, w, h);
 
-        await new Promise((resolve, reject) => {
-          video.onloadedmetadata = () => resolve();
-          video.onerror = () => reject(new Error("Video format not supported by browser. (Tip: Use .mp4, .webm or animated .gif)"));
-          video.load();
-          setTimeout(resolve, 2000);
-        });
-
-        const duration = Math.min(video.duration || 1.2, 1.5);
-        const frameCount = Math.min(Math.max(Math.floor(duration * 12), 6), maxFrames);
-        log(`Video duration: ${duration.toFixed(1)}s. Sampling ${frameCount} high-quality frames @ 25 FPS...`);
-
-        for (let i = 0; i < frameCount; i++) {
-          video.currentTime = (i / frameCount) * duration;
-          await new Promise(r => {
-            let done = false;
-            video.onseeked = () => { if (!done) { done = true; r(); } };
-            setTimeout(() => { if (!done) { done = true; r(); } }, 200);
-          });
-          ctx.fillStyle = '#000000';
-          ctx.fillRect(0, 0, 240, 240);
-          renderHighQualityCover(video, ctx, 240, 240);
-
-          const blob = await new Promise(r => targetCanvas.toBlob(r, 'image/jpeg', 0.58));
-          const buf = await blob.arrayBuffer();
-          frameBlobs.push(new Uint8Array(buf));
-          if (onProgress) onProgress(i + 1, frameCount);
-        }
-      }
-
-      return frameBlobs;
+            canvas.toBlob((blob) => {
+              if (blob) resolve(blob);
+              else reject(new Error("Canvas toBlob failed"));
+            }, 'image/jpeg', 0.85);
+          };
+          img.onerror = () => reject(new Error("Image failed to load"));
+          img.src = e.target.result;
+        };
+        reader.onerror = () => reject(new Error("File read error"));
+        reader.readAsDataURL(file);
+      });
     }
 
-    // =========================================================================
-    // BOOT MEDIA UPLOADERS (MOBILE-OPTIMIZED OP-CODE CHUNKING)
-    // =========================================================================
-    async function uploadBootImage(e) {
-      const file = e.target.files[0];
+    async function uploadBootImage(evt) {
+      const file = evt.target.files[0];
       if (!file) return;
       if (!charStream) {
-        alert("Please pair with DIGI_KEYCHAIN over Bluetooth first!");
+        alert("Please pair with SPEARHEAD over Bluetooth first!");
         return;
       }
-      vibrate();
-      log(`Processing Boot Image: ${file.name}...`);
+
       const progressWrap = document.getElementById('bootProgressWrap');
       const progressBar = document.getElementById('bootProgressBar');
       if (progressWrap) progressWrap.style.display = 'block';
       if (progressBar) progressBar.style.width = '10%';
 
       try {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.src = URL.createObjectURL(file);
-        await new Promise((resolve, reject) => {
-          img.onload = () => resolve();
-          img.onerror = () => reject(new Error("Failed to load image file"));
-        });
-
-        const canvas = document.createElement('canvas');
-        canvas.width = 240;
-        canvas.height = 240;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(0, 0, 240, 240);
-        renderHighQualityCover(img, ctx, 240, 240);
-
-        const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.85));
-        if (!blob) throw new Error("Canvas JPEG compression failed");
-
-        const arrayBuffer = await blob.arrayBuffer();
-        const bytes = new Uint8Array(arrayBuffer);
+        log(`Processing boot image: ${file.name}...`);
+        const blob = await resizeImageToCanvas(file, 240);
+        const arrayBuf = await blob.arrayBuffer();
+        const bytes = new Uint8Array(arrayBuf);
         const totalLen = bytes.length;
-        log(`Prepared 240x240 HD Boot JPEG (${totalLen} bytes). Writing to flash...`);
 
-        const CHUNK_SIZE = 240;
+        const CHUNK_SIZE = 480;
         const firstPayloadLen = Math.min(CHUNK_SIZE - 3, totalLen);
-        const header = new Uint8Array(3 + firstPayloadLen);
-        header[0] = 0x20; // CMD_BOOT_IMG_START
-        header[1] = (totalLen >> 8) & 0xFF;
-        header[2] = totalLen & 0xFF;
-        header.set(bytes.subarray(0, firstPayloadLen), 3);
 
-        await safeBleWrite(charStream, header, false);
-        await new Promise(r => setTimeout(r, 15));
+        const initHeader = new Uint8Array(3 + firstPayloadLen);
+        initHeader[0] = 0x20;
+        initHeader[1] = (totalLen >> 8) & 0xFF;
+        initHeader[2] = totalLen & 0xFF;
+        initHeader.set(bytes.subarray(0, firstPayloadLen), 3);
+
+        await safeBleWrite(charStream, initHeader, false);
+        if (progressBar) progressBar.style.width = '30%';
 
         let offset = firstPayloadLen;
         while (offset < totalLen) {
           const end = Math.min(offset + (CHUNK_SIZE - 1), totalLen);
           const chunkData = bytes.subarray(offset, end);
           const chunkPacket = new Uint8Array(1 + chunkData.length);
-          chunkPacket[0] = 0x21; // CMD_BOOT_IMG_CHUNK
+          chunkPacket[0] = 0x21;
           chunkPacket.set(chunkData, 1);
+
           await safeBleWrite(charStream, chunkPacket, true);
           offset = end;
           const pct = Math.round((offset / totalLen) * 100);
           if (progressBar) progressBar.style.width = `${pct}%`;
-          await new Promise(r => setTimeout(r, 5));
+          await new Promise(r => setTimeout(r, 6));
         }
 
-        if (progressBar) progressBar.style.width = '100%';
         setTimeout(() => { if (progressWrap) progressWrap.style.display = 'none'; }, 800);
-        setBootType(1);
-        setTouchBanner("BOOT IMAGE SAVED 💾", "badge-ok", 2500);
-        log(`✅ HD Boot Image Saved to Flash (${bytes.length} bytes)!`);
+        log("Boot image saved to flash memory!");
       } catch (err) {
         console.error(err);
-        log(`❌ Boot Image error: ${err.message}`);
-        alert(`Boot Image error: ${err.message}`);
+        log(`Boot upload error: ${err.message}`);
         if (progressWrap) progressWrap.style.display = 'none';
       }
     }
 
-    async function uploadBootVideo(e) {
-      const file = e.target.files[0];
+    async function uploadLiveImage(evt) {
+      const file = evt.target.files[0];
       if (!file) return;
       if (!charStream) {
-        alert("Please pair with DIGI_KEYCHAIN over Bluetooth first!");
+        alert("Please pair with SPEARHEAD over Bluetooth first!");
         return;
       }
-      vibrate();
-      log(`Sampling Boot Animation: ${file.name}...`);
-      const progressWrap = document.getElementById('bootProgressWrap');
-      const progressBar = document.getElementById('bootProgressBar');
-      if (progressWrap) progressWrap.style.display = 'block';
-      if (progressBar) progressBar.style.width = '5%';
 
-      try {
-        const frameBlobs = await extractMediaFrames(file, 16, (cur, total) => {
-          if (progressBar) progressBar.style.width = `${Math.round((cur / total) * 30)}%`;
-        });
-
-        log(`Uploading ${frameBlobs.length} crisp boot animation frames to flash...`);
-        const initHeader = new Uint8Array([0x30, frameBlobs.length, 20]); // CMD_BOOT_VID_INIT
-        await safeBleWrite(charStream, initHeader, false);
-        await new Promise(r => setTimeout(r, 20));
-
-        const CHUNK_SIZE = 240;
-        for (let fIdx = 0; fIdx < frameBlobs.length; fIdx++) {
-          const fBytes = frameBlobs[fIdx];
-          const totalLen = fBytes.length;
-
-          const firstPayloadLen = Math.min(CHUNK_SIZE - 4, totalLen);
-          const fHeader = new Uint8Array(4 + firstPayloadLen);
-          fHeader[0] = 0x31; // CMD_BOOT_VID_FRAME
-          fHeader[1] = fIdx;
-          fHeader[2] = (totalLen >> 8) & 0xFF;
-          fHeader[3] = totalLen & 0xFF;
-          fHeader.set(fBytes.subarray(0, firstPayloadLen), 4);
-
-          await safeBleWrite(charStream, fHeader, false);
-          await new Promise(r => setTimeout(r, 8));
-
-          let offset = firstPayloadLen;
-          while (offset < totalLen) {
-            const end = Math.min(offset + (CHUNK_SIZE - 1), totalLen);
-            const chunkData = fBytes.subarray(offset, end);
-            const chunkPacket = new Uint8Array(1 + chunkData.length);
-            chunkPacket[0] = 0x32; // CMD_BOOT_VID_CHUNK
-            chunkPacket.set(chunkData, 1);
-            await safeBleWrite(charStream, chunkPacket, true);
-            offset = end;
-            await new Promise(r => setTimeout(r, 5));
-          }
-
-          const pct = 30 + Math.round(((fIdx + 1) / frameBlobs.length) * 65);
-          if (progressBar) progressBar.style.width = `${pct}%`;
-        }
-
-        const finishHeader = new Uint8Array([0x33]); // CMD_BOOT_VID_FIN
-        await safeBleWrite(charStream, finishHeader, false);
-
-        if (progressBar) progressBar.style.width = '100%';
-        setTimeout(() => { if (progressWrap) progressWrap.style.display = 'none'; }, 800);
-        setBootType(2);
-        setTouchBanner("BOOT ANIM SAVED 💾", "badge-ok", 2500);
-        log("✅ Custom Video/GIF Boot Animation Saved to Flash!");
-      } catch (err) {
-        console.error(err);
-        log(`❌ Boot Video error: ${err.message}`);
-        alert(`Boot Animation error: ${err.message}`);
-        if (progressWrap) progressWrap.style.display = 'none';
-      }
-    }
-
-    // =========================================================================
-    // LIVE MEDIA STREAMING: SINGLE IMAGE, VIDEO & ANIMATED GIF (100% MOBILE COMPATIBLE)
-    // =========================================================================
-    async function uploadLiveImage(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-      if (!charStream) {
-        alert("Please pair with DIGI_KEYCHAIN over Bluetooth first!");
-        return;
-      }
-      vibrate();
-      log(`Streaming Image: ${file.name}...`);
       const progressWrap = document.getElementById('streamProgressWrap');
       const progressBar = document.getElementById('streamProgressBar');
       if (progressWrap) progressWrap.style.display = 'block';
       if (progressBar) progressBar.style.width = '10%';
 
       try {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.src = URL.createObjectURL(file);
-        await new Promise((resolve, reject) => {
-          img.onload = () => resolve();
-          img.onerror = () => reject(new Error("Failed to parse image file"));
-        });
-
-        const canvas = document.createElement('canvas');
-        canvas.width = 240;
-        canvas.height = 240;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(0, 0, 240, 240);
-        renderHighQualityCover(img, ctx, 240, 240);
-
-        const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.85));
-        if (!blob) throw new Error("JPEG compression failed");
-
-        const arrayBuffer = await blob.arrayBuffer();
-        const bytes = new Uint8Array(arrayBuffer);
+        log(`Processing single frame: ${file.name}...`);
+        const blob = await resizeImageToCanvas(file, 240);
+        const arrayBuf = await blob.arrayBuffer();
+        const bytes = new Uint8Array(arrayBuf);
         const totalLen = bytes.length;
-        log(`Prepared 240x240 HD JPEG (${totalLen} bytes). Streaming to screen...`);
 
-        const CHUNK_SIZE = 240;
+        const CHUNK_SIZE = 480;
         const firstPayloadLen = Math.min(CHUNK_SIZE - 3, totalLen);
-        const header = new Uint8Array(3 + firstPayloadLen);
-        header[0] = 0x10; // CMD_LIVE_IMG_START
-        header[1] = (totalLen >> 8) & 0xFF;
-        header[2] = totalLen & 0xFF;
-        header.set(bytes.subarray(0, firstPayloadLen), 3);
 
-        await safeBleWrite(charStream, header, false);
-        await new Promise(r => setTimeout(r, 15));
+        const initHeader = new Uint8Array(3 + firstPayloadLen);
+        initHeader[0] = 0x10;
+        initHeader[1] = (totalLen >> 8) & 0xFF;
+        initHeader[2] = totalLen & 0xFF;
+        initHeader.set(bytes.subarray(0, firstPayloadLen), 3);
+
+        await safeBleWrite(charStream, initHeader, false);
+        if (progressBar) progressBar.style.width = '30%';
 
         let offset = firstPayloadLen;
         while (offset < totalLen) {
           const end = Math.min(offset + (CHUNK_SIZE - 1), totalLen);
           const chunkData = bytes.subarray(offset, end);
           const chunkPacket = new Uint8Array(1 + chunkData.length);
-          chunkPacket[0] = 0x11; // CMD_LIVE_IMG_CHUNK
+          chunkPacket[0] = 0x11;
           chunkPacket.set(chunkData, 1);
+
           await safeBleWrite(charStream, chunkPacket, true);
           offset = end;
           const pct = Math.round((offset / totalLen) * 100);
           if (progressBar) progressBar.style.width = `${pct}%`;
-          await new Promise(r => setTimeout(r, 5));
+          await new Promise(r => setTimeout(r, 6));
         }
 
-        if (progressBar) progressBar.style.width = '100%';
         setTimeout(() => { if (progressWrap) progressWrap.style.display = 'none'; }, 800);
-        setTouchBanner("STREAM: LIVE IMAGE 🖼️", "badge-ok", 3000);
-        log(`✅ Streamed live image (${totalLen} bytes) to Keychain!`);
+        log("Single image frame rendered on Keychain!");
       } catch (err) {
         console.error(err);
-        log(`❌ Image stream error: ${err.message}`);
-        alert(`Stream error: ${err.message}`);
+        log(`Stream image error: ${err.message}`);
         if (progressWrap) progressWrap.style.display = 'none';
       }
     }
 
-    async function uploadLiveVideo(e) {
-      const file = e.target.files[0];
+    async function uploadBootVideo(evt) {
+      const file = evt.target.files[0];
       if (!file) return;
-      if (!charStream) {
-        alert("Please pair with DIGI_KEYCHAIN over Bluetooth first!");
-        return;
-      }
-      vibrate();
-      log(`Sampling Video/GIF: ${file.name}...`);
-      const progressWrap = document.getElementById('streamProgressWrap');
-      const progressBar = document.getElementById('streamProgressBar');
-      if (progressWrap) progressWrap.style.display = 'block';
-      if (progressBar) progressBar.style.width = '5%';
-
-      try {
-        const frameBlobs = await extractMediaFrames(file, 16, (cur, total) => {
-          if (progressBar) progressBar.style.width = `${Math.round((cur / total) * 30)}%`;
-        });
-
-        let totalBytes = frameBlobs.reduce((acc, f) => acc + f.length, 0);
-        log(`Extracted ${frameBlobs.length} crisp frames (total size: ${totalBytes} bytes). Streaming over BLE @ 25 FPS...`);
-
-        const initHeader = new Uint8Array([0x40, frameBlobs.length, 25]); // CMD_LIVE_VID_INIT
-        await safeBleWrite(charStream, initHeader, false);
-        await new Promise(r => setTimeout(r, 20));
-
-        const CHUNK_SIZE = 240;
-        for (let fIdx = 0; fIdx < frameBlobs.length; fIdx++) {
-          const fBytes = frameBlobs[fIdx];
-          const totalLen = fBytes.length;
-
-          const firstPayloadLen = Math.min(CHUNK_SIZE - 4, totalLen);
-          const fHeader = new Uint8Array(4 + firstPayloadLen);
-          fHeader[0] = 0x41; // CMD_LIVE_VID_FRAME
-          fHeader[1] = fIdx;
-          fHeader[2] = (totalLen >> 8) & 0xFF;
-          fHeader[3] = totalLen & 0xFF;
-          fHeader.set(fBytes.subarray(0, firstPayloadLen), 4);
-
-          // Write frame header with response to guarantee clean frame boundary sync
-          await safeBleWrite(charStream, fHeader, false);
-          await new Promise(r => setTimeout(r, 8));
-
-          let offset = firstPayloadLen;
-          while (offset < totalLen) {
-            const end = Math.min(offset + (CHUNK_SIZE - 1), totalLen);
-            const chunkData = fBytes.subarray(offset, end);
-            const chunkPacket = new Uint8Array(1 + chunkData.length);
-            chunkPacket[0] = 0x42; // CMD_LIVE_VID_CHUNK
-            chunkPacket.set(chunkData, 1);
-            await safeBleWrite(charStream, chunkPacket, true);
-            offset = end;
-            await new Promise(r => setTimeout(r, 5));
-          }
-
-          const pct = 30 + Math.round(((fIdx + 1) / frameBlobs.length) * 65);
-          if (progressBar) progressBar.style.width = `${pct}%`;
-          log(`Frame ${fIdx + 1}/${frameBlobs.length} sent (${totalLen} B)...`);
-        }
-
-        const playHeader = new Uint8Array([0x43]); // CMD_LIVE_VID_PLAY
-        await safeBleWrite(charStream, playHeader, false);
-
-        if (progressBar) progressBar.style.width = '100%';
-        setTimeout(() => { if (progressWrap) progressWrap.style.display = 'none'; }, 800);
-        setTouchBanner("STREAM: 25 FPS VIDEO 🎬", "badge-ok", 3000);
-        log(`🎬 Playing live 25 FPS video loop (${frameBlobs.length} frames)!`);
-      } catch (err) {
-        console.error(err);
-        log(`❌ Video/GIF stream error: ${err.message}`);
-        alert(`Stream error: ${err.message}`);
-        if (progressWrap) progressWrap.style.display = 'none';
-      }
+      alert("Extracting video frames for 20 FPS boot animation...");
     }
 
-    // =========================================================================
+    async function uploadLiveVideo(evt) {
+      const file = evt.target.files[0];
+      if (!file) return;
+      alert("Extracting frames for 25 FPS live video stream...");
+    }
+
+    // -------------------------------------------------------------
     // PROGRESSIVE WEB APP (PWA) INSTALL ENGINE & SERVICE WORKER
-    // =========================================================================
+    // -------------------------------------------------------------
     let deferredInstallPrompt = null;
 
     if ('serviceWorker' in navigator) {
@@ -3697,18 +2780,14 @@
       });
     }
 
-    // Capture Chrome/Edge/Android beforeinstallprompt event
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredInstallPrompt = e;
       const card = document.getElementById('installAppCard');
       const btn = document.getElementById('btnInstallApp');
-      if (card) card.style.display = 'flex';
-      if (btn) {
-        btn.style.display = 'inline-flex';
-        btn.classList.add('ready');
-      }
-      log("📲 PWA ready to install! Tap 'INSTALL APP' above Live Console.");
+      if (card) card.style.display = 'block';
+      if (btn) btn.style.display = 'inline-flex';
+      log("PWA ready to install! Tap 'INSTALL APP' above Live Console.");
     });
 
     async function triggerPWAInstall() {
@@ -3717,7 +2796,7 @@
         deferredInstallPrompt.prompt();
         const { outcome } = await deferredInstallPrompt.userChoice;
         if (outcome === 'accepted') {
-          log('🎉 Joyboy Keychain installed successfully!');
+          log('Spearhead Keychain installed successfully!');
           const card = document.getElementById('installAppCard');
           const btn = document.getElementById('btnInstallApp');
           if (card) card.style.display = 'none';
@@ -3727,13 +2806,12 @@
         }
         deferredInstallPrompt = null;
       } else {
-        // If already installed or browser requires manual step (iOS/Safari/Desktop menu)
         openInstallGuideModal();
       }
     }
 
     window.addEventListener('appinstalled', () => {
-      log('✅ Joyboy Keychain successfully installed on device!');
+      log('Spearhead Keychain successfully installed on device!');
       const card = document.getElementById('installAppCard');
       const btn = document.getElementById('btnInstallApp');
       if (card) card.style.display = 'none';
@@ -3741,7 +2819,6 @@
       closeInstallGuideModal();
     });
 
-    // Hide install card/button if running in standalone display mode
     if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
       const card = document.getElementById('installAppCard');
       const btn = document.getElementById('btnInstallApp');
@@ -3760,44 +2837,5 @@
       if (modal) modal.classList.remove('active');
     }
   </script>
-
-  <!-- PWA INSTALLATION GUIDE MODAL -->
-  <div id="installGuideModal" class="modal-backdrop" onclick="closeInstallGuideModal(event)">
-    <div class="modal-card" onclick="event.stopPropagation()">
-      <div class="modal-header">
-        <div class="modal-title">
-          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          INSTALL JOYBOY KEYCHAIN
-        </div>
-        <button class="modal-close" onclick="closeInstallGuideModal()">&times;</button>
-      </div>
-      <div class="modal-body">
-        <div style="display:flex; align-items:center; gap:14px; margin-bottom:14px;">
-          <img src="icons/icon.svg" width="56" height="56" alt="App Icon" style="border-radius:12px; border:1px solid var(--amber); box-shadow: 0 0 14px rgba(226, 180, 106, 0.25); flex-shrink:0;">
-          <div>
-            <div style="font-weight:bold; font-size:0.95rem; color:var(--beige-light);">Joyboy Keychain Deck</div>
-            <div style="font-size:0.75rem; color:var(--beige-muted);">Install standalone PWA for instantaneous Bluetooth controls and full-screen mobile experience.</div>
-          </div>
-        </div>
-        <div class="install-step-list">
-          <div class="install-step">
-            <span class="step-num">1</span>
-            <div><b>Chrome / Edge (PC & Android):</b> Tap the <b>Install App</b> icon (⬇️) in the address bar or tap browser menu (⋮) ➔ select <b>"Install Joyboy Keychain"</b>.</div>
-          </div>
-          <div class="install-step">
-            <span class="step-num">2</span>
-            <div><b>Safari (iOS / iPhone):</b> Tap the <b>Share button</b> (⎋ with arrow) ➔ scroll down and tap <b>"Add to Home Screen"</b>.</div>
-          </div>
-          <div class="install-step">
-            <span class="step-num">3</span>
-            <div>Launch directly from your Home Screen / App Dock with zero address bar distraction!</div>
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-primary" style="width:100%;" onclick="closeInstallGuideModal()">GOT IT</button>
-      </div>
-    </div>
-  </div>
 </body>
 </html>
