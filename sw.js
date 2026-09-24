@@ -1,5 +1,5 @@
-// Joyboy Keychain Service Worker
-const CACHE_NAME = 'spearhead-v5.0.2';
+// Spearhead Service Worker
+const CACHE_NAME = 'spearhead-v5.0.3';
 const ASSETS = [
   './',
   './index.html',
@@ -10,6 +10,7 @@ const ASSETS = [
   './icons/icon-512.png',
   './icons/icon-maskable-192.png',
   './icons/icon-maskable-512.png',
+  './icons/apple-touch-icon.png',
   './icons/screenshot-mobile.png',
   './icons/screenshot-desktop.png'
 ];

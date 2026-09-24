@@ -1,14 +1,14 @@
 {
-  "id": "spearhead-keychain-pwa",
-  "name": "Spearhead Keychain",
+  "id": "spearhead-pwa",
+  "name": "Spearhead",
   "short_name": "Spearhead",
   "description": "Tactical Bluetooth Control Terminal & Stream Deck for Spearhead ESP32-C3",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "display_override": ["standalone", "window-controls-overlay"],
-  "background_color": "#080a0e",
-  "theme_color": "#080a0e",
+  "background_color": "#090a0c",
+  "theme_color": "#090a0c",
   "orientation": "any",
   "prefer_related_applications": false,
   "categories": ["utilities", "hardware", "productivity"],
@@ -66,14 +66,14 @@
       "sizes": "540x960",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Spearhead Keychain Mobile Deck"
+      "label": "Spearhead Mobile Deck"
     },
     {
       "src": "icons/screenshot-desktop.png",
       "sizes": "1280x720",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "Spearhead Keychain Desktop Deck"
+      "label": "Spearhead Desktop Deck"
     }
   ]
 }
