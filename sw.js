@@ -1,10 +1,11 @@
 // Spearhead Service Worker
-const CACHE_NAME = 'spearhead-v5.0.3';
+const CACHE_NAME = 'spearhead-v5.0.4';
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
   './favicon.ico',
+  './icons/spearhead_emblem.png',
   './icons/icon.svg',
   './icons/icon-192.png',
   './icons/icon-512.png',
