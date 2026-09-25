@@ -1,16 +1,16 @@
 // Spearhead Service Worker
-const CACHE_NAME = 'spearhead-v5.0.4';
+const CACHE_NAME = 'spearhead-v5.0.5';
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
   './favicon.ico',
-  './icons/spearhead_emblem.png',
-  './icons/icon.svg',
-  './icons/icon-192.png',
+  './icons/icon-1024.png',
+  './icons/icon-maskable-1024.png',
   './icons/icon-512.png',
-  './icons/icon-maskable-192.png',
   './icons/icon-maskable-512.png',
+  './icons/icon-192.png',
+  './icons/icon-maskable-192.png',
   './icons/apple-touch-icon.png',
   './icons/screenshot-mobile.png',
   './icons/screenshot-desktop.png'

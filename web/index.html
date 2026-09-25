@@ -14,9 +14,10 @@
   <meta name="apple-mobile-web-app-title" content="Spearhead">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   
-  <!-- Favicons & App Icons -->
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <!-- Favicons & High-Res App Icons -->
+  <link rel="icon" type="image/png" sizes="1024x1024" href="icons/icon-1024.png">
   <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
   <link rel="shortcut icon" href="favicon.ico">
 
   <style>
@@ -884,116 +885,9 @@
       }
     }
 
-    /* CINEMATIC TACTICAL APP OPENING ANIMATION */
-    .app-splash {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: #090a0c;
-      z-index: 999999;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      transition: opacity 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0.35s ease;
-      pointer-events: all;
-      overflow: hidden;
-    }
-    .app-splash.hidden {
-      opacity: 0;
-      transform: scale(1.04);
-      visibility: hidden;
-      pointer-events: none;
-    }
-    .splash-logo-wrap {
-      width: min(310px, 78vw);
-      max-width: 310px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      animation: splashEmblemEntrance 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
-    .splash-logo-img {
-      width: 100%;
-      height: auto;
-      object-fit: contain;
-      filter: drop-shadow(0 0 28px rgba(139, 92, 246, 0.45)) drop-shadow(0 8px 32px rgba(0, 0, 0, 0.9));
-      image-rendering: -webkit-optimize-contrast;
-      image-rendering: crisp-edges;
-    }
-    .splash-title {
-      margin-top: 18px;
-      font-size: 1.05rem;
-      font-weight: 900;
-      letter-spacing: 4px;
-      color: var(--beige-light);
-      text-transform: uppercase;
-      animation: splashFadeIn 0.5s ease 0.15s both;
-    }
-    .splash-progress-track {
-      width: min(240px, 65vw);
-      height: 4px;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid var(--border-accent);
-      margin-top: 14px;
-      overflow: hidden;
-      position: relative;
-      animation: splashFadeIn 0.5s ease 0.2s both;
-    }
-    .splash-progress-fill {
-      width: 0%;
-      height: 100%;
-      background: linear-gradient(90deg, #6366f1, #a855f7, #e2d7c5);
-      animation: splashProgressFill 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0.1s forwards;
-    }
-    .splash-sub {
-      margin-top: 8px;
-      font-size: 0.65rem;
-      font-weight: 600;
-      letter-spacing: 2px;
-      color: var(--beige-dim);
-      text-transform: uppercase;
-      animation: splashFadeIn 0.5s ease 0.25s both;
-    }
-
-    @keyframes splashEmblemEntrance {
-      0% {
-        opacity: 0;
-        transform: scale(0.85) translateY(8px);
-      }
-      100% {
-        opacity: 1;
-        transform: scale(1) translateY(0);
-      }
-    }
-
-    @keyframes splashProgressFill {
-      0% { width: 0%; }
-      60% { width: 75%; }
-      100% { width: 100%; }
-    }
-
-    @keyframes splashFadeIn {
-      from { opacity: 0; transform: translateY(4px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
   </style>
 </head>
 <body class="view-auto">
-
-  <!-- CINEMATIC TACTICAL APP OPENING ANIMATION -->
-  <div id="app-splash-screen" class="app-splash">
-    <div class="splash-logo-wrap">
-      <img src="icons/spearhead_emblem.png" alt="Spearhead Emblem" class="splash-logo-img">
-    </div>
-    <div class="splash-title">SPEARHEAD</div>
-    <div class="splash-progress-track">
-      <div class="splash-progress-fill"></div>
-    </div>
-    <div class="splash-sub" id="splashStatusText">INITIALIZING SYSTEM...</div>
-  </div>
 
   <div class="app-container">
 
@@ -1692,20 +1586,7 @@
 
   <!-- JAVASCRIPT LOGIC ENGINE -->
   <script>
-    // Cinematic Tactical Opening Animation Controller
-    window.addEventListener('DOMContentLoaded', () => {
-      const splash = document.getElementById('app-splash-screen');
-      const statusText = document.getElementById('splashStatusText');
-      if (splash) {
-        setTimeout(() => {
-          if (statusText) statusText.innerText = "SYSTEM ONLINE // READY";
-        }, 550);
-        setTimeout(() => {
-          splash.classList.add('hidden');
-          setTimeout(() => { try { splash.remove(); } catch(e){} }, 400);
-        }, 850);
-      }
-    });
+
 
     // UUIDs for SPEARHEAD GATT Service
     const SERVICE_UUID       = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
