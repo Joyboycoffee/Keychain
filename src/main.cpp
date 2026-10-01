@@ -11,6 +11,7 @@
 #include "emoji_renderer.h"
 #include "meme_pet.h"
 #include "robot_eyes.h"
+#include "dasai_mochi.h"
 #include "cyber_hud.h"
 #include "matrix_rain.h"
 
@@ -25,6 +26,7 @@ Preferences prefs;
 
 MemePet     memePet;
 RobotEyes   robotEyes;
+DasaiMochi  dasaiMochi;
 CyberHUD    cyberHUD;
 MatrixRain  matrixRain;
 
@@ -42,6 +44,24 @@ int      scrollX       = 240;
 uint8_t  msgSpeed      = 3; // 1 to 15 px/frame
 uint8_t  msgSize       = 3; // 1 to 12 (1=8px, 2=16px, 3=24px, 4=32px, 5=40px, 6=48px, ... 12=96px Mega)
 uint8_t  msgDirection  = 0; // 0 = Right-to-Left (<-), 1 = Left-to-Right (->)
+
+// Desk Companion Mode State Engine (Auto Cross-Fading Companion)
+enum DeskCompanionPhase {
+    DESK_DASAI,
+    DESK_FADE_OUT_DASAI,
+    DESK_FADE_IN_CLOCK,
+    DESK_CLOCK,
+    DESK_FADE_OUT_CLOCK,
+    DESK_FADE_IN_DASAI
+};
+DeskCompanionPhase deskPhase            = DESK_DASAI;
+uint32_t           deskPhaseStartTime   = 0;
+uint32_t           deskDasaiDurationMs  = 12000; // 12 seconds Dasai Mochi animation
+uint32_t           deskClockDurationMs  = 7000;  // 7 seconds CyberHUD Clock & Date
+uint32_t           deskFadeDurationMs   = 400;   // 400ms smooth cross-fade
+bool               autoDeskDockOnUsb    = true;  // Automatically switch to Desk Dock on USB 5V charge
+SystemMode         preUsbMode           = MODE_CYBERPET;
+bool               preUsbModeSaved      = false;
 
 // Battery Telemetry & Discharge Run Logger
 float    currentBatVoltage   = 4.20f;
@@ -189,8 +209,13 @@ class ModeCallback : public NimBLECharacteristicCallbacks {
         std::string val = pChar->getValue();
         if (val.length() > 0) {
             int m = val[0] - '0';
-            if (m >= 0 && m <= 5) {
+            if (m >= 0 && m <= 6) {
                 currentMode = (SystemMode)m;
+                tft.setBrightness(screenBrightness); // Ensure brightness is restored
+                if (currentMode == MODE_DESK_COMPANION) {
+                    deskPhase = DESK_DASAI;
+                    deskPhaseStartTime = millis();
+                }
                 if (currentMode != MODE_STREAM_MEDIA) {
                     isVideoPlaying = false;
                 }
@@ -422,14 +447,45 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
             isVideoPlaying = false;
             Serial.printf("[SETTINGS] CyberHUD Custom Text: %s\n", msg.c_str());
         }
-        // 11. Robot Mood: "ROBOT_MOOD:<0..3>"
-        else if (cmd.startsWith("ROBOT_MOOD:")) {
-            int mood = cmd.substring(11).toInt();
+        // 11. Robot Mood / Dasai Mochi Style: "ROBOT_MOOD:<0..3>" or "DASAI_STYLE:<0..3>"
+        else if (cmd.startsWith("ROBOT_MOOD:") || cmd.startsWith("DASAI_STYLE:")) {
+            int mood = cmd.startsWith("ROBOT_MOOD:") ? cmd.substring(11).toInt() : cmd.substring(12).toInt();
+            dasaiMochi.setStyle(mood);
             robotEyes.setStyle(mood);
-            prefs.putUChar("robot_mood", (uint8_t)robotEyes.currentStyle);
+            prefs.putUChar("dasai_style", (uint8_t)dasaiMochi.currentStyle);
+            prefs.putUChar("robot_mood", (uint8_t)dasaiMochi.currentStyle);
             currentMode = MODE_ROBOT_EYES;
             isVideoPlaying = false;
-            Serial.printf("[SETTINGS] Robot Mood: %d\n", robotEyes.currentStyle);
+            if (pCharSet) {
+                pCharSet->setValue("DASAI_STYLE:" + std::to_string(dasaiMochi.currentStyle));
+                pCharSet->notify();
+            }
+            Serial.printf("[SETTINGS] Dasai Mochi Style: %d\n", dasaiMochi.currentStyle);
+        }
+        // 11b. Desk Dock Auto On USB: "DOCK_AUTO:<0|1>"
+        else if (cmd.startsWith("DOCK_AUTO:")) {
+            int val = cmd.substring(10).toInt();
+            autoDeskDockOnUsb = (val != 0);
+            prefs.putBool("dock_auto", autoDeskDockOnUsb);
+            if (pCharSet) {
+                pCharSet->setValue(autoDeskDockOnUsb ? "DOCK_AUTO:1" : "DOCK_AUTO:0");
+                pCharSet->notify();
+            }
+            Serial.printf("[SETTINGS] Auto Desk Dock on USB: %s\n", autoDeskDockOnUsb ? "ENABLED" : "DISABLED");
+        }
+        // 11c. Desk Dock Timing: "DOCK_TIMING:<dasai_sec>:<clock_sec>"
+        else if (cmd.startsWith("DOCK_TIMING:")) {
+            String timing = cmd.substring(12);
+            int colon = timing.indexOf(':');
+            if (colon != -1) {
+                int dasaiS = timing.substring(0, colon).toInt();
+                int clkS   = timing.substring(colon + 1).toInt();
+                if (dasaiS >= 3 && dasaiS <= 60) deskDasaiDurationMs = dasaiS * 1000;
+                if (clkS >= 3 && clkS <= 60)   deskClockDurationMs = clkS * 1000;
+                prefs.putUInt("dock_dasai_ms", deskDasaiDurationMs);
+                prefs.putUInt("dock_clk_ms", deskClockDurationMs);
+                Serial.printf("[SETTINGS] Dock Timings: Dasai=%u ms, Clock=%u ms\n", (unsigned int)deskDasaiDurationMs, (unsigned int)deskClockDurationMs);
+            }
         }
         // 12. Matrix Theme: "MATRIX_THM:<0..3>"
         else if (cmd.startsWith("MATRIX_THM:")) {
@@ -445,6 +501,7 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
             String msg = cmd.startsWith("SHY_MSG:") ? cmd.substring(8) : cmd.substring(8);
             cyberHUD.setShyText(msg);
             robotEyes.setShyText(msg);
+            dasaiMochi.setShyText(msg);
             matrixRain.setShyText(msg);
             prefs.putString("hud_shy", msg);
             if (pCharSet) {
@@ -462,9 +519,9 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
             } else if (currentMode == MODE_MATRIX_RAIN) {
                 matrixRain.triggerHeartRain(5000);
                 triggerTouchVisual("HEART RAIN", 0x8A3F, 5000, "TOUCH:SHY:MATRIX");
-            } else if (currentMode == MODE_ROBOT_EYES) {
-                robotEyes.triggerShyLove(5000);
-                triggerTouchVisual("HEART EYES", 0x8A3F, 5000, "TOUCH:SHY:ROBOT");
+            } else if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
+                dasaiMochi.triggerShyLove(5000);
+                triggerTouchVisual("HEART EYES", 0x8A3F, 5000, "TOUCH:SHY:DASAI");
             } else {
                 preHoldEmotion = memePet.currentEmotion;
                 isTemporaryLove = true;
@@ -568,7 +625,11 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
             prefs.putUChar("time_fmt", cyberHUD.is12HourFormat ? 12 : 24);
             prefs.putString("hud_shy", cyberHUD.customShyText);
             prefs.putString("egg_msg", easterEggMessage);
-            prefs.putUChar("robot_mood", (uint8_t)robotEyes.currentStyle);
+            prefs.putUChar("dasai_style", (uint8_t)dasaiMochi.currentStyle);
+            prefs.putUChar("robot_mood", (uint8_t)dasaiMochi.currentStyle);
+            prefs.putBool("dock_auto", autoDeskDockOnUsb);
+            prefs.putUInt("dock_dasai_ms", deskDasaiDurationMs);
+            prefs.putUInt("dock_clk_ms", deskClockDurationMs);
             prefs.putUChar("matrix_thm", (uint8_t)matrixRain.currentTheme);
             prefs.putUChar("br", screenBrightness);
             prefs.putUChar("rot", screenRotation);
@@ -590,11 +651,11 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
         else if (cmd == "CFG:GET" || cmd == "GET_CONFIG") {
             char cfgMsg[256];
             uint32_t sleepSec = sleepTimeoutMs / 1000;
-            snprintf(cfgMsg, sizeof(cfgMsg), "CFG_DASH|%d|%d|%d|%d|%d|%d|%d|%u|%d|%d|%d|%d|%d|%u|%d",
+            snprintf(cfgMsg, sizeof(cfgMsg), "CFG_DASH|%d|%d|%d|%d|%d|%d|%d|%u|%d|%d|%d|%d|%d|%u|%d|%d|%d",
                      (int)currentMode,
                      (int)memePet.currentEmotion,
                      (int)cyberHUD.currentLayout,
-                     (int)robotEyes.currentStyle,
+                     (int)dasaiMochi.currentStyle,
                      (int)matrixRain.currentTheme,
                      (int)screenBrightness,
                      (int)screenRotation,
@@ -605,7 +666,9 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
                      (int)msgSize,
                      (int)msgDirection,
                      (unsigned int)easterEggCount,
-                     cyberHUD.is12HourFormat ? 12 : 24);
+                     cyberHUD.is12HourFormat ? 12 : 24,
+                     autoDeskDockOnUsb ? 1 : 0,
+                     (int)(deskDasaiDurationMs / 1000));
             if (pCharSet) {
                 pCharSet->setValue(std::string(cfgMsg));
                 pCharSet->notify();
@@ -1157,11 +1220,16 @@ void processTouch() {
         hold10sPrompted = false;
         isrDownTime = 0;
 
-        currentMode = (SystemMode)(((int)currentMode + 1) % 4);
+        currentMode = (SystemMode)(((int)currentMode + 1) % 7);
+        tft.setBrightness(screenBrightness);
+        if (currentMode == MODE_DESK_COMPANION) {
+            deskPhase = DESK_DASAI;
+            deskPhaseStartTime = now;
+        }
         isVideoPlaying = false;
 
-        const char* modeNames[] = { "CYBERPET 🐱", "ROBOT EYES 🤖", "CYBER HUD ⚡", "MATRIX RAIN 📟" };
-        const uint16_t modeColors[] = { 0xFFE0, 0x07FF, 0x07FF, 0x07E0 };
+        const char* modeNames[] = { "CYBERPET 🐱", "DASAI MOCHI 🤖", "CYBER HUD ⚡", "MATRIX RAIN 📟", "TEXT SCROLL 📜", "STREAM MEDIA 🎬", "DESK DOCK ⏰" };
+        const uint16_t modeColors[] = { 0xFFE0, 0x07FF, 0x07FF, 0x07E0, 0xF77D, 0x07FF, 0x07FF };
         triggerTouchVisual(modeNames[(int)currentMode], modeColors[(int)currentMode], 1400, "TOUCH:MODE");
 
         if (bleConnected && pCharMode) {
@@ -1198,16 +1266,17 @@ void processTouch() {
                 pCharPet->notify();
             }
             Serial.printf("[TOUCH] Double-Tap! -> Mascot: %d (%s)\n", next, emoNames[next]);
-        } else if (currentMode == MODE_ROBOT_EYES) {
-            int next = robotEyes.cycleStyle();
-            const char* styleNames[] = { "CYAN NORMAL 👀", "HAPPY LOVE ❤️", "ANGRY RED 😾", "CYBER GOLD 🟡" };
-            const uint16_t styleCols[] = { 0x07FF, 0xF81F, 0xF800, 0xFFE0 };
-            triggerTouchVisual(styleNames[next], styleCols[next], 1000, "ROBOT:STYLE");
+        } else if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
+            int next = dasaiMochi.cycleStyle();
+            robotEyes.setStyle(next);
+            const char* styleNames[] = { "WARM WHITE ⚪", "PASTEL CYAN 🩵", "SAKURA PINK 🌸", "MOCHI GOLD 🟡" };
+            const uint16_t styleCols[] = { 0xFFFF, 0x7FFF, 0xFDF7, 0xFFE0 };
+            triggerTouchVisual(styleNames[next], styleCols[next], 1000, "DASAI:STYLE");
             if (bleConnected && pCharSet) {
-                pCharSet->setValue("ROBOT_MOOD:" + std::to_string(next));
+                pCharSet->setValue("DASAI_STYLE:" + std::to_string(next));
                 pCharSet->notify();
             }
-            Serial.printf("[TOUCH] Double-Tap! -> Robot Style: %d (%s)\n", next, styleNames[next]);
+            Serial.printf("[TOUCH] Double-Tap! -> Dasai Style: %d (%s)\n", next, styleNames[next]);
         } else if (currentMode == MODE_CYBER_HUD) {
             int next = cyberHUD.cycleLayout();
             const char* hudNames[] = { "FULL CYBER HUD ⚡", "BIG CLOCK & DATE ⏰", "MINIMAL DASH 📟" };
@@ -1286,14 +1355,14 @@ void processTouch() {
                 matrixRain.triggerHeartRain(5000);
                 triggerTouchVisual("HEART RAIN 💖", 0xF81F, 5000, "TOUCH:SHY:MATRIX");
                 Serial.printf("[TOUCH] 2.0s Hold -> Matrix Cyber Heart Rain! (%s)\n", matrixRain.customShyText.c_str());
-            } else if (currentMode == MODE_ROBOT_EYES) {
-                robotEyes.triggerShyLove(5000);
-                triggerTouchVisual("HEART EYES ❤️", 0xF81F, 5000, "TOUCH:SHY:ROBOT");
+            } else if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
+                dasaiMochi.triggerShyLove(5000);
+                triggerTouchVisual("HEART EYES ❤️", 0xF81F, 5000, "TOUCH:SHY:DASAI");
                 if (bleConnected && pCharSet) {
-                    pCharSet->setValue(std::string("ROBOT_MOOD:1"));
+                    pCharSet->setValue(std::string("TOUCH:SHY:DASAI"));
                     pCharSet->notify();
                 }
-                Serial.printf("[TOUCH] 2.0s Hold -> Robot Eyes Happy Love! (%s)\n", robotEyes.customShyText.c_str());
+                Serial.printf("[TOUCH] 2.0s Hold -> Dasai Mochi Happy Love! (%s)\n", dasaiMochi.customShyText.c_str());
             } else {
                 // MODE_CYBERPET (or default)
                 preHoldEmotion = memePet.currentEmotion;
@@ -1362,8 +1431,9 @@ void processTouch() {
             if (currentMode == MODE_CYBERPET) {
                 memePet.triggerTap();
                 triggerTouchVisual("POKE 👆", 0x07FF, 700, "TOUCH:POKE");
-            } else if (currentMode == MODE_ROBOT_EYES) {
-                triggerTouchVisual("GLANCE 👀", 0x07FF, 700, "TOUCH:POKE");
+            } else if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
+                dasaiMochi.triggerTap();
+                triggerTouchVisual("GIGGLE 😸", 0x7FFF, 700, "TOUCH:POKE");
             } else if (currentMode == MODE_CYBER_HUD) {
                 triggerTouchVisual("TICK ⏱️", 0x07E0, 700, "TOUCH:POKE");
             } else if (currentMode == MODE_MATRIX_RAIN) {
@@ -1392,18 +1462,18 @@ void processTouch() {
         Serial.printf("[TOUCH] 5s elapsed -> Reverted to %d (%s)\n", (int)preHoldEmotion, emoNames[preHoldEmotion]);
     }
 
-    // Notify BLE when Robot Eyes reverts from Shy Love
-    static bool lastRobotShyActive = false;
-    if (lastRobotShyActive && !robotEyes.isShyLoveActive) {
+    // Notify BLE when Dasai Mochi / Robot Eyes reverts from Shy Love
+    static bool lastDasaiShyActive = false;
+    if (lastDasaiShyActive && !dasaiMochi.isShyLoveActive) {
         if (bleConnected && pCharSet) {
-            pCharSet->setValue("ROBOT_MOOD:" + std::to_string(robotEyes.currentStyle));
+            pCharSet->setValue("DASAI_STYLE:" + std::to_string(dasaiMochi.currentStyle));
             pCharSet->notify();
             pCharSet->setValue(std::string("TOUCH:REVERT"));
             pCharSet->notify();
         }
-        Serial.printf("[TOUCH] Robot Eyes reverted to mood %d\n", robotEyes.currentStyle);
+        Serial.printf("[TOUCH] Dasai Mochi reverted to style %d\n", dasaiMochi.currentStyle);
     }
-    lastRobotShyActive = robotEyes.isShyLoveActive;
+    lastDasaiShyActive = dasaiMochi.isShyLoveActive;
 
     // Notify BLE when CyberHUD reverts from Shy Overlay
     static bool lastHudShyActive = false;
@@ -1744,8 +1814,13 @@ void setup() {
     String shyMsg = prefs.getString("hud_shy", "I LOVE YOU");
     cyberHUD.setShyText(shyMsg);
     robotEyes.setShyText(shyMsg);
+    dasaiMochi.setShyText(shyMsg);
     matrixRain.setShyText(shyMsg);
-    robotEyes.setStyle(prefs.getUChar("robot_mood", 0));
+    dasaiMochi.setStyle(prefs.getUChar("dasai_style", 0));
+    robotEyes.setStyle(dasaiMochi.currentStyle);
+    autoDeskDockOnUsb = prefs.getBool("dock_auto", true);
+    deskDasaiDurationMs = prefs.getUInt("dock_dasai_ms", 12000);
+    deskClockDurationMs = prefs.getUInt("dock_clk_ms", 7000);
     matrixRain.setTheme(prefs.getUChar("matrix_thm", 0));
     bootSplashType = (BootSplashType)prefs.getUChar("boot_type", (uint8_t)BOOT_SPEARHEAD_INTRO);
     bootDurationSec = prefs.getUChar("boot_dur", 2);
@@ -1763,8 +1838,8 @@ void setup() {
     if (msgSpeed < 1 || msgSpeed > 15) msgSpeed = 3;
     if (msgSize < 1 || msgSize > 12) msgSize = 3;
     if (msgDirection > 1) msgDirection = 0;
-    Serial.printf("[SETTINGS] Restored: Brightness=%d, Sleep=%u ms, Rotation=%d, Mode=%d\n",
-                  screenBrightness, (unsigned int)sleepTimeoutMs, screenRotation, (int)currentMode);
+    Serial.printf("[SETTINGS] Restored: Brightness=%d, Sleep=%u ms, Rotation=%d, Mode=%d, DockAuto=%d\n",
+                  screenBrightness, (unsigned int)sleepTimeoutMs, screenRotation, (int)currentMode, autoDeskDockOnUsb ? 1 : 0);
 
     // Battery Discharge Logger State from NVS
     lastSavedRunSec  = prefs.getUInt("l_run", 0);
@@ -1849,10 +1924,11 @@ void setup() {
         Serial.printf("[BOOT] Woke from Deep Sleep (%d). Pre-rendering active mode and fading in smoothly (0.7s)...\n", (int)wakeupReason);
         // Pre-render active mode first frame into canvas
         switch (currentMode) {
-            case MODE_CYBERPET:    memePet.update(); break;
-            case MODE_ROBOT_EYES:  robotEyes.update(); break;
-            case MODE_CYBER_HUD:   cyberHUD.update(); break;
-            case MODE_MATRIX_RAIN: matrixRain.update(); break;
+            case MODE_CYBERPET:        memePet.update(); break;
+            case MODE_ROBOT_EYES:      dasaiMochi.update(); break;
+            case MODE_CYBER_HUD:       cyberHUD.update(); break;
+            case MODE_MATRIX_RAIN:     matrixRain.update(); break;
+            case MODE_DESK_COMPANION:  dasaiMochi.update(); break;
             case MODE_TEXT_SCROLL: {
                 canvas.fillScreen(TFT_BLACK);
                 canvas.drawRoundRect(2, 2, 236, 236, 8, 0xF77D);
@@ -1894,13 +1970,54 @@ void loop() {
         lastActivityTime = millis();
     }
 
-    // Auto BLE power-down if no connection after 60 seconds to save maximum battery
-    if (bleActive && !isConnected && (millis() - bleStartTimeMs > 60000)) {
+    // USB Charging Connection & Auto Desk Dock Detection
+    static bool lastUsbState = false;
+    if (isUsbPower && !lastUsbState) {
+        Serial.println("[POWER] USB 5V Connected! Enabling Always-On BLE & Screen.");
+        startBLE(false);
+        if (autoDeskDockOnUsb && currentMode != MODE_STREAM_MEDIA) {
+            if (!preUsbModeSaved) {
+                preUsbMode = currentMode;
+                preUsbModeSaved = true;
+            }
+            currentMode = MODE_DESK_COMPANION;
+            deskPhase = DESK_DASAI;
+            deskPhaseStartTime = millis();
+            triggerTouchVisual("DESK DOCK ON ⚡", 0x07FF, 2000, "DOCK:ACTIVE");
+            if (bleConnected && pCharMode) {
+                pCharMode->setValue(std::string("6"));
+                pCharMode->notify();
+            }
+        }
+    } else if (!isUsbPower && lastUsbState) {
+        Serial.println("[POWER] USB Disconnected! Restoring battery power saving mode.");
+        if (preUsbModeSaved) {
+            currentMode = preUsbMode;
+            preUsbModeSaved = false;
+            tft.setBrightness(screenBrightness);
+            if (bleConnected && pCharMode) {
+                char mChar[2] = { (char)('0' + (int)currentMode), '\0' };
+                pCharMode->setValue(std::string(mChar));
+                pCharMode->notify();
+            }
+        }
+        bleStartTimeMs = millis(); // 60s pairing window
+        lastActivityTime = millis();
+    }
+    lastUsbState = isUsbPower;
+
+    // Keep BLE advertising always-on if on USB power
+    if (isUsbPower && !bleActive) {
+        startBLE(false);
+    }
+
+    // Auto BLE power-down if no connection after 60 seconds (ONLY on battery!)
+    if (!isUsbPower && bleActive && !isConnected && (millis() - bleStartTimeMs > 60000)) {
         stopBLE(false);
     }
 
-    // Auto Sleep Check (Only when BLE radio is completely OFF, disconnected, and user has been idle)
-    if (!bleActive && !isConnected && sleepTimeoutMs > 0 && (millis() - lastActivityTime > sleepTimeoutMs)) {
+    // Auto Sleep Check (ONLY on battery, BLE is OFF, disconnected, and user idle)
+    if (!isUsbPower && !bleActive && !isConnected && sleepTimeoutMs > 0 && (millis() - lastActivityTime > sleepTimeoutMs)) {
         enterDeepSleep();
     }
 
@@ -1994,98 +2111,9 @@ void loop() {
             memePet.update();
             break;
 
-        case MODE_ROBOT_EYES: {
-            if (!dasaiFileOpened) {
-                if (LittleFS.exists("/dasai_anim.bin")) {
-                    dasaiAnimFile = LittleFS.open("/dasai_anim.bin", "r");
-                    if (dasaiAnimFile && dasaiAnimFile.size() >= 4) {
-                        uint8_t fLo = dasaiAnimFile.read();
-                        uint8_t fHi = dasaiAnimFile.read();
-                        dasaiTotalFrames = fLo | (fHi << 8);
-                        dasaiFps = dasaiAnimFile.read();
-                        dasaiAnimFile.read(); // format flag
-                        if (dasaiFps == 0 || dasaiFps > 60) dasaiFps = 30;
-                        dasaiCurrentFrame = 0;
-                        dasaiFileOpened = true;
-                        lastDasaiFrameTime = 0;
-                        Serial.printf("[DASAI] Playing /dasai_anim.bin (%u frames @ %u FPS)\n", dasaiTotalFrames, dasaiFps);
-                    }
-                }
-            }
-
-            if (dasaiFileOpened && dasaiAnimFile && dasaiTotalFrames > 0) {
-                uint32_t now = millis();
-                uint32_t frameDelay = 1000 / dasaiFps;
-                if (now - lastDasaiFrameTime >= frameDelay) {
-                    lastDasaiFrameTime = now;
-
-                    if (dasaiAnimFile.available() < 1024) {
-                        dasaiAnimFile.seek(4);
-                        dasaiCurrentFrame = 0;
-                    }
-
-                    if (dasaiAnimFile.available() >= 1024) {
-                        dasaiAnimFile.read(dasaiFrameBuf, 1024);
-                        dasaiCurrentFrame = (dasaiCurrentFrame + 1) % dasaiTotalFrames;
-                    }
-
-                    uint16_t faceColor = 0x07FF; // Glowing Cyan
-                    if (robotEyes.isShyLoveActive || robotEyes.currentStyle == 1) {
-                        faceColor = 0xF81F; // Pink / Magenta
-                    } else if (robotEyes.currentStyle == 2) {
-                        faceColor = 0xF800; // Fierce Red
-                    } else if (robotEyes.currentStyle == 3) {
-                        faceColor = 0xFFE0; // Cyber Gold
-                    }
-
-                    canvas.fillScreen(TFT_BLACK);
-
-                    // Render 128x64 bitmap scaled to 224x112 at (x=8, y=64)
-                    for (int r = 0; r < 64; r++) {
-                        int sy = 64 + (r * 7) / 4;
-                        int blockH = (64 + ((r + 1) * 7) / 4) - sy;
-                        if (blockH < 1) blockH = 1;
-
-                        int runStart = -1;
-                        for (int c = 0; c < 128; c++) {
-                            bool on = (dasaiFrameBuf[r * 16 + (c >> 3)] >> (7 - (c & 7))) & 1;
-                            if (on) {
-                                if (runStart < 0) runStart = c;
-                            } else if (runStart >= 0) {
-                                int sx = 8 + (runStart * 7) / 4;
-                                int ex = 8 + (c * 7) / 4;
-                                canvas.fillRect(sx, sy, ex - sx, blockH, faceColor);
-                                runStart = -1;
-                            }
-                        }
-                        if (runStart >= 0) {
-                            int sx = 8 + (runStart * 7) / 4;
-                            int ex = 8 + (128 * 7) / 4;
-                            canvas.fillRect(sx, sy, ex - sx, blockH, faceColor);
-                        }
-                    }
-
-                    // 2-Second Hold Shy Love overlay
-                    if (robotEyes.isShyLoveActive) {
-                        if (millis() - robotEyes.shyLoveStartTime >= 5000) {
-                            robotEyes.isShyLoveActive = false;
-                            robotEyes.setStyle(robotEyes.preShyStyle);
-                        } else {
-                            for (int i = 0; i < 4; i++) {
-                                int hx = 25 + i * 60 + (int)(sin((millis() / 150.0f + i)) * 6);
-                                int hy = 25 + (int)(cos((millis() / 200.0f + i)) * 8);
-                                canvas.fillCircle(hx - 4, hy - 4, 4, 0xF81F);
-                                canvas.fillCircle(hx + 4, hy - 4, 4, 0xF81F);
-                                canvas.fillTriangle(hx - 8, hy - 3, hx + 8, hy - 3, hx, hy + 6, 0xF81F);
-                            }
-                        }
-                    }
-                }
-            } else {
-                robotEyes.update();
-            }
+        case MODE_ROBOT_EYES:
+            dasaiMochi.update();
             break;
-        }
 
         case MODE_CYBER_HUD:
             cyberHUD.update();
@@ -2094,6 +2122,86 @@ void loop() {
         case MODE_MATRIX_RAIN:
             matrixRain.update();
             break;
+
+        case MODE_DESK_COMPANION: {
+            uint32_t now = millis();
+            uint32_t elapsed = now - deskPhaseStartTime;
+
+            switch (deskPhase) {
+                case DESK_DASAI:
+                    dasaiMochi.update();
+                    if (elapsed >= deskDasaiDurationMs) {
+                        deskPhase = DESK_FADE_OUT_DASAI;
+                        deskPhaseStartTime = now;
+                    }
+                    break;
+
+                case DESK_FADE_OUT_DASAI: {
+                    dasaiMochi.update();
+                    float progress = (float)elapsed / (float)deskFadeDurationMs;
+                    if (progress >= 1.0f) {
+                        tft.setBrightness(0);
+                        deskPhase = DESK_FADE_IN_CLOCK;
+                        deskPhaseStartTime = now;
+                    } else {
+                        float ease = (1.0f - progress) * (1.0f - progress);
+                        tft.setBrightness((uint8_t)(ease * screenBrightness));
+                    }
+                    break;
+                }
+
+                case DESK_FADE_IN_CLOCK: {
+                    cyberHUD.update();
+                    float progress = (float)elapsed / (float)deskFadeDurationMs;
+                    if (progress >= 1.0f) {
+                        tft.setBrightness(screenBrightness);
+                        deskPhase = DESK_CLOCK;
+                        deskPhaseStartTime = now;
+                    } else {
+                        float ease = sin(progress * 1.5707963f);
+                        tft.setBrightness((uint8_t)(ease * screenBrightness));
+                    }
+                    break;
+                }
+
+                case DESK_CLOCK:
+                    cyberHUD.update();
+                    if (elapsed >= deskClockDurationMs) {
+                        deskPhase = DESK_FADE_OUT_CLOCK;
+                        deskPhaseStartTime = now;
+                    }
+                    break;
+
+                case DESK_FADE_OUT_CLOCK: {
+                    cyberHUD.update();
+                    float progress = (float)elapsed / (float)deskFadeDurationMs;
+                    if (progress >= 1.0f) {
+                        tft.setBrightness(0);
+                        deskPhase = DESK_FADE_IN_DASAI;
+                        deskPhaseStartTime = now;
+                    } else {
+                        float ease = (1.0f - progress) * (1.0f - progress);
+                        tft.setBrightness((uint8_t)(ease * screenBrightness));
+                    }
+                    break;
+                }
+
+                case DESK_FADE_IN_DASAI: {
+                    dasaiMochi.update();
+                    float progress = (float)elapsed / (float)deskFadeDurationMs;
+                    if (progress >= 1.0f) {
+                        tft.setBrightness(screenBrightness);
+                        deskPhase = DESK_DASAI;
+                        deskPhaseStartTime = now;
+                    } else {
+                        float ease = sin(progress * 1.5707963f);
+                        tft.setBrightness((uint8_t)(ease * screenBrightness));
+                    }
+                    break;
+                }
+            }
+            break;
+        }
 
         case MODE_TEXT_SCROLL: {
             canvas.fillScreen(TFT_BLACK);

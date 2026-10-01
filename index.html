@@ -1027,15 +1027,19 @@
             </button>
             <button class="btn-opt" id="modeBtn1" onclick="setMode(1)">
               <span>ROBOT EYES</span>
-              <span class="btn-opt-sub">Procedural Gaze</span>
+              <span class="btn-opt-sub">Dasai Mochi Face</span>
             </button>
             <button class="btn-opt" id="modeBtn2" onclick="setMode(2)">
               <span>CYBERHUD</span>
-              <span class="btn-opt-sub">Tactical Clock</span>
+              <span class="btn-opt-sub">Clock & Date</span>
             </button>
             <button class="btn-opt" id="modeBtn3" onclick="setMode(3)">
               <span>MATRIX RAIN</span>
               <span class="btn-opt-sub">Code Streams</span>
+            </button>
+            <button class="btn-opt" id="modeBtn6" onclick="setMode(6)">
+              <span>DESK DOCK</span>
+              <span class="btn-opt-sub">Auto Companion</span>
             </button>
           </div>
 
@@ -1053,14 +1057,14 @@
             </div>
           </div>
 
-          <!-- SUB-PANEL: ROBOT EYES (MODE 1) -->
+          <!-- SUB-PANEL: ROBOT EYES / DASAI MOCHI (MODE 1) -->
           <div id="panelMode1" class="sub-section" style="display:none;">
-            <div class="sub-title">ROBOT EYE MOODS</div>
+            <div class="sub-title">DASAI MOCHI COLOR PALETTE</div>
             <div class="grid-options">
-              <button class="btn-opt active" id="robotMoodBtn0" onclick="setRobotMood(0)">CYAN GLOW</button>
-              <button class="btn-opt" id="robotMoodBtn1" onclick="setRobotMood(1)">HEART EYES</button>
-              <button class="btn-opt" id="robotMoodBtn2" onclick="setRobotMood(2)">FOCUSED</button>
-              <button class="btn-opt" id="robotMoodBtn3" onclick="setRobotMood(3)">SUSPICIOUS</button>
+              <button class="btn-opt active" id="dasaiStyleBtn0" onclick="setDasaiStyle(0)">WARM WHITE ⚪</button>
+              <button class="btn-opt" id="dasaiStyleBtn1" onclick="setDasaiStyle(1)">PASTEL CYAN 🩵</button>
+              <button class="btn-opt" id="dasaiStyleBtn2" onclick="setDasaiStyle(2)">SAKURA PINK 🌸</button>
+              <button class="btn-opt" id="dasaiStyleBtn3" onclick="setDasaiStyle(3)">MOCHI GOLD 🟡</button>
             </div>
           </div>
 
@@ -1094,7 +1098,7 @@
             </div>
           </div>
 
-          <!-- SUB-PANEL: MATRIX THEMES -->
+          <!-- SUB-PANEL: MATRIX THEMES (MODE 3) -->
           <div id="panelMode3" class="sub-section" style="display:none;">
             <div class="sub-title">MATRIX DIGITAL THEMES</div>
             <div class="grid-options">
@@ -1102,6 +1106,36 @@
               <button class="btn-opt" id="matrixThmBtn1" onclick="setMatrixTheme(1)">NEON BLUE</button>
               <button class="btn-opt" id="matrixThmBtn2" onclick="setMatrixTheme(2)">AMBER GOLD</button>
               <button class="btn-opt" id="matrixThmBtn3" onclick="setMatrixTheme(3)">HEART RAIN</button>
+            </div>
+          </div>
+
+          <!-- SUB-PANEL: DESK DOCK / COMPANION (MODE 6) -->
+          <div id="panelMode6" class="sub-section" style="display:none;">
+            <div class="sub-title">SMART DESK COMPANION (FADE-CYCLE)</div>
+            <div style="font-size:0.70rem; color:var(--beige-muted); line-height:1.45; margin-bottom:6px;">
+              Cycles smoothly between Dasai Mochi cute face animations and CyberHUD Clock & Date with smooth brightness cross-fading.
+            </div>
+
+            <div class="grid-options" style="margin-bottom:12px;">
+              <button class="btn-opt active" id="btnDockAuto" onclick="toggleDockAuto()">
+                <span>AUTO-DOCK ON CHARGE</span>
+                <span class="btn-opt-sub" id="lblDockAuto">ENABLED (USB 5V)</span>
+              </button>
+            </div>
+
+            <div class="sub-title" style="margin-top:6px;">DASAI MOCHI THEME</div>
+            <div class="grid-options" style="margin-bottom:12px;">
+              <button class="btn-opt active" id="dockStyleBtn0" onclick="setDasaiStyle(0)">WARM WHITE ⚪</button>
+              <button class="btn-opt" id="dockStyleBtn1" onclick="setDasaiStyle(1)">PASTEL CYAN 🩵</button>
+              <button class="btn-opt" id="dockStyleBtn2" onclick="setDasaiStyle(2)">SAKURA PINK 🌸</button>
+              <button class="btn-opt" id="dockStyleBtn3" onclick="setDasaiStyle(3)">MOCHI GOLD 🟡</button>
+            </div>
+
+            <div class="sub-title" style="margin-top:6px;">CYCLE TIMINGS</div>
+            <div class="grid-options">
+              <button class="btn-opt active" id="dockTimeBtn0" onclick="setDockTiming(12, 7)">12s FACE / 7s CLOCK</button>
+              <button class="btn-opt" id="dockTimeBtn1" onclick="setDockTiming(20, 10)">20s FACE / 10s CLOCK</button>
+              <button class="btn-opt" id="dockTimeBtn2" onclick="setDockTiming(6, 4)">6s FAST CYCLE</button>
             </div>
           </div>
         </div>
@@ -2076,6 +2110,21 @@
             const timeFmt = parseInt(p[15]);
             if (!isNaN(timeFmt)) highlightTimeFormatUI(timeFmt);
           }
+          // Parse Auto Dock if present (16th field)
+          if (p.length >= 17) {
+            const autoDock = (parseInt(p[16]) === 1);
+            updateDockAutoUI(autoDock);
+          }
+          // Parse Dock Timing if present (17th field)
+          if (p.length >= 18) {
+            const dasaiS = parseInt(p[17]);
+            const btn0 = document.getElementById('dockTimeBtn0');
+            const btn1 = document.getElementById('dockTimeBtn1');
+            const btn2 = document.getElementById('dockTimeBtn2');
+            if (btn0) btn0.classList.toggle('active', dasaiS === 12);
+            if (btn1) btn1.classList.toggle('active', dasaiS === 20);
+            if (btn2) btn2.classList.toggle('active', dasaiS === 6);
+          }
 
           log(`Synchronized settings: Brightness ${Math.round((br / 255) * 100)}%, Sleep ${sleepLabels[sleepIdx]}`);
         }
@@ -2085,11 +2134,15 @@
         setTouchBanner("DOUBLE-TAP SUB-OPTION", "badge-warn", 1500);
       } else if (msg === "TOUCH:MODE") {
         setTouchBanner("5-TAP MODE SWITCH", "badge-ok", 2000);
-      } else if (msg.startsWith("ROBOT:STYLE") || msg.startsWith("ROBOT_MOOD:")) {
+      } else if (msg.startsWith("DASAI_STYLE:") || msg.startsWith("ROBOT:STYLE") || msg.startsWith("ROBOT_MOOD:")) {
         const parts = msg.split(':');
         const idx = parseInt(parts[1]);
-        if (!isNaN(idx)) highlightRobotMoodUI(idx);
-        setTouchBanner("ROBOT MOOD UPDATED", "badge-cyan", 1500);
+        if (!isNaN(idx)) highlightDasaiStyleUI(idx);
+        setTouchBanner("DASAI STYLE UPDATED", "badge-cyan", 1500);
+      } else if (msg.startsWith("DOCK_AUTO:")) {
+        const enabled = (msg.substring(10) === '1');
+        updateDockAutoUI(enabled);
+        setTouchBanner(enabled ? "AUTO DOCK ON" : "AUTO DOCK OFF", "badge-ok", 1500);
       } else if (msg.startsWith("TIME_FMT:")) {
         const fmt = parseInt(msg.substring(9));
         if (!isNaN(fmt)) highlightTimeFormatUI(fmt);
@@ -2107,10 +2160,10 @@
       } else if (msg === "TOUCH:SHY:HUD" || msg === "TOUCH:SHY") {
         setTouchBanner("CYBERHUD SECRET MSG (2s HOLD)", "badge-mag", 5000);
         log("CyberHUD 2s Hold -> Secret Message Displayed!");
-      } else if (msg === "TOUCH:SHY:ROBOT") {
-        highlightRobotMoodUI(1);
-        setTouchBanner("ROBOT HEART EYES (2s HOLD)", "badge-mag", 5000);
-        log("Robot Eyes 2s Hold -> Blushing Cheeks Active!");
+      } else if (msg === "TOUCH:SHY:DASAI" || msg === "TOUCH:SHY:ROBOT") {
+        highlightDasaiStyleUI(2); // Sakura Pink highlight
+        setTouchBanner("DASAI HEART EYES (2s HOLD)", "badge-mag", 5000);
+        log("Dasai Mochi 2s Hold -> Heart Eyes & Blushing Active!");
       } else if (msg === "TOUCH:SHY:MATRIX") {
         setTouchBanner("MATRIX LOVE RAIN (2s HOLD)", "badge-mag", 5000);
         log("Matrix Rain 2s Hold -> Heart Rain Active!");
@@ -2118,6 +2171,10 @@
         highlightEmotionUI(1);
         setTouchBanner("CYBERPET SHY LOVE (2s HOLD)", "badge-mag", 5000);
         log("CyberPet 2s Hold -> Shy Love Avatar Active!");
+      } else if (msg.startsWith("DOCK:ACTIVE")) {
+        setTouchBanner("DESK DOCK ENGAGED ⚡", "badge-ok", 2500);
+        highlightModeUI(6);
+        log("Device plugged into USB! Smart Desk Companion mode active.");
       } else if (msg.startsWith("EASTER:UNLOCKED")) {
         let eggCnt = easterEggCount + 1;
         if (msg.includes(':') && msg.split(':').length >= 3) {
@@ -2250,14 +2307,15 @@
     }
 
     function highlightModeUI(m) {
-      for (let i = 0; i < 4; i++) {
+      const modeKeys = [0, 1, 2, 3, 6];
+      modeKeys.forEach(i => {
         const b = document.getElementById(`modeBtn${i}`);
         if (b) b.className = (i === m) ? "btn-opt active" : "btn-opt";
         const p = document.getElementById(`panelMode${i}`);
         if (p) {
           p.style.display = (i === m) ? 'flex' : 'none';
         }
-      }
+      });
     }
 
     async function setEmotion(emoNum) {
@@ -2276,21 +2334,69 @@
       }
     }
 
-    async function setRobotMood(moodNum) {
+    let currentDasaiStyle = 0;
+    async function setDasaiStyle(styleNum) {
       vibrate();
-      highlightRobotMoodUI(moodNum);
+      highlightDasaiStyleUI(styleNum);
       if (!charSettings) return;
-      const data = new TextEncoder().encode(`ROBOT_MOOD:${moodNum}`);
-      await charSettings.writeValue(data);
-      log(`Robot Mood: ${moodNum}`);
+      const data = new TextEncoder().encode(`DASAI_STYLE:${styleNum}`);
+      await safeBleWrite(charSettings, data, false);
+      log(`Dasai Mochi Style: ${styleNum}`);
+      setTouchBanner("STYLE UPDATED", "badge-cyan", 1500);
+    }
+
+    function highlightDasaiStyleUI(s) {
+      currentDasaiStyle = s;
+      for (let i = 0; i < 4; i++) {
+        const b1 = document.getElementById(`dasaiStyleBtn${i}`);
+        const b2 = document.getElementById(`dockStyleBtn${i}`);
+        if (b1) b1.className = (i === s) ? "btn-opt active" : "btn-opt";
+        if (b2) b2.className = (i === s) ? "btn-opt active" : "btn-opt";
+      }
+    }
+
+    function setRobotMood(moodNum) {
+      setDasaiStyle(moodNum);
     }
 
     function highlightRobotMoodUI(moodNum) {
-      currentRobotMood = moodNum;
-      for (let i = 0; i < 4; i++) {
-        const b = document.getElementById(`robotMoodBtn${i}`);
-        if (b) b.className = (i === moodNum) ? "btn-opt active" : "btn-opt";
-      }
+      highlightDasaiStyleUI(moodNum);
+    }
+
+    let dockAutoEnabled = true;
+    async function toggleDockAuto() {
+      vibrate();
+      dockAutoEnabled = !dockAutoEnabled;
+      updateDockAutoUI(dockAutoEnabled);
+      if (!charSettings) return;
+      const data = new TextEncoder().encode(`DOCK_AUTO:${dockAutoEnabled ? 1 : 0}`);
+      await safeBleWrite(charSettings, data, false);
+      log(`Auto Dock on USB: ${dockAutoEnabled ? 'ENABLED' : 'DISABLED'}`);
+      setTouchBanner(dockAutoEnabled ? "AUTO-DOCK ON" : "AUTO-DOCK OFF", "badge-ok", 1500);
+    }
+
+    function updateDockAutoUI(enabled) {
+      dockAutoEnabled = enabled;
+      const btn = document.getElementById('btnDockAuto');
+      const lbl = document.getElementById('lblDockAuto');
+      if (btn) btn.className = enabled ? "btn-opt active" : "btn-opt";
+      if (lbl) lbl.innerText = enabled ? "ENABLED (USB 5V)" : "DISABLED";
+    }
+
+    async function setDockTiming(dasaiS, clkS) {
+      vibrate();
+      const btn0 = document.getElementById('dockTimeBtn0');
+      const btn1 = document.getElementById('dockTimeBtn1');
+      const btn2 = document.getElementById('dockTimeBtn2');
+      if (btn0) btn0.classList.toggle('active', dasaiS === 12);
+      if (btn1) btn1.classList.toggle('active', dasaiS === 20);
+      if (btn2) btn2.classList.toggle('active', dasaiS === 6);
+
+      if (!charSettings) return;
+      const data = new TextEncoder().encode(`DOCK_TIMING:${dasaiS}:${clkS}`);
+      await safeBleWrite(charSettings, data, false);
+      log(`Desk Dock Timings: ${dasaiS}s Face / ${clkS}s Clock`);
+      setTouchBanner(`${dasaiS}s / ${clkS}s CYCLE`, "badge-ok", 1500);
     }
 
     async function setHudLayout(layNum) {

@@ -37,12 +37,13 @@
 // SYSTEM MODES & BOOT SPLASH TYPES
 // =========================================================================
 enum SystemMode {
-    MODE_CYBERPET = 0,   // Interactive Meme Emotion Mascot (Luffy, Shy, Cat, etc.)
-    MODE_ROBOT_EYES = 1, // Animated procedural robot eyes
-    MODE_CYBER_HUD = 2,  // Sci-Fi Clock & Temperature
-    MODE_MATRIX_RAIN = 3,// Matrix Digital Rain
-    MODE_TEXT_SCROLL = 4,// Screen-filling Max-Font Scrolling Message
-    MODE_STREAM_MEDIA = 5// Live Web-BLE Custom Image / Video Stream
+    MODE_CYBERPET = 0,       // Interactive Meme Emotion Mascot (Luffy, Shy, Cat, etc.)
+    MODE_ROBOT_EYES = 1,     // Native Dasai Mochi Robot Face & Eyes Engine
+    MODE_CYBER_HUD = 2,      // Sci-Fi Clock & Temperature
+    MODE_MATRIX_RAIN = 3,    // Matrix Digital Rain
+    MODE_TEXT_SCROLL = 4,    // Screen-filling Max-Font Scrolling Message
+    MODE_STREAM_MEDIA = 5,   // Live Web-BLE Custom Image / Video Stream
+    MODE_DESK_COMPANION = 6  // Smart Desk Companion: Auto Fade-Cycle between Dasai Mochi & Desk Clock
 };
 
 enum BootSplashType {
