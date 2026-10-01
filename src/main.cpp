@@ -447,7 +447,7 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
             isVideoPlaying = false;
             Serial.printf("[SETTINGS] CyberHUD Custom Text: %s\n", msg.c_str());
         }
-        // 11. Robot Mood / Dasai Mochi Style: "ROBOT_MOOD:<0..3>" or "DASAI_STYLE:<0..3>"
+        // 11. Robot Mood / Dasai Mochi Style: "ROBOT_MOOD:<0..4>" or "DASAI_STYLE:<0..4>"
         else if (cmd.startsWith("ROBOT_MOOD:") || cmd.startsWith("DASAI_STYLE:")) {
             int mood = cmd.startsWith("ROBOT_MOOD:") ? cmd.substring(11).toInt() : cmd.substring(12).toInt();
             dasaiMochi.setStyle(mood);
@@ -461,6 +461,34 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
                 pCharSet->notify();
             }
             Serial.printf("[SETTINGS] Dasai Mochi Style: %d\n", dasaiMochi.currentStyle);
+        }
+        // 11a. Dasai Mochi Discrete Emotion: "DASAI_EMO:<0..22>"
+        else if (cmd.startsWith("DASAI_EMO:")) {
+            int emoId = cmd.substring(10).toInt();
+            if (emoId >= 0 && emoId <= 22) {
+                dasaiMochi.setEmotion((DasaiEmotion)emoId);
+                currentMode = MODE_ROBOT_EYES;
+                isVideoPlaying = false;
+                if (pCharSet) {
+                    pCharSet->setValue("DASAI_EMO:" + std::to_string(emoId));
+                    pCharSet->notify();
+                }
+                Serial.printf("[SETTINGS] Dasai Emotion: %d\n", emoId);
+            }
+        }
+        // 11b. Dasai Mochi Cycle Mode: "DASAI_CYCLE:<0..4>"
+        else if (cmd.startsWith("DASAI_CYCLE:")) {
+            int cycId = cmd.substring(12).toInt();
+            if (cycId >= 0 && cycId <= 4) {
+                dasaiMochi.setCycleMode((DasaiCycleMode)cycId);
+                currentMode = MODE_ROBOT_EYES;
+                isVideoPlaying = false;
+                if (pCharSet) {
+                    pCharSet->setValue("DASAI_CYCLE:" + std::to_string(cycId));
+                    pCharSet->notify();
+                }
+                Serial.printf("[SETTINGS] Dasai Cycle Mode: %d\n", cycId);
+            }
         }
         // 11b. Desk Dock Auto On USB: "DOCK_AUTO:<0|1>"
         else if (cmd.startsWith("DOCK_AUTO:")) {
@@ -1246,6 +1274,7 @@ void processTouch() {
     // (User tapped 2-4 times, finger is UP, and 280ms elapsed without further taps)
     // ---------------------------------------------------------
     if (isrTapCount >= 2 && isrTapCount < 5 && !isDown && (now - isrLastTapEndTime > 280)) {
+        int taps = isrTapCount;
         isrTapCount = 0;
         lastActivityTime = now;
         isTemporaryLove = false;
@@ -1267,16 +1296,22 @@ void processTouch() {
             }
             Serial.printf("[TOUCH] Double-Tap! -> Mascot: %d (%s)\n", next, emoNames[next]);
         } else if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
-            int next = dasaiMochi.cycleStyle();
-            robotEyes.setStyle(next);
-            const char* styleNames[] = { "WARM WHITE ⚪", "PASTEL CYAN 🩵", "SAKURA PINK 🌸", "MOCHI GOLD 🟡" };
-            const uint16_t styleCols[] = { 0xFFFF, 0x7FFF, 0xFDF7, 0xFFE0 };
-            triggerTouchVisual(styleNames[next], styleCols[next], 1000, "DASAI:STYLE");
-            if (bleConnected && pCharSet) {
-                pCharSet->setValue("DASAI_STYLE:" + std::to_string(next));
-                pCharSet->notify();
+            if (taps >= 3) {
+                dasaiMochi.triggerTripleTapTurbo();
+                triggerTouchVisual("TURBO RACE 🏁", 0xFFE0, 1200, "DASAI:TURBO");
+                Serial.println("[TOUCH] Triple-Tap! -> Dasai Turbo Race Boost!");
+            } else {
+                int next = dasaiMochi.cycleStyle();
+                robotEyes.setStyle(next);
+                const char* styleNames[] = { "WARM WHITE ⚪", "PASTEL CYAN 🩵", "SAKURA PINK 🌸", "MOCHI GOLD 🟡", "CYBER VIOLET 🟣" };
+                const uint16_t styleCols[] = { 0xFFFF, 0x7FFF, 0xFDF7, 0xFFE0, 0xD69A };
+                triggerTouchVisual(styleNames[next], styleCols[next], 1000, "DASAI:STYLE");
+                if (bleConnected && pCharSet) {
+                    pCharSet->setValue("DASAI_STYLE:" + std::to_string(next));
+                    pCharSet->notify();
+                }
+                Serial.printf("[TOUCH] Double-Tap! -> Dasai Style: %d (%s)\n", next, styleNames[next]);
             }
-            Serial.printf("[TOUCH] Double-Tap! -> Dasai Style: %d (%s)\n", next, styleNames[next]);
         } else if (currentMode == MODE_CYBER_HUD) {
             int next = cyberHUD.cycleLayout();
             const char* hudNames[] = { "FULL CYBER HUD ⚡", "BIG CLOCK & DATE ⏰", "MINIMAL DASH 📟" };

@@ -1059,12 +1059,80 @@
 
           <!-- SUB-PANEL: ROBOT EYES / DASAI MOCHI (MODE 1) -->
           <div id="panelMode1" class="sub-section" style="display:none;">
-            <div class="sub-title">DASAI MOCHI COLOR PALETTE</div>
-            <div class="grid-options">
+            <div class="sub-title">DASAI MOCHI CHOREOGRAPHY LOOPS</div>
+            <div class="grid-options" style="margin-bottom:12px;">
+              <button class="btn-opt active" id="dasaiCycleBtn0" onclick="setDasaiCycle(0)">
+                <span>GRAND SHOWCASE</span>
+                <span class="btn-opt-sub">All 23 Emotions (72s)</span>
+              </button>
+              <button class="btn-opt" id="dasaiCycleBtn1" onclick="setDasaiCycle(1)">
+                <span>JDM RACING ACTION</span>
+                <span class="btn-opt-sub">Turbo, Drift & Glare</span>
+              </button>
+              <button class="btn-opt" id="dasaiCycleBtn2" onclick="setDasaiCycle(2)">
+                <span>KAWAII & AFFECTION</span>
+                <span class="btn-opt-sub">Hearts, Sparkles, Winks</span>
+              </button>
+              <button class="btn-opt" id="dasaiCycleBtn3" onclick="setDasaiCycle(3)">
+                <span>CHILL & SLEEPY</span>
+                <span class="btn-opt-sub">Resting Slits & Zzz</span>
+              </button>
+            </div>
+
+            <div class="sub-title" style="margin-top:6px;">COLOR PALETTES</div>
+            <div class="grid-options" style="margin-bottom:12px;">
               <button class="btn-opt active" id="dasaiStyleBtn0" onclick="setDasaiStyle(0)">WARM WHITE ⚪</button>
               <button class="btn-opt" id="dasaiStyleBtn1" onclick="setDasaiStyle(1)">PASTEL CYAN 🩵</button>
               <button class="btn-opt" id="dasaiStyleBtn2" onclick="setDasaiStyle(2)">SAKURA PINK 🌸</button>
               <button class="btn-opt" id="dasaiStyleBtn3" onclick="setDasaiStyle(3)">MOCHI GOLD 🟡</button>
+              <button class="btn-opt" id="dasaiStyleBtn4" onclick="setDasaiStyle(4)">CYBER VIOLET 🟣</button>
+            </div>
+
+            <div class="sub-title" style="margin-top:6px;">DIRECT EMOTION SOUNDBOARD (23 EXPRESSIONS)</div>
+            
+            <div style="font-size:0.64rem; font-weight:700; color:var(--beige-dim); margin-top:4px; letter-spacing:0.8px;">// GAZE & SACCADES</div>
+            <div class="grid-options" style="margin-bottom:8px;">
+              <button class="btn-opt" id="dasaiEmoBtn0" onclick="setDasaiEmotion(0)">IDLE LOOK 👀</button>
+              <button class="btn-opt" id="dasaiEmoBtn1" onclick="setDasaiEmotion(1)">LOOK LEFT 👈</button>
+              <button class="btn-opt" id="dasaiEmoBtn2" onclick="setDasaiEmotion(2)">LOOK RIGHT 👉</button>
+              <button class="btn-opt" id="dasaiEmoBtn3" onclick="setDasaiEmotion(3)">LOOK UP ☝️</button>
+              <button class="btn-opt" id="dasaiEmoBtn4" onclick="setDasaiEmotion(4)">LOOK DOWN 👇</button>
+            </div>
+
+            <div style="font-size:0.64rem; font-weight:700; color:var(--beige-dim); margin-top:4px; letter-spacing:0.8px;">// KAWAII JOY & AFFECTION</div>
+            <div class="grid-options" style="margin-bottom:8px;">
+              <button class="btn-opt" id="dasaiEmoBtn5" onclick="setDasaiEmotion(5)">HAPPY SQUINT 😸</button>
+              <button class="btn-opt" id="dasaiEmoBtn6" onclick="setDasaiEmotion(6)">WINK LEFT 😉</button>
+              <button class="btn-opt" id="dasaiEmoBtn7" onclick="setDasaiEmotion(7)">WINK RIGHT 😉</button>
+              <button class="btn-opt" id="dasaiEmoBtn8" onclick="setDasaiEmotion(8)">HEART LOVE ❤️</button>
+              <button class="btn-opt" id="dasaiEmoBtn9" onclick="setDasaiEmotion(9)">SPARKLE JOY ✨</button>
+              <button class="btn-opt" id="dasaiEmoBtn10" onclick="setDasaiEmotion(10)">CURIOUS TILT 🧐</button>
+              <button class="btn-opt" id="dasaiEmoBtn12" onclick="setDasaiEmotion(12)">EXCITED BOUNCE 🤩</button>
+              <button class="btn-opt" id="dasaiEmoBtn22" onclick="setDasaiEmotion(22)">SMUG CAT 😏</button>
+            </div>
+
+            <div style="font-size:0.64rem; font-weight:700; color:var(--beige-dim); margin-top:4px; letter-spacing:0.8px;">// JDM RACING & DRIFT ACTION</div>
+            <div class="grid-options" style="margin-bottom:8px;">
+              <button class="btn-opt" id="dasaiEmoBtn15" onclick="setDasaiEmotion(15)">ANGRY GLARE 😠</button>
+              <button class="btn-opt" id="dasaiEmoBtn16" onclick="setDasaiEmotion(16)">TURBO RACE 🏎️</button>
+              <button class="btn-opt" id="dasaiEmoBtn17" onclick="setDasaiEmotion(17)">HIGH-G DRIFT 💨</button>
+              <button class="btn-opt" id="dasaiEmoBtn18" onclick="setDasaiEmotion(18)">DIZZY SPIRAL 🌀</button>
+              <button class="btn-opt" id="dasaiEmoBtn19" onclick="setDasaiEmotion(19)">LIGHTNING BOLTS ⚡</button>
+              <button class="btn-opt" id="dasaiEmoBtn20" onclick="setDasaiEmotion(20)">CYBER VISOR 📟</button>
+            </div>
+
+            <div style="font-size:0.64rem; font-weight:700; color:var(--beige-dim); margin-top:4px; letter-spacing:0.8px;">// REST, SURPRISE & EMOTION</div>
+            <div class="grid-options">
+              <button class="btn-opt" id="dasaiEmoBtn11" onclick="setDasaiEmotion(11)">SURPRISED 😲</button>
+              <button class="btn-opt" id="dasaiEmoBtn13" onclick="setDasaiEmotion(13)">SLEEPY DROOP 🥱</button>
+              <button class="btn-opt" id="dasaiEmoBtn14" onclick="setDasaiEmotion(14)">SLEEPING ZZZ 💤</button>
+              <button class="btn-opt" id="dasaiEmoBtn21" onclick="setDasaiEmotion(21)">SAD TEARDROP 😢</button>
+            </div>
+
+            <div class="sub-title" style="margin-top:10px;">TACTICAL ACTION TRIGGERS</div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="btn-primary" style="flex:1;" onclick="triggerDasaiTurbo()">🏎️ TRIPLE-TAP TURBO</button>
+              <button class="btn-secondary" style="flex:1;" onclick="testUniversalShyReaction()">❤️ 2s HEART LOVE</button>
             </div>
           </div>
 
@@ -2139,6 +2207,12 @@
         const idx = parseInt(parts[1]);
         if (!isNaN(idx)) highlightDasaiStyleUI(idx);
         setTouchBanner("DASAI STYLE UPDATED", "badge-cyan", 1500);
+      } else if (msg.startsWith("DASAI_EMO:")) {
+        const idx = parseInt(msg.substring(10));
+        if (!isNaN(idx)) highlightDasaiEmotionUI(idx);
+      } else if (msg.startsWith("DASAI_CYCLE:")) {
+        const idx = parseInt(msg.substring(12));
+        if (!isNaN(idx)) highlightDasaiCycleUI(idx);
       } else if (msg.startsWith("DOCK_AUTO:")) {
         const enabled = (msg.substring(10) === '1');
         updateDockAutoUI(enabled);
@@ -2335,24 +2409,89 @@
     }
 
     let currentDasaiStyle = 0;
+    let currentDasaiCycle = 0;
+    let currentDasaiEmo   = 0;
+
     async function setDasaiStyle(styleNum) {
       vibrate();
       highlightDasaiStyleUI(styleNum);
       if (!charSettings) return;
       const data = new TextEncoder().encode(`DASAI_STYLE:${styleNum}`);
       await safeBleWrite(charSettings, data, false);
-      log(`Dasai Mochi Style: ${styleNum}`);
+      const styleNames = ["WARM WHITE ⚪", "PASTEL CYAN 🩵", "SAKURA PINK 🌸", "MOCHI GOLD 🟡", "CYBER VIOLET 🟣"];
+      log(`Dasai Mochi Style: ${styleNames[styleNum] || styleNum}`);
       setTouchBanner("STYLE UPDATED", "badge-cyan", 1500);
     }
 
     function highlightDasaiStyleUI(s) {
       currentDasaiStyle = s;
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < 5; i++) {
         const b1 = document.getElementById(`dasaiStyleBtn${i}`);
         const b2 = document.getElementById(`dockStyleBtn${i}`);
         if (b1) b1.className = (i === s) ? "btn-opt active" : "btn-opt";
         if (b2) b2.className = (i === s) ? "btn-opt active" : "btn-opt";
       }
+    }
+
+    async function setDasaiCycle(cycleNum) {
+      vibrate();
+      highlightDasaiCycleUI(cycleNum);
+      if (!charSettings) return;
+      const data = new TextEncoder().encode(`DASAI_CYCLE:${cycleNum}`);
+      await safeBleWrite(charSettings, data, false);
+      const cycleNames = ["GRAND SHOWCASE (ALL 23)", "JDM RACING ACTION", "KAWAII & AFFECTION", "CHILL & SLEEPY", "MANUAL LOCK"];
+      log(`Dasai Cycle: ${cycleNames[cycleNum] || cycleNum}`);
+      setTouchBanner(cycleNames[cycleNum] || "CYCLE UPDATED", "badge-ok", 1500);
+    }
+
+    function highlightDasaiCycleUI(c) {
+      currentDasaiCycle = c;
+      for (let i = 0; i < 4; i++) {
+        const b = document.getElementById(`dasaiCycleBtn${i}`);
+        if (b) b.className = (i === c) ? "btn-opt active" : "btn-opt";
+      }
+      // De-activate all manual soundboard buttons when in auto cycle
+      if (c !== 4) {
+        for (let i = 0; i <= 22; i++) {
+          const b = document.getElementById(`dasaiEmoBtn${i}`);
+          if (b) b.classList.remove('active');
+        }
+      }
+    }
+
+    async function setDasaiEmotion(emoNum) {
+      vibrate();
+      highlightDasaiEmotionUI(emoNum);
+      if (!charSettings) return;
+      const data = new TextEncoder().encode(`DASAI_EMO:${emoNum}`);
+      await safeBleWrite(charSettings, data, false);
+      const emoNames = [
+        "IDLE LOOK", "LOOK LEFT", "LOOK RIGHT", "LOOK UP", "LOOK DOWN",
+        "HAPPY SQUINT", "WINK LEFT", "WINK RIGHT", "HEART LOVE", "SPARKLE JOY",
+        "CURIOUS TILT", "SURPRISED", "EXCITED BOUNCE", "SLEEPY DROOP", "SLEEPING ZZZ",
+        "ANGRY GLARE", "TURBO RACE", "HIGH-G DRIFT", "DIZZY SPIRAL", "SHOCKED LIGHTNING",
+        "CYBER VISOR", "SAD TEARDROP", "SMUG CAT"
+      ];
+      log(`Dasai Emotion: #${emoNum} (${emoNames[emoNum] || emoNum})`);
+      setTouchBanner(emoNames[emoNum] || `DASAI #${emoNum}`, "badge-cyan", 1500);
+    }
+
+    function highlightDasaiEmotionUI(e) {
+      currentDasaiEmo = e;
+      for (let i = 0; i <= 22; i++) {
+        const b = document.getElementById(`dasaiEmoBtn${i}`);
+        if (b) b.className = (i === e) ? "btn-opt active" : "btn-opt";
+      }
+      // Remove active from cycle buttons since we locked manual
+      for (let i = 0; i < 4; i++) {
+        const b = document.getElementById(`dasaiCycleBtn${i}`);
+        if (b) b.classList.remove('active');
+      }
+    }
+
+    async function triggerDasaiTurbo() {
+      vibrate();
+      await setDasaiEmotion(16); // TURBO RACE
     }
 
     function setRobotMood(moodNum) {
