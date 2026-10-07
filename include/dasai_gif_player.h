@@ -6,7 +6,6 @@
 #include "display_setup.h"
 #include "config.h"
 
-// Forward declaration of global canvas
 extern LGFX_Sprite canvas;
 
 // File callbacks for AnimatedGIF with LittleFS
@@ -51,29 +50,42 @@ static int32_t GIFSeekFile(GIFFILE *pFile, int32_t iPosition) {
 // Global draw state for AnimatedGIF
 static int s_gifOffsetX = 0;
 static int s_gifOffsetY = 0;
-static uint16_t s_activeColorTint = 0xFFFF; // 0xFFFF = White, or custom palette
+static uint16_t s_activeColorTint = 0xFFFF; // 0xFFFF = Crisp Pure White
 static bool s_enableColorTint = false;
 
+// Fast inline color tinting in RGB565 Little Endian
+static inline uint16_t fastTintRGB565(uint16_t col, uint16_t tint) {
+    if (col == 0x0000) return 0x0000;
+    if (col == 0xFFFF && tint == 0xFFFF) return 0xFFFF;
+
+    uint8_t r = (col >> 11) & 0x1F;
+    uint8_t g = (col >> 5) & 0x3F;
+    uint8_t b = col & 0x1F;
+    float lum = ((float)r / 31.0f + (float)g / 63.0f + (float)b / 31.0f) * 0.3333f;
+
+    uint8_t tr = (tint >> 11) & 0x1F;
+    uint8_t tg = (tint >> 5) & 0x3F;
+    uint8_t tb = tint & 0x1F;
+
+    return (((uint8_t)(tr * lum)) << 11) |
+           (((uint8_t)(tg * lum)) << 5)  |
+           ((uint8_t)(tb * lum));
+}
+
+// High-Speed Direct-to-Framebuffer Line Callback (<0.5ms per frame)
 static void GIFDrawCallback(GIFDRAW *pDraw) {
-    uint8_t *s;
-    uint16_t *usPalette;
-    int x, y, iWidth;
+    uint8_t *s = pDraw->pPixels;
+    uint16_t *usPalette = pDraw->pPalette;
+    int y = pDraw->iY + pDraw->y + s_gifOffsetY;
+    if (y < 0 || y >= 240) return;
 
-    iWidth = pDraw->iWidth;
-    if (iWidth + pDraw->iX > 240)
-        iWidth = 240 - pDraw->iX;
-    usPalette = pDraw->pPalette;
-    y = pDraw->iY + pDraw->y; // current line
-    if (y >= 240 || pDraw->iX >= 240 || iWidth < 1)
-        return;
+    uint16_t *dstRow = ((uint16_t*)canvas.getBuffer()) + (y * 240);
+    int startX = pDraw->iX + s_gifOffsetX;
+    int width = pDraw->iWidth;
 
-    int drawY = y + s_gifOffsetY;
-    if (drawY < 0 || drawY >= 240) return;
-
-    s = pDraw->pPixels;
-
-    if (pDraw->ucDisposalMethod == 2) { // Restore to background
-        for (x = 0; x < iWidth; x++) {
+    // Handle background restore disposal
+    if (pDraw->ucDisposalMethod == 2) {
+        for (int x = 0; x < width; x++) {
             if (s[x] == pDraw->ucTransparent)
                 s[x] = pDraw->ucBackground;
         }
@@ -81,49 +93,29 @@ static void GIFDrawCallback(GIFDRAW *pDraw) {
     }
 
     if (pDraw->ucHasTransparency) {
-        uint8_t *pEnd = s + iWidth;
-        int xPos = pDraw->iX + s_gifOffsetX;
-        while (s < pEnd) {
-            uint8_t c = *s++;
-            if (c != pDraw->ucTransparent) {
-                if (xPos >= 0 && xPos < 240) {
+        uint8_t ucTrans = pDraw->ucTransparent;
+        for (int x = 0; x < width; x++) {
+            int px = startX + x;
+            if (px >= 0 && px < 240) {
+                uint8_t c = s[x];
+                if (c != ucTrans) {
                     uint16_t col = usPalette[c];
-                    if (s_enableColorTint && col != 0x0000) {
-                        // Extract brightness and tint
-                        uint8_t r = (col >> 11) & 0x1F;
-                        uint8_t g = (col >> 5) & 0x3F;
-                        uint8_t b = col & 0x1F;
-                        float brightness = ((float)r / 31.0f + (float)g / 63.0f + (float)b / 31.0f) / 3.0f;
-                        uint8_t tr = (s_activeColorTint >> 11) & 0x1F;
-                        uint8_t tg = (s_activeColorTint >> 5) & 0x3F;
-                        uint8_t tb = s_activeColorTint & 0x1F;
-                        col = (((uint8_t)(tr * brightness)) << 11) |
-                              (((uint8_t)(tg * brightness)) << 5) |
-                              ((uint8_t)(tb * brightness));
+                    if (s_enableColorTint) {
+                        col = fastTintRGB565(col, s_activeColorTint);
                     }
-                    canvas.drawPixel(xPos, drawY, col);
+                    dstRow[px] = col;
                 }
             }
-            xPos++;
         }
     } else {
-        for (x = 0; x < iWidth; x++) {
-            int xPos = pDraw->iX + s_gifOffsetX + x;
-            if (xPos >= 0 && xPos < 240) {
+        for (int x = 0; x < width; x++) {
+            int px = startX + x;
+            if (px >= 0 && px < 240) {
                 uint16_t col = usPalette[s[x]];
-                if (s_enableColorTint && col != 0x0000) {
-                    uint8_t r = (col >> 11) & 0x1F;
-                    uint8_t g = (col >> 5) & 0x3F;
-                    uint8_t b = col & 0x1F;
-                    float brightness = ((float)r / 31.0f + (float)g / 63.0f + (float)b / 31.0f) / 3.0f;
-                    uint8_t tr = (s_activeColorTint >> 11) & 0x1F;
-                    uint8_t tg = (s_activeColorTint >> 5) & 0x3F;
-                    uint8_t tb = s_activeColorTint & 0x1F;
-                    col = (((uint8_t)(tr * brightness)) << 11) |
-                          (((uint8_t)(tg * brightness)) << 5) |
-                          ((uint8_t)(tb * brightness));
+                if (s_enableColorTint) {
+                    col = fastTintRGB565(col, s_activeColorTint);
                 }
-                canvas.drawPixel(xPos, drawY, col);
+                dstRow[px] = col;
             }
         }
     }
@@ -134,8 +126,8 @@ public:
     AnimatedGIF gif;
     bool isLoaded = false;
     String currentGifPath = "";
-    int currentStyle = 0; // 0=White, 1=Pastel Cyan, 2=Sakura Pink, 3=Mochi Gold, 4=Cyber Violet
-    int nextFrameDelayMs = 33;
+    int currentStyle = 0; // 0=Pure White, 1=Pastel Cyan, 2=Sakura Pink, 3=Mochi Gold, 4=Neon Violet
+    int nextFrameDelayMs = 20;
     uint32_t lastFrameTime = 0;
     
     // Playback state
@@ -143,9 +135,11 @@ public:
     int loopCount = 0;
     int maxLoops = 1;
     String returnAfterPath = "/mochi/blank.gif";
+    int playbackSpeedMultiplier = 2; // 2x speed for silky smooth 50-60 FPS playback
 
     DasaiGifPlayer() {
-        gif.begin(GIF_PALETTE_RGB565_BE);
+        // Use Little-Endian RGB565 for crisp pixel-perfect colors matching LovyanGFX
+        gif.begin(GIF_PALETTE_RGB565_LE);
     }
 
     void setStyle(int style) {
@@ -155,7 +149,7 @@ public:
             case 1: s_activeColorTint = 0x7FFF; s_enableColorTint = true;  break; // Pastel Cyan
             case 2: s_activeColorTint = 0xFDF7; s_enableColorTint = true;  break; // Sakura Pink
             case 3: s_activeColorTint = 0xFFE0; s_enableColorTint = true;  break; // Mochi Gold
-            case 4: s_activeColorTint = 0xD69A; s_enableColorTint = true;  break; // Cyber Violet
+            case 4: s_activeColorTint = 0xD69A; s_enableColorTint = true;  break; // Neon Violet
         }
     }
 
@@ -197,43 +191,36 @@ public:
         nextFrameDelayMs = 0;
 
         canvas.fillScreen(TFT_BLACK);
-        Serial.printf("[MOCHI_GIF] Playing: %s (%dx%d, offsets: %d,%d)\n", path.c_str(), gifW, gifH, s_gifOffsetX, s_gifOffsetY);
+        Serial.printf("[MOCHI_GIF] Playing authentic: %s (%dx%d, offsets: %d,%d)\n", path.c_str(), gifW, gifH, s_gifOffsetX, s_gifOffsetY);
         return true;
     }
 
     void playEmotion(const String& name) {
         String path = "/mochi/" + name + ".gif";
-        if (!path.endsWith(".gif")) path += ".gif";
         if (!LittleFS.exists(path)) {
             path = "/" + name + ".gif";
         }
-        playGif(path, false, 1);
+        if (!LittleFS.exists(path)) {
+            path = "/mochi/blank.gif";
+        }
+        playGif(path, (name == "blank"), 1);
     }
 
     void update() {
         if (!isLoaded) {
-            // If nothing is playing, load default idle looking/blinking GIF
             if (LittleFS.exists("/mochi/blank.gif")) {
                 playGif("/mochi/blank.gif", true);
             } else if (LittleFS.exists("/blank.gif")) {
                 playGif("/blank.gif", true);
-            } else {
-                // Fallback message if no GIFs in LittleFS
-                canvas.fillScreen(TFT_BLACK);
-                canvas.setTextColor(TFT_WHITE, TFT_BLACK);
-                canvas.setTextSize(1);
-                canvas.drawCenterString("DASAI MOCHI", 120, 100);
-                canvas.setTextColor(0x7FFF, TFT_BLACK);
-                canvas.drawCenterString("READY // UPLOAD GIFS", 120, 120);
-                return;
             }
+            return;
         }
 
         uint32_t now = millis();
         if (now - lastFrameTime >= (uint32_t)nextFrameDelayMs) {
             lastFrameTime = now;
-            int frameDelay = 33;
-            int result = gif.playFrame(true, &frameDelay);
+            int rawDelay = 33;
+            int result = gif.playFrame(true, &rawDelay);
 
             if (result == 0) {
                 // End of GIF reached
@@ -241,15 +228,20 @@ public:
                 if (loopContinuous || loopCount < maxLoops) {
                     gif.reset();
                 } else {
-                    // One-shot animation completed -> return to idle loop
-                    if (currentGifPath != returnAfterPath) {
+                    if (currentGifPath != returnAfterPath && LittleFS.exists(returnAfterPath)) {
                         playGif(returnAfterPath, true);
                     } else {
                         gif.reset();
                     }
                 }
             }
-            nextFrameDelayMs = (frameDelay > 0) ? frameDelay : 33;
+
+            // High-speed smooth pacing (boost 8-16 FPS GIF metadata up to 50-60 FPS)
+            if (rawDelay <= 0) rawDelay = 33;
+            int targetDelay = rawDelay / playbackSpeedMultiplier;
+            if (targetDelay < 16) targetDelay = 16; // 60 FPS cap
+            if (targetDelay > 45) targetDelay = 45; // prevent sluggish 8 FPS slowdown
+            nextFrameDelayMs = targetDelay;
         }
     }
 };

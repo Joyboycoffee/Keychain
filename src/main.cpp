@@ -549,30 +549,7 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
                     dasaiMochi.setEmotion((DasaiEmotion)emoId);
                 }
             } else {
-                DasaiEmotion emo = DASAI_IDLE_LOOK;
-                if (emoStr == "blank" || emoStr == "idle") emo = DASAI_IDLE_LOOK;
-                else if (emoStr == "left") emo = DASAI_LOOK_LEFT;
-                else if (emoStr == "right") emo = DASAI_LOOK_RIGHT;
-                else if (emoStr == "serene" || emoStr == "up") emo = DASAI_LOOK_UP;
-                else if (emoStr == "down") emo = DASAI_LOOK_DOWN;
-                else if (emoStr == "happy" || emoStr == "smile" || emoStr == "hello" || emoStr == "laughing" || emoStr == "squint") emo = DASAI_HAPPY_SQUINT;
-                else if (emoStr == "wink") emo = DASAI_WINK_L;
-                else if (emoStr == "love" || emoStr == "adore" || emoStr == "shy") emo = DASAI_HEART_LOVE;
-                else if (emoStr == "sparkle") emo = DASAI_SPARKLE_JOY;
-                else if (emoStr == "playful" || emoStr == "curious") emo = DASAI_CURIOUS_TILT;
-                else if (emoStr == "surprised" || emoStr == "scared" || emoStr == "sneeze") emo = DASAI_SURPRISED;
-                else if (emoStr == "dancing" || emoStr == "bounce") emo = DASAI_EXCITED_BOUNCE;
-                else if (emoStr == "sleepy" || emoStr == "drowsy" || emoStr == "sick") emo = DASAI_SLEEPY_DROOP;
-                else if (emoStr == "sleeping" || emoStr == "yawn" || emoStr == "zzz") emo = DASAI_SLEEPING_ZZZ;
-                else if (emoStr == "angry" || emoStr == "fierce") emo = DASAI_ANGRY_GLARE;
-                else if (emoStr == "fast" || emoStr == "rush" || emoStr == "turbo") emo = DASAI_TURBO_RACE;
-                else if (emoStr == "smoke" || emoStr == "drift" || emoStr == "spraying") emo = DASAI_DRIFT_G_FORCE;
-                else if (emoStr == "dizzy") emo = DASAI_DIZZY_SPIRAL;
-                else if (emoStr == "devil" || emoStr == "shocked" || emoStr == "enraged") emo = DASAI_SHOCKED_LIGHT;
-                else if (emoStr == "handsome" || emoStr == "matrix" || emoStr == "splash") emo = DASAI_MATRIX_VISOR;
-                else if (emoStr == "crying" || emoStr == "sad" || emoStr == "sobbing") emo = DASAI_SAD_TEAR;
-                else if (emoStr == "giggle" || emoStr == "teasing" || emoStr == "smug") emo = DASAI_SMUG_CAT;
-                dasaiMochi.setEmotion(emo);
+                dasaiMochi.playEmotionName(emoStr);
             }
             currentMode = MODE_ROBOT_EYES;
             isVideoPlaying = false;
@@ -580,7 +557,7 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
                 pCharSet->setValue("DASAI_EMO:" + std::string(emoStr.c_str()));
                 pCharSet->notify();
             }
-            Serial.printf("[SETTINGS] Dasai Emotion: %s (Native Enum %d)\n", emoStr.c_str(), (int)dasaiMochi.currentEmotion);
+            Serial.printf("[SETTINGS] Dasai Emotion: %s\n", emoStr.c_str());
         }
         // 11b. Dasai Mochi Cycle Mode: "DASAI_CYCLE:<0..4>"
         else if (cmd.startsWith("DASAI_CYCLE:")) {
@@ -2460,7 +2437,7 @@ void loop() {
     canvas.pushSprite(0, 0);
 
     if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
-        delay(12); // Silky smooth 60 FPS vector animation loop
+        delay(2); // Non-blocking yield: dasaiMochi.gifPlayer manages exact high-speed frame pacing!
     } else if (currentMode == MODE_STREAM_MEDIA && isVideoPlaying) {
         delay(5);
     } else {
