@@ -13,7 +13,7 @@ public:
             auto cfg = _bus_instance.config();
             cfg.spi_host = SPI2_HOST;
             cfg.spi_mode = 3;           // Mode 3 is REQUIRED for ST7789 displays without CS pin!
-            cfg.freq_write = 20000000;  // 20MHz safe write frequency
+            cfg.freq_write = 40000000;  // 40MHz high-speed write frequency (60 FPS DMA)
             cfg.freq_read  = 16000000;
             cfg.spi_3wire = false;      // DC pin is used
             cfg.use_lock = true;
