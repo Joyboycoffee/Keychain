@@ -1442,6 +1442,53 @@
             </div>
           </div>
 
+          <div class="sub-section" style="margin-top:16px; border-top:1px solid rgba(255,255,255,0.08); padding-top:14px;">
+            <div class="sub-title" style="display:flex; justify-content:space-between; align-items:center;">
+              <span>⚡ HARDWARE VOLTAGE CALIBRATION</span>
+              <span class="badge badge-cyan" id="batCalibStatus">NVS SYNCED</span>
+            </div>
+            <div style="font-size:0.70rem; color:var(--beige-muted); margin-bottom:10px; line-height:1.4;">
+              Measure your LiPo battery with a multimeter, enter the exact voltage reading below, and calibrate. The ESP will instantly compute the hardware voltage divider multiplier and permanently save it to Flash memory (NVS).
+            </div>
+            
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:8px; margin-bottom:12px;">
+              <div class="metric-tile" style="padding:8px 10px;">
+                <span class="metric-tile-label">CALIBRATED VOLTAGE</span>
+                <span class="metric-tile-val" id="calibLiveVolt" style="color:var(--accent-warm); font-size:1.10rem;">-- V</span>
+                <span class="metric-tile-sub" id="calibLivePct">--%</span>
+              </div>
+              <div class="metric-tile" style="padding:8px 10px;">
+                <span class="metric-tile-label">RAW ADC READING</span>
+                <span class="metric-tile-val" id="calibRawMv" style="font-size:1.10rem;">-- mV</span>
+                <span class="metric-tile-sub">GPIO 0 (Center Tap)</span>
+              </div>
+              <div class="metric-tile" style="padding:8px 10px;">
+                <span class="metric-tile-label">CALIB MULTIPLIER</span>
+                <span class="metric-tile-val" id="calibMultiplier" style="font-size:1.10rem;">2.1600</span>
+                <span class="metric-tile-sub">ESP32 Flash NVS</span>
+              </div>
+            </div>
+
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:8px;">
+              <div style="position:relative; flex:1; min-width:140px;">
+                <input type="number" step="0.01" min="2.5" max="5.0" id="inpMultimeterVolt" class="txt-input" placeholder="e.g. 4.12" style="width:100%; padding-right:28px;">
+                <span style="position:absolute; right:10px; top:50%; transform:translateY(-50%); font-size:0.75rem; color:var(--beige-muted); font-weight:700;">V</span>
+              </div>
+              <button class="btn-primary" style="white-space:nowrap; padding:8px 14px; font-size:0.75rem;" onclick="calibrateBatteryFromMultimeter()">
+                <svg viewBox="0 0 24 24" style="width:14px; height:14px; vertical-align:middle; margin-right:4px;"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                CALIBRATE & SAVE
+              </button>
+            </div>
+
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              <button class="btn-opt" style="padding:4px 8px; font-size:0.65rem;" onclick="nudgeBatteryVolt(-0.02)">-0.02V</button>
+              <button class="btn-opt" style="padding:4px 8px; font-size:0.65rem;" onclick="nudgeBatteryVolt(-0.01)">-0.01V</button>
+              <button class="btn-opt" style="padding:4px 8px; font-size:0.65rem;" onclick="nudgeBatteryVolt(+0.01)">+0.01V</button>
+              <button class="btn-opt" style="padding:4px 8px; font-size:0.65rem;" onclick="nudgeBatteryVolt(+0.02)">+0.02V</button>
+              <button class="btn-opt" style="padding:4px 8px; font-size:0.65rem; margin-left:auto;" onclick="resetBatteryCalibration()">RESET (2.16)</button>
+            </div>
+          </div>
+
           <div class="sub-section">
             <div class="sub-title">PERSISTENT MEMORY SYNC</div>
             <div style="font-size:0.70rem; color:var(--beige-muted); line-height:1.4;">
@@ -1844,7 +1891,11 @@
       return `${s}s`;
     }
 
-    function updateBatteryHUD(voltage, pct, isUsb) {
+    let latestRawMv = 0;
+    let latestBatMultiplier = 2.16;
+    let latestBatVolt = 0;
+
+    function updateBatteryHUD(voltage, pct, isUsb, rawMv, multiplier) {
       const vElem = document.getElementById('hud-bat-voltage');
       const statElem = document.getElementById('hud-bat-status');
       const pctElem = document.getElementById('hud-bat-pct');
@@ -1852,6 +1903,9 @@
 
       const numPct = parseInt(pct) || 0;
       const numV = parseFloat(voltage) || 0;
+      latestBatVolt = numV;
+      if (rawMv !== undefined && !isNaN(parseFloat(rawMv))) latestRawMv = parseFloat(rawMv);
+      if (multiplier !== undefined && !isNaN(parseFloat(multiplier))) latestBatMultiplier = parseFloat(multiplier);
 
       if (vElem) vElem.innerText = isUsb ? `5.00 V` : `${numV.toFixed(2)} V`;
       if (pctElem) pctElem.innerText = isUsb ? `USB PWR` : `${numPct}%`;
@@ -1887,7 +1941,17 @@
       }
 
       const cv = document.getElementById('logCurVolt');
-      if (cv) cv.innerText = isUsb ? `5.0V (USB Powered)` : `${numV.toFixed(2)}V (${numPct}%)`;
+      if (cv) cv.innerText = isUsb ? `5.0V (USB Powered)` : `${numV.toFixed(3)}V (${numPct}%)`;
+
+      // Update Calibration UI Card
+      const clv = document.getElementById('calibLiveVolt');
+      if (clv) clv.innerText = isUsb ? `5.000 V` : `${numV.toFixed(3)} V`;
+      const clp = document.getElementById('calibLivePct');
+      if (clp) clp.innerText = isUsb ? `USB Power (Charging)` : `${numPct}% Capacity`;
+      const crm = document.getElementById('calibRawMv');
+      if (crm) crm.innerText = `${latestRawMv.toFixed(1)} mV`;
+      const cm = document.getElementById('calibMultiplier');
+      if (cm) cm.innerText = latestBatMultiplier.toFixed(4);
     }
 
     function resetBatteryHUDToOffline() {
@@ -1911,6 +1975,65 @@
 
       const cv = document.getElementById('logCurVolt');
       if (cv) cv.innerText = `--`;
+      const clv = document.getElementById('calibLiveVolt');
+      if (clv) clv.innerText = `-- V`;
+      const clp = document.getElementById('calibLivePct');
+      if (clp) clp.innerText = `--%`;
+      const crm = document.getElementById('calibRawMv');
+      if (crm) crm.innerText = `-- mV`;
+    }
+
+    async function calibrateBatteryFromMultimeter() {
+      const inp = document.getElementById('inpMultimeterVolt');
+      if (!inp) return;
+      const val = parseFloat(inp.value);
+      if (isNaN(val) || val < 2.5 || val > 5.5) {
+        alert("Please enter a valid battery voltage measured with your multimeter (between 2.50 V and 5.50 V, e.g. 4.12)");
+        return;
+      }
+      if (!charSettings) {
+        alert("Please pair your keychain over Bluetooth first.");
+        return;
+      }
+      vibrate();
+      const cmd = `BAT:CALIB:${val.toFixed(3)}`;
+      await safeBleWrite(charSettings, new TextEncoder().encode(cmd), false);
+      log(`Sent Battery Calibration target: ${val.toFixed(3)}V`);
+      const st = document.getElementById('batCalibStatus');
+      if (st) {
+        st.innerText = "CALIBRATING...";
+        st.className = "badge badge-warn";
+      }
+    }
+
+    async function nudgeBatteryVolt(delta) {
+      if (latestBatVolt <= 0) {
+        alert("Please connect to keychain first to read live battery voltage.");
+        return;
+      }
+      const target = parseFloat((latestBatVolt + delta).toFixed(3));
+      if (target < 2.5 || target > 5.5) return;
+      const inp = document.getElementById('inpMultimeterVolt');
+      if (inp) inp.value = target.toFixed(2);
+      if (!charSettings) {
+        alert("Please pair your keychain over Bluetooth first.");
+        return;
+      }
+      vibrate();
+      const cmd = `BAT:CALIB:${target.toFixed(3)}`;
+      await safeBleWrite(charSettings, new TextEncoder().encode(cmd), false);
+      log(`Nudged Battery Calibration: ${target.toFixed(3)}V (${delta > 0 ? '+' : ''}${delta}V)`);
+    }
+
+    async function resetBatteryCalibration() {
+      if (!confirm("Reset battery calibration multiplier back to factory default (2.1600)?")) return;
+      if (!charSettings) {
+        alert("Please pair your keychain over Bluetooth first.");
+        return;
+      }
+      vibrate();
+      await safeBleWrite(charSettings, new TextEncoder().encode("BAT:RESET_CALIB"), false);
+      log("Battery calibration reset to factory default (2.1600).");
     }
 
     // -------------------------------------------------------------
@@ -1984,7 +2107,9 @@
               const v = parts[0];
               const pct = parts[1];
               const usb = parts[2] === '1';
-              updateBatteryHUD(v, pct, usb);
+              const rawMv = parts.length >= 4 ? parseFloat(parts[3]) : undefined;
+              const mult = parts.length >= 5 ? parseFloat(parts[4]) : undefined;
+              updateBatteryHUD(v, pct, usb, rawMv, mult);
             }
           });
         }
@@ -2212,8 +2337,46 @@
             if (btn1) btn1.classList.toggle('active', dasaiS === 20);
             if (btn2) btn2.classList.toggle('active', dasaiS === 6);
           }
+          // Parse Battery Calibration Multiplier if present (18th field)
+          if (p.length >= 19) {
+            const batMult = parseFloat(p[18]);
+            if (!isNaN(batMult)) {
+              latestBatMultiplier = batMult;
+              const cm = document.getElementById('calibMultiplier');
+              if (cm) cm.innerText = batMult.toFixed(4);
+            }
+          }
 
           log(`Synchronized settings: Brightness ${Math.round((br / 255) * 100)}%, Sleep ${sleepLabels[sleepIdx]}`);
+        }
+      } else if (msg.startsWith("BAT_CALIB_OK|")) {
+        const p = msg.split('|');
+        const v = parseFloat(p[1]);
+        const mult = parseFloat(p[2]);
+        const raw = (p.length >= 4) ? parseFloat(p[3]) : latestRawMv;
+        latestBatMultiplier = mult;
+        const st = document.getElementById('batCalibStatus');
+        if (st) {
+          st.innerText = `SAVED (${mult.toFixed(4)})`;
+          st.className = "badge badge-ok";
+        }
+        const cm = document.getElementById('calibMultiplier');
+        if (cm) cm.innerText = mult.toFixed(4);
+        const crm = document.getElementById('calibRawMv');
+        if (crm && !isNaN(raw)) crm.innerText = `${raw.toFixed(1)} mV`;
+        setTouchBanner(`BATTERY CALIBRATED: ${v.toFixed(2)}V`, "badge-ok", 2500);
+        log(`Battery Calibrated & Saved in Flash: ${v.toFixed(3)}V (Multiplier: ${mult.toFixed(4)})`);
+      } else if (msg.startsWith("BAT_CALIB_INFO|")) {
+        const p = msg.split('|');
+        if (p.length >= 6) {
+          const v = parseFloat(p[1]);
+          const raw = parseFloat(p[2]);
+          const mult = parseFloat(p[3]);
+          const pct = parseInt(p[4]);
+          const usb = p[5] === '1';
+          latestRawMv = raw;
+          latestBatMultiplier = mult;
+          updateBatteryHUD(v, pct, usb, raw, mult);
         }
       } else if (msg === "TOUCH:POKE") {
         setTouchBanner("POKE TRIGGERED", "badge-cyan", 1500);

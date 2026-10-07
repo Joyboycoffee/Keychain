@@ -65,6 +65,8 @@ bool               preUsbModeSaved      = false;
 
 // Battery Telemetry & Discharge Run Logger
 float    currentBatVoltage   = 4.20f;
+float    currentBatRawMv     = 0.0f;
+float    batCalibMultiplier  = 2.16f;
 int      currentBatPercent   = 100;
 bool     isUsbPower          = true;
 uint32_t sessionStartTimeMs  = 0;
@@ -396,6 +398,82 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
             }
             Serial.println("[BATTERY] Battery log reset.");
         }
+        // 8b. Precision Battery Calibration: "BAT:CALIB:4.12" or "BAT:CALIB:4120"
+        else if (cmd.startsWith("BAT:CALIB:")) {
+            float targetV = cmd.substring(10).toFloat();
+            if (targetV > 50.0f) {
+                targetV = targetV / 1000.0f; // in case passed in millivolts like 4120
+            }
+            if (targetV >= 2.5f && targetV <= 5.5f) {
+                // 64-sample high precision ADC average
+                uint32_t rawSum = 0;
+                for (int i = 0; i < 64; i++) {
+                    rawSum += analogReadMilliVolts(PIN_BAT_ADC);
+                    delayMicroseconds(50);
+                }
+                float rawMv = (float)rawSum / 64.0f;
+                if (rawMv > 50.0f) {
+                    float newMult = (targetV * 1000.0f) / rawMv;
+                    if (newMult >= 1.0f && newMult <= 6.0f) {
+                        batCalibMultiplier = newMult;
+                        prefs.putFloat("bat_cal", batCalibMultiplier);
+                        updateBatteryTelemetry();
+                        char calMsg[64];
+                        snprintf(calMsg, sizeof(calMsg), "BAT_CALIB_OK|%.3f|%.4f|%.1f", currentBatVoltage, batCalibMultiplier, rawMv);
+                        if (pCharSet) {
+                            pCharSet->setValue(std::string(calMsg));
+                            pCharSet->notify();
+                        }
+                        Serial.printf("[BATTERY] Calibrated with Target: %.3f V -> Multiplier: %.4f (Raw: %.1f mV)\n", targetV, batCalibMultiplier, rawMv);
+                    }
+                }
+            }
+        }
+        // 8c. Direct Battery Calibration Multiplier: "BAT:SET_MULT:2.16"
+        else if (cmd.startsWith("BAT:SET_MULT:")) {
+            float newMult = cmd.substring(13).toFloat();
+            if (newMult >= 1.0f && newMult <= 6.0f) {
+                batCalibMultiplier = newMult;
+                prefs.putFloat("bat_cal", batCalibMultiplier);
+                updateBatteryTelemetry();
+                char calMsg[64];
+                snprintf(calMsg, sizeof(calMsg), "BAT_CALIB_OK|%.3f|%.4f|%.1f", currentBatVoltage, batCalibMultiplier, currentBatRawMv);
+                if (pCharSet) {
+                    pCharSet->setValue(std::string(calMsg));
+                    pCharSet->notify();
+                }
+                Serial.printf("[BATTERY] Multiplier set manually to %.4f\n", batCalibMultiplier);
+            }
+        }
+        // 8d. Reset Battery Calibration to Default: "BAT:RESET_CALIB"
+        else if (cmd == "BAT:RESET_CALIB") {
+            batCalibMultiplier = 2.16f;
+            prefs.putFloat("bat_cal", batCalibMultiplier);
+            updateBatteryTelemetry();
+            char calMsg[64];
+            snprintf(calMsg, sizeof(calMsg), "BAT_CALIB_OK|%.3f|%.4f|%.1f", currentBatVoltage, batCalibMultiplier, currentBatRawMv);
+            if (pCharSet) {
+                pCharSet->setValue(std::string(calMsg));
+                pCharSet->notify();
+            }
+            Serial.println("[BATTERY] Calibration reset to default 2.16");
+        }
+        // 8e. Query Battery Calibration State: "BAT:GET_CALIB"
+        else if (cmd == "BAT:GET_CALIB") {
+            uint32_t rawSum = 0;
+            for (int i = 0; i < 32; i++) {
+                rawSum += analogReadMilliVolts(PIN_BAT_ADC);
+                delayMicroseconds(50);
+            }
+            float rawMv = (float)rawSum / 32.0f;
+            char calMsg[64];
+            snprintf(calMsg, sizeof(calMsg), "BAT_CALIB_INFO|%.3f|%.1f|%.4f|%d|%d",
+                     currentBatVoltage, rawMv, batCalibMultiplier, currentBatPercent, isUsbPower ? 1 : 0);
+            if (pCharSet) {
+                pCharSet->setValue(std::string(calMsg));
+                pCharSet->notify();
+            }
+        }
         // 9. CyberHUD Config: "HUD_CFG:<layout>:<sec>:<bat>:<date>:<wave>:<text>"
         else if (cmd.startsWith("HUD_CFG:")) {
             String cfg = cmd.substring(8);
@@ -685,7 +763,7 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
         else if (cmd == "CFG:GET" || cmd == "GET_CONFIG") {
             char cfgMsg[256];
             uint32_t sleepSec = sleepTimeoutMs / 1000;
-            snprintf(cfgMsg, sizeof(cfgMsg), "CFG_DASH|%d|%d|%d|%d|%d|%d|%d|%u|%d|%d|%d|%d|%d|%u|%d|%d|%d",
+            snprintf(cfgMsg, sizeof(cfgMsg), "CFG_DASH|%d|%d|%d|%d|%d|%d|%d|%u|%d|%d|%d|%d|%d|%u|%d|%d|%d|%.4f",
                      (int)currentMode,
                      (int)memePet.currentEmotion,
                      (int)cyberHUD.currentLayout,
@@ -702,7 +780,8 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
                      (unsigned int)easterEggCount,
                      cyberHUD.is12HourFormat ? 12 : 24,
                      autoDeskDockOnUsb ? 1 : 0,
-                     (int)(deskDasaiDurationMs / 1000));
+                     (int)(deskDasaiDurationMs / 1000),
+                     batCalibMultiplier);
             if (pCharSet) {
                 pCharSet->setValue(std::string(cfgMsg));
                 pCharSet->notify();
@@ -1008,18 +1087,19 @@ void saveBatteryDischargeLog() {
 }
 
 void updateBatteryTelemetry() {
-    // 16-sample oversampled average to eliminate noise and spikes
+    // 32-sample oversampled average to eliminate noise and spikes
     uint32_t rawSum = 0;
-    for (int i = 0; i < 16; i++) {
+    for (int i = 0; i < 32; i++) {
         rawSum += analogReadMilliVolts(PIN_BAT_ADC);
         delayMicroseconds(50);
     }
-    float rawMv = (float)rawSum / 16.0f;
+    float rawMv = (float)rawSum / 32.0f;
+    currentBatRawMv = rawMv;
     
-    // Calibrated divider multiplier: 2.16f accounts for 100k+100k resistor loading & ADC attenuation
-    float vbat = (rawMv * 2.16f) / 1000.0f;
+    // Calibrated divider multiplier loaded from NVS
+    float vbat = (rawMv * batCalibMultiplier) / 1000.0f;
     
-    if (vbat < 2.5f) {
+    if (rawMv < 80.0f || vbat < 2.2f) {
         currentBatVoltage = 5.0f;
         currentBatPercent = 100;
         isUsbPower = true;
@@ -1028,10 +1108,10 @@ void updateBatteryTelemetry() {
         isUsbPower = false;
         
         // Realistic multi-point LiPo discharge curve
-        if (vbat >= 4.15f) currentBatPercent = 100;
-        else if (vbat >= 4.00f) currentBatPercent = 85 + (int)((vbat - 4.00f) / 0.15f * 15.0f);
-        else if (vbat >= 3.85f) currentBatPercent = 65 + (int)((vbat - 3.85f) / 0.15f * 20.0f);
-        else if (vbat >= 3.75f) currentBatPercent = 45 + (int)((vbat - 3.75f) / 0.10f * 20.0f);
+        if (vbat >= 4.18f) currentBatPercent = 100;
+        else if (vbat >= 4.05f) currentBatPercent = 88 + (int)((vbat - 4.05f) / 0.13f * 12.0f);
+        else if (vbat >= 3.88f) currentBatPercent = 68 + (int)((vbat - 3.88f) / 0.17f * 20.0f);
+        else if (vbat >= 3.75f) currentBatPercent = 45 + (int)((vbat - 3.75f) / 0.13f * 23.0f);
         else if (vbat >= 3.60f) currentBatPercent = 20 + (int)((vbat - 3.60f) / 0.15f * 25.0f);
         else if (vbat >= 3.40f) currentBatPercent = 5 + (int)((vbat - 3.40f) / 0.20f * 15.0f);
         else currentBatPercent = (int)((vbat - 3.00f) / 0.40f * 5.0f);
@@ -1043,8 +1123,9 @@ void updateBatteryTelemetry() {
     cyberHUD.setBattery(currentBatVoltage, currentBatPercent, isUsbPower);
 
     if (bleConnected && pCharBattery) {
-        char bMsg[32];
-        snprintf(bMsg, sizeof(bMsg), "%.2f|%d|%d", currentBatVoltage, currentBatPercent, isUsbPower ? 1 : 0);
+        char bMsg[48];
+        snprintf(bMsg, sizeof(bMsg), "%.3f|%d|%d|%.1f|%.4f",
+                 currentBatVoltage, currentBatPercent, isUsbPower ? 1 : 0, rawMv, batCalibMultiplier);
         pCharBattery->setValue(std::string(bMsg));
         pCharBattery->notify();
     }
@@ -1882,7 +1963,11 @@ void setup() {
     Serial.printf("[SETTINGS] Restored: Brightness=%d, Sleep=%u ms, Rotation=%d, Mode=%d, DockAuto=%d\n",
                   screenBrightness, (unsigned int)sleepTimeoutMs, screenRotation, (int)currentMode, autoDeskDockOnUsb ? 1 : 0);
 
-    // Battery Discharge Logger State from NVS
+    // Battery Discharge Logger & ADC Calibration State from NVS
+    batCalibMultiplier = prefs.getFloat("bat_cal", 2.16f);
+    if (batCalibMultiplier < 1.0f || batCalibMultiplier > 6.0f) {
+        batCalibMultiplier = 2.16f;
+    }
     lastSavedRunSec  = prefs.getUInt("l_run", 0);
     lastSavedStartMv = prefs.getUShort("l_start", 4200);
     lastSavedEndMv   = prefs.getUShort("l_end", 4200);
