@@ -462,19 +462,25 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
             }
             Serial.printf("[SETTINGS] Dasai Mochi Style: %d\n", dasaiMochi.currentStyle);
         }
-        // 11a. Dasai Mochi Discrete Emotion: "DASAI_EMO:<0..22>"
+        // 11a. Dasai Mochi Discrete Emotion: "DASAI_EMO:<0..22|gif_name>"
         else if (cmd.startsWith("DASAI_EMO:")) {
-            int emoId = cmd.substring(10).toInt();
-            if (emoId >= 0 && emoId <= 22) {
-                dasaiMochi.setEmotion((DasaiEmotion)emoId);
-                currentMode = MODE_ROBOT_EYES;
-                isVideoPlaying = false;
-                if (pCharSet) {
-                    pCharSet->setValue("DASAI_EMO:" + std::to_string(emoId));
-                    pCharSet->notify();
+            String emoStr = cmd.substring(10);
+            if (isDigit(emoStr[0]) && emoStr.indexOf('.') == -1) {
+                int emoId = emoStr.toInt();
+                if (emoId >= 0 && emoId <= 22) {
+                    dasaiMochi.setEmotion((DasaiEmotion)emoId);
                 }
-                Serial.printf("[SETTINGS] Dasai Emotion: %d\n", emoId);
+            } else {
+                dasaiMochi.gifPlayer.playEmotion(emoStr);
+                dasaiMochi.cycleMode = CYCLE_MANUAL_LOCK;
             }
+            currentMode = MODE_ROBOT_EYES;
+            isVideoPlaying = false;
+            if (pCharSet) {
+                pCharSet->setValue("DASAI_EMO:" + std::string(emoStr.c_str()));
+                pCharSet->notify();
+            }
+            Serial.printf("[SETTINGS] Dasai Emotion: %s\n", emoStr.c_str());
         }
         // 11b. Dasai Mochi Cycle Mode: "DASAI_CYCLE:<0..4>"
         else if (cmd.startsWith("DASAI_CYCLE:")) {
@@ -2346,7 +2352,12 @@ void loop() {
     // Push Double Buffer to Physical ST7789 Screen
     canvas.pushSprite(0, 0);
 
-    if (currentMode == MODE_STREAM_MEDIA && isVideoPlaying) {
+    if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
+        int d = dasaiMochi.gifPlayer.nextFrameDelayMs;
+        if (d < 15) d = 15;
+        if (d > 80) d = 80;
+        delay(d);
+    } else if (currentMode == MODE_STREAM_MEDIA && isVideoPlaying) {
         delay(5);
     } else {
         delay(25);
