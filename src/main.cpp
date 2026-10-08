@@ -338,9 +338,39 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
             prefs.putBool("hud_wave", cyberHUD.showWaveform);
             prefs.putBool("hud_text", cyberHUD.showCustomText);
             prefs.putString("hud_msg", cyberHUD.customMessage);
-            prefs.putUChar("robot_mood", (uint8_t)robotEyes.currentStyle);
+            prefs.putUChar("dasai_style", (uint8_t)dasaiMochi.currentStyle);
+            prefs.putUChar("robot_mood", (uint8_t)dasaiMochi.currentStyle);
+            prefs.putUChar("dasai_cyc", (uint8_t)dasaiMochi.cycleMode);
+            prefs.putUChar("dasai_emo", (uint8_t)dasaiMochi.currentEmotion);
+            prefs.putString("dasai_path", dasaiMochi.gifPlayer.currentGifPath);
+            prefs.putBool("dasai_loop", dasaiMochi.gifPlayer.loopContinuous);
             prefs.putUChar("matrix_thm", (uint8_t)matrixRain.currentTheme);
-            Serial.printf("[SETTINGS] Default Boot screen saved: Mode=%d, Emo=%d\n", (int)defaultMode, (int)memePet.defaultEmotion);
+            if (pCharSet) {
+                pCharSet->setValue(std::string("SAVED:OK"));
+                pCharSet->notify();
+            }
+            triggerTouchVisual("SAVED DEFAULTS 💾", 0x07E0, 1500, "SAVED:OK");
+            Serial.printf("[SETTINGS] Default Boot screen saved: Mode=%d, DasaiStyle=%d, DasaiPath=%s\n",
+                          (int)defaultMode, dasaiMochi.currentStyle, dasaiMochi.gifPlayer.currentGifPath.c_str());
+        }
+        // 3b. Dedicated Dasai Mochi Save: "DASAI:SAVE" or "DASAI_DEF:SAVE"
+        else if (cmd == "DASAI:SAVE" || cmd == "DASAI_DEF:SAVE") {
+            defaultMode = MODE_ROBOT_EYES;
+            currentMode = MODE_ROBOT_EYES;
+            prefs.putUChar("def_mode", (uint8_t)MODE_ROBOT_EYES);
+            prefs.putUChar("dasai_style", (uint8_t)dasaiMochi.currentStyle);
+            prefs.putUChar("robot_mood", (uint8_t)dasaiMochi.currentStyle);
+            prefs.putUChar("dasai_cyc", (uint8_t)dasaiMochi.cycleMode);
+            prefs.putUChar("dasai_emo", (uint8_t)dasaiMochi.currentEmotion);
+            prefs.putString("dasai_path", dasaiMochi.gifPlayer.currentGifPath);
+            prefs.putBool("dasai_loop", dasaiMochi.gifPlayer.loopContinuous);
+            if (pCharSet) {
+                pCharSet->setValue("SAVED:DASAI:" + std::to_string(dasaiMochi.currentStyle) + ":" + std::string(dasaiMochi.gifPlayer.currentGifPath.c_str()));
+                pCharSet->notify();
+            }
+            triggerTouchVisual("SAVED ANIMATION 💾", 0x07E0, 2000, "SAVED:DASAI");
+            Serial.printf("[SETTINGS] Dasai Animation Flashed as Default: Style=%d, Path=%s\n",
+                          dasaiMochi.currentStyle, dasaiMochi.gifPlayer.currentGifPath.c_str());
         }
         // 4. Boot Splash Type: "BOOT_TYPE:0" .. "BOOT_TYPE:3"
         else if (cmd.startsWith("BOOT_TYPE:")) {
@@ -738,6 +768,10 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
             prefs.putString("egg_msg", easterEggMessage);
             prefs.putUChar("dasai_style", (uint8_t)dasaiMochi.currentStyle);
             prefs.putUChar("robot_mood", (uint8_t)dasaiMochi.currentStyle);
+            prefs.putUChar("dasai_cyc", (uint8_t)dasaiMochi.cycleMode);
+            prefs.putUChar("dasai_emo", (uint8_t)dasaiMochi.currentEmotion);
+            prefs.putString("dasai_path", dasaiMochi.gifPlayer.currentGifPath);
+            prefs.putBool("dasai_loop", dasaiMochi.gifPlayer.loopContinuous);
             prefs.putBool("dock_auto", autoDeskDockOnUsb);
             prefs.putUInt("dock_dasai_ms", deskDasaiDurationMs);
             prefs.putUInt("dock_clk_ms", deskClockDurationMs);
@@ -1680,7 +1714,7 @@ void playBootSplash() {
         Serial.println("[BOOT] Instant boot requested -> Fading in active mode directly.");
         switch (currentMode) {
             case MODE_CYBERPET:    memePet.update(); break;
-            case MODE_ROBOT_EYES:  robotEyes.update(); break;
+            case MODE_ROBOT_EYES:  dasaiMochi.update(); break;
             case MODE_CYBER_HUD:   cyberHUD.update(); break;
             case MODE_MATRIX_RAIN: matrixRain.update(); break;
             default: break;
@@ -1939,6 +1973,15 @@ void setup() {
     matrixRain.setShyText(shyMsg);
     dasaiMochi.setStyle(prefs.getUChar("dasai_style", 0));
     robotEyes.setStyle(dasaiMochi.currentStyle);
+    dasaiMochi.cycleMode = (DasaiCycleMode)prefs.getUChar("dasai_cyc", (uint8_t)CYCLE_AUTO_ALL);
+    dasaiMochi.currentEmotion = (DasaiEmotion)prefs.getUChar("dasai_emo", (uint8_t)DASAI_IDLE_LOOK);
+    String savedGif = prefs.getString("dasai_path", "/mochi/blank.gif");
+    bool savedLoop = prefs.getBool("dasai_loop", true);
+    if (savedGif.length() > 0 && LittleFS.exists(savedGif)) {
+        dasaiMochi.gifPlayer.playGif(savedGif, savedLoop, 1);
+    } else {
+        dasaiMochi.loadCurrentEmotionGif(true);
+    }
     autoDeskDockOnUsb = prefs.getBool("dock_auto", true);
     deskDasaiDurationMs = prefs.getUInt("dock_dasai_ms", 12000);
     deskClockDurationMs = prefs.getUInt("dock_clk_ms", 7000);

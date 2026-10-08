@@ -1059,6 +1059,24 @@
 
           <!-- SUB-PANEL: ROBOT EYES / DASAI MOCHI (MODE 1) -->
           <div id="panelMode1" class="sub-section" style="display:none;">
+
+            <!-- SAVE AS DEFAULT BOOT ANIMATION CARD -->
+            <div class="save-default-banner" style="background:linear-gradient(135deg, rgba(255,107,0,0.18), rgba(0,240,255,0.12)); border:1px solid rgba(255,107,0,0.40); border-radius:8px; padding:12px 14px; margin-bottom:14px; display:flex; flex-direction:column; gap:8px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                <div style="font-size:0.75rem; font-weight:800; color:var(--accent-warm); letter-spacing:0.8px; display:flex; align-items:center; gap:6px;">
+                  <svg viewBox="0 0 24 24" style="width:16px; height:16px; fill:currentColor;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                  DEFAULT BOOT ANIMATION & COLOR
+                </div>
+                <span class="badge badge-ok" id="dasaiSaveBadge">SAVED IN FLASH</span>
+              </div>
+              <div style="font-size:0.70rem; color:var(--beige-muted); line-height:1.4;">
+                Active: <strong id="dasaiActiveSummary" style="color:var(--text-light);">Natural Idle (Warm White ⚪)</strong>. Click Save below to store your selected animation and palette permanently in ESP32 Flash memory so it runs automatically when woken from Deep Sleep!
+              </div>
+              <button class="btn-primary" style="width:100%; padding:10px 16px; font-weight:800; font-size:0.75rem; background:linear-gradient(135deg, #ff6b00, #ff8c00); border-color:#ff6b00;" onclick="saveCurrentDasaiAsDefault()">
+                💾 SAVE CURRENT ANIMATION & PALETTE AS DEFAULT
+              </button>
+            </div>
+
             <div class="sub-title">DASAI MOCHI CHOREOGRAPHY LOOPS</div>
             <div class="grid-options" style="margin-bottom:12px;">
               <button class="btn-opt active" id="dasaiCycleBtn0" onclick="setDasaiCycle(0)">
@@ -2395,6 +2413,13 @@
       } else if (msg.startsWith("DASAI_CYCLE:")) {
         const idx = parseInt(msg.substring(12));
         if (!isNaN(idx)) highlightDasaiCycleUI(idx);
+      } else if (msg.startsWith("SAVED:DASAI") || msg === "SAVED:OK") {
+        const badge = document.getElementById('dasaiSaveBadge');
+        if (badge) {
+          badge.innerText = "SAVED IN FLASH 💾";
+          badge.className = "badge badge-ok";
+        }
+        setTouchBanner("SAVED AS DEFAULT 💾", "badge-ok", 2500);
       } else if (msg.startsWith("DOCK_AUTO:")) {
         const enabled = (msg.substring(10) === '1');
         updateDockAutoUI(enabled);
@@ -2592,7 +2617,67 @@
 
     let currentDasaiStyle = 0;
     let currentDasaiCycle = 0;
-    let currentDasaiEmo   = 0;
+    let currentDasaiEmo   = 'blank';
+    let currentActiveDasaiEmoName = 'blank';
+
+    const dasaiStyleNames = ["Warm White ⚪", "Pastel Cyan 🩵", "Sakura Pink 🌸", "Mochi Gold 🟡", "Neon Violet 🟣"];
+    const dasaiEmoFriendlyNames = {
+      'blank': 'Natural Idle 👀',
+      'wink': 'Playful Wink 😉',
+      'happy': 'Happy Smile 😸',
+      'smile': 'Gentle Smile 😊',
+      'love': 'Heart Love ❤️',
+      'adore': 'Adore 😍',
+      'sparkle': 'Sparkle Eyes ✨',
+      'fast': 'Turbo Speed ⚡',
+      'rush': 'High-Speed Rush 💨',
+      'smoke': 'Drift Smoke 🚬',
+      'dizzy': 'Dizzy 360 Spin 🌀',
+      'devil': 'Devil Horns 😈',
+      'dancing': 'Dance Party 💃',
+      'giggle': 'Giggle 🤭',
+      'playful': 'Playful 😜',
+      'shy': 'Shy Blush 👉👈',
+      'sleeping': 'Sleeping Zzz 💤',
+      'sleepy': 'Sleepy Droop 🥱',
+      'yawn': 'Yawn 🥱',
+      'crying': 'Sad Crying 😭',
+      'sobbing': 'Sobbing 🥺',
+      'handsome': 'Handsome JDM 😎',
+      'serene': 'Look Up / Serene ☝️',
+      'left': 'Look Left 👈',
+      'right': 'Look Right 👉',
+      'down': 'Look Down 👇',
+      'angry': 'Angry Bosozoku 😠',
+      'fierce': 'Fierce Glare 🏎️',
+      'enraged': 'Enraged 🤬'
+    };
+
+    function updateDasaiActiveSummary() {
+      const elem = document.getElementById('dasaiActiveSummary');
+      const emoName = dasaiEmoFriendlyNames[currentActiveDasaiEmoName] || currentActiveDasaiEmoName;
+      const styleName = dasaiStyleNames[currentDasaiStyle] || `Style ${currentDasaiStyle}`;
+      if (elem) elem.innerText = `${emoName} (${styleName})`;
+    }
+
+    async function saveCurrentDasaiAsDefault() {
+      if (!charSettings) {
+        alert("Please pair your keychain over Bluetooth first.");
+        return;
+      }
+      vibrate();
+      const cmd = `DASAI:SAVE`;
+      await safeBleWrite(charSettings, new TextEncoder().encode(cmd), false);
+      const badge = document.getElementById('dasaiSaveBadge');
+      if (badge) {
+        badge.innerText = "SAVED IN FLASH 💾";
+        badge.className = "badge badge-ok";
+      }
+      const emoName = dasaiEmoFriendlyNames[currentActiveDasaiEmoName] || currentActiveDasaiEmoName;
+      const styleName = dasaiStyleNames[currentDasaiStyle] || `Style ${currentDasaiStyle}`;
+      log(`Saved Default Boot Animation to Flash: ${emoName} (${styleName})`);
+      setTouchBanner("SAVED AS DEFAULT 💾", "badge-ok", 2500);
+    }
 
     async function setDasaiStyle(styleNum) {
       vibrate();
@@ -2607,6 +2692,7 @@
 
     function highlightDasaiStyleUI(s) {
       currentDasaiStyle = s;
+      updateDasaiActiveSummary();
       for (let i = 0; i < 5; i++) {
         const b1 = document.getElementById(`dasaiStyleBtn${i}`);
         const b2 = document.getElementById(`dockStyleBtn${i}`);
@@ -2634,10 +2720,7 @@
       }
       // De-activate all manual soundboard buttons when in auto cycle
       if (c !== 4) {
-        for (let i = 0; i <= 22; i++) {
-          const b = document.getElementById(`dasaiEmoBtn${i}`);
-          if (b) b.classList.remove('active');
-        }
+        document.querySelectorAll('[id^="dasaiEmo_"]').forEach(el => el.classList.remove('active'));
       }
     }
 
@@ -2654,6 +2737,8 @@
 
     function highlightDasaiEmotionUI(e) {
       currentDasaiEmo = e;
+      currentActiveDasaiEmoName = String(e);
+      updateDasaiActiveSummary();
       // Clear all active soundboard buttons
       document.querySelectorAll('[id^="dasaiEmo_"]').forEach(el => el.classList.remove('active'));
       const activeBtn = document.getElementById(`dasaiEmo_${e}`);
