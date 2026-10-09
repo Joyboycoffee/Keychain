@@ -83,21 +83,17 @@ bool     bleActive           = false;
 bool     bleConnected        = false;
 uint32_t bleStartTimeMs      = 0;
 
-// Touch Interrupt & State Engine (Zero-Latency Hardware ISR + 10s Release / 14s Cancel Engine)
-volatile bool     isrTouchDown         = false;
-volatile uint32_t isrDownTime          = 0;
-volatile uint32_t isrUpTime            = 0;
-volatile uint32_t isrTapCount          = 0;
-volatile uint32_t isrLastTapEndTime    = 0;
-volatile uint32_t isrLastEdgeTime      = 0;
+// Bulletproof Noise-Tolerant Touch & Gesture Engine (150ms Leaky Integrator)
+volatile uint32_t isrLastTouchTime      = 0;
+bool              touchSessionActive    = false;
+uint32_t          touchSessionStartTime = 0;
+bool              shyTriggered          = false;
+bool              bleToggled            = false;
+bool              sleepTriggered        = false;
+uint32_t          tapCounter            = 0;
+uint32_t          lastTapReleaseTime    = 0;
 
 uint32_t    lastActivityTime    = 0;
-bool        shyLoveTriggered    = false;
-bool        hold10sReady        = false;
-bool        hold10sPrompted     = false;
-bool        hold14sCancelled    = false;
-bool        touchStuckLockout   = false;
-uint32_t    touchLowStartTime   = 0;
 MemeEmotion preHoldEmotion      = EMOTION_LUFFY;
 bool        isTemporaryLove     = false;
 uint32_t    loveStartTime       = 0;
@@ -1240,16 +1236,19 @@ void blinkDebugLed(int count, int delayMs) {
 }
 
 void startBLE(bool notifyVisual) {
-    if (bleActive) return;
+    if (bleActive) {
+        bleStartTimeMs = millis(); // Refresh pairing window
+        return;
+    }
     bleActive = true;
     setCpuFrequencyMhz(160);
-    blinkDebugLed(1, 60); // Crisp single 60ms pulse (virtually 0 power), then stay OFF
+    blinkDebugLed(2, 60); // Crisp 2 quick pulses
     NimBLEAdvertising* pAdv = NimBLEDevice::getAdvertising();
     if (pAdv) pAdv->start();
     bleStartTimeMs = millis();
     lastActivityTime = millis();
-    if (notifyVisual) triggerTouchVisual("BLE ON (60s)", 0x07FF, 2000, "BLE:ONLINE");
-    Serial.println("[BLE] BLE Radio Activated! 60s pairing window started. CPU @ 160MHz.");
+    if (notifyVisual) triggerTouchVisual("BLE ON ⚡", 0x07FF, 2000, "BLE:ONLINE");
+    Serial.println("[BLE] BLE Radio Activated! 3-minute pairing window started. CPU @ 160MHz.");
 }
 
 void stopBLE(bool notifyVisual) {
@@ -1261,166 +1260,162 @@ void stopBLE(bool notifyVisual) {
         NimBLEDevice::getServer()->disconnect(0);
         bleConnected = false;
     }
-    blinkDebugLed(1, 40); // Quick 40ms pulse
-    if (notifyVisual) triggerTouchVisual("BLE OFF", 0x8410, 1500, "BLE:OFFLINE");
+    blinkDebugLed(1, 60); // Quick single pulse
+    if (notifyVisual) triggerTouchVisual("BLE OFF 💤", 0x8410, 1500, "BLE:OFFLINE");
     Serial.println("[BLE] BLE Radio Deactivated! Standby mode.");
 }
 
 // =========================================================================
-// ZERO-LATENCY HARDWARE TOUCH ISR & GESTURE ENGINE
+// ZERO-LATENCY HARDWARE TOUCH ISR & BULLETPROOF NOISE-TOLERANT GESTURE ENGINE
 // =========================================================================
 void IRAM_ATTR touchISR() {
-    uint32_t now = millis();
-    if (now - isrLastEdgeTime < 25) return; // 25ms hardware edge debounce
-    isrLastEdgeTime = now;
-
-    bool pinHigh = (digitalRead(PIN_TOUCH) == HIGH);
-    if (pinHigh) {
-        if (!isrTouchDown) {
-            isrTouchDown = true;
-            isrDownTime = now;
-        }
-    } else {
-        if (isrTouchDown) {
-            isrTouchDown = false;
-            isrUpTime = now;
-            uint32_t dur = (isrDownTime > 0) ? (isrUpTime - isrDownTime) : 0;
-            isrDownTime = 0; // Clear hold timestamp on release
-            // Require at least 55ms of continuous contact to qualify as a deliberate human tap
-            if (dur >= 55 && dur < 600) {
-                isrTapCount++;
-                isrLastTapEndTime = now;
-            }
-        }
+    if (digitalRead(PIN_TOUCH) == HIGH) {
+        isrLastTouchTime = millis();
     }
 }
 
 void processTouch() {
     uint32_t now = millis();
-    bool isDown = (digitalRead(PIN_TOUCH) == HIGH);
+    bool pinHigh = (digitalRead(PIN_TOUCH) == HIGH);
+    if (pinHigh) {
+        isrLastTouchTime = now;
+    }
 
-    // ---------------------------------------------------------
-    // 1. PIN RELEASE & STABILIZATION TRACKING
-    // ---------------------------------------------------------
-    if (!isDown) {
-        if (isrTouchDown) {
-            isrTouchDown = false;
-            isrUpTime = now;
+    // Leaky Integrator / Noise Bridge:
+    // If a touch HIGH was seen within the last 150ms, the finger is currently holding the sensor.
+    bool isHeldNow = (now - isrLastTouchTime < 150);
+
+    if (isHeldNow) {
+        if (!touchSessionActive) {
+            touchSessionActive = true;
+            touchSessionStartTime = isrLastTouchTime;
+            shyTriggered = false;
+            bleToggled = false;
+            sleepTriggered = false;
         }
-        if (touchLowStartTime == 0) {
-            touchLowStartTime = now;
+
+        uint32_t holdDur = now - touchSessionStartTime;
+
+        // 1. Long Hold >= 6.0s -> POWER OFF / DEEP SLEEP 🌙
+        if (holdDur >= 6000 && !sleepTriggered) {
+            sleepTriggered = true;
+            lastActivityTime = now;
+            blinkDebugLed(1, 350); // Confirmation blink
+            triggerTouchVisual("POWER OFF 🌙", 0x8410, 1000, "SYS:SLEEP");
+            Serial.println("[TOUCH] Held >= 6s -> Powering Off to Deep Sleep...");
+            enterDeepSleep();
+            return;
         }
-        
-        // Pin must stay continuously LOW for at least 250ms to fully clear lockout and hold states
-        if (now - touchLowStartTime >= 250) {
-            if (touchStuckLockout || hold14sCancelled) {
-                touchStuckLockout = false;
-                hold14sCancelled = false;
-                Serial.println("[TOUCH] Sensor confirmed clear and released. Ready.");
+
+        // 2. Medium Hold >= 3.5s -> TOGGLE BLE RADIO (ON / OFF) ⚡
+        else if (holdDur >= 3500 && !bleToggled && !sleepTriggered) {
+            bleToggled = true;
+            lastActivityTime = now;
+            if (!bleActive && !bleConnected) {
+                Serial.println("[TOUCH] 3.5s Hold -> Turning BLE ON ⚡");
+                startBLE(true);
+            } else {
+                Serial.println("[TOUCH] 3.5s Hold -> Turning BLE OFF 💤");
+                stopBLE(true);
             }
-            hold10sReady = false;
-            hold10sPrompted = false;
-            shyLoveTriggered = false;
-            isrDownTime = 0;
+        }
+
+        // 3. Short Hold >= 1.8s -> SHY LOVE / SECRET HEART REACTION ❤️
+        else if (holdDur >= 1800 && holdDur < 3500 && !shyTriggered && !bleToggled && !sleepTriggered) {
+            shyTriggered = true;
+            lastActivityTime = now;
+
+            if (currentMode == MODE_CYBER_HUD) {
+                cyberHUD.triggerShy(5000);
+                triggerTouchVisual("SECRET MSG 💌", 0xF81F, 5000, "TOUCH:SHY:HUD");
+            } else if (currentMode == MODE_MATRIX_RAIN) {
+                matrixRain.triggerHeartRain(5000);
+                triggerTouchVisual("HEART RAIN 💖", 0xF81F, 5000, "TOUCH:SHY:MATRIX");
+            } else if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
+                dasaiMochi.triggerShyLove(5000);
+                triggerTouchVisual("HEART EYES ❤️", 0xF81F, 5000, "TOUCH:SHY:DASAI");
+                if (bleConnected && pCharSet) {
+                    pCharSet->setValue(std::string("TOUCH:SHY:DASAI"));
+                    pCharSet->notify();
+                }
+            } else {
+                preHoldEmotion = memePet.currentEmotion;
+                isTemporaryLove = true;
+                loveStartTime = now;
+                memePet.setEmotion(EMOTION_SHY);
+                currentMode = MODE_CYBERPET;
+                isVideoPlaying = false;
+                triggerTouchVisual("SHY LOVE ❤️", 0xF81F, 5000, "TOUCH:SHY:PET");
+                if (bleConnected && pCharPet) {
+                    char emoChar[2] = { (char)('0' + (int)EMOTION_SHY), '\0' };
+                    pCharPet->setValue(std::string(emoChar));
+                    pCharPet->notify();
+                }
+            }
         }
     } else {
-        touchLowStartTime = 0;
-        // Only start a new hold timer if not currently locked out!
-        if (!touchStuckLockout && !hold14sCancelled) {
-            if (!isrTouchDown || isrDownTime == 0) {
-                isrTouchDown = true;
-                isrDownTime = now;
+        // Sensor has been quiet LOW for >= 150ms -> Finger is RELEASED!
+        if (touchSessionActive) {
+            uint32_t totalTouchDur = (isrLastTouchTime >= touchSessionStartTime) ? (isrLastTouchTime - touchSessionStartTime) : 0;
+            touchSessionActive = false;
+
+            // If it was a quick tap (not a 1.8s+ hold), register as a tap!
+            if (!shyTriggered && !bleToggled && !sleepTriggered) {
+                if (totalTouchDur >= 25 && totalTouchDur < 800) {
+                    tapCounter++;
+                    lastTapReleaseTime = now;
+                }
             }
+            shyTriggered = false;
+            bleToggled = false;
+            sleepTriggered = false;
         }
     }
 
-    // ---------------------------------------------------------
-    // 2. STUCK LOCKOUT SHIELD
-    // If the sensor was held past 14s or was HIGH at boot, ignore ALL processing while down!
-    // ---------------------------------------------------------
-    if (touchStuckLockout || hold14sCancelled) {
-        return;
-    }
-
-    // ---------------------------------------------------------
-    // 3. 7-TAP DETECTION (Secret Developer Easter Egg 🎉)
-    // ---------------------------------------------------------
-    if (isrTapCount >= 7) {
-        isrTapCount = 0;
+    // Process completed tap sequence (280ms after last tap release)
+    if (!touchSessionActive && tapCounter > 0 && (now - lastTapReleaseTime > 280)) {
+        int taps = tapCounter;
+        tapCounter = 0;
         lastActivityTime = now;
-        isTemporaryLove = false;
-        hold10sReady = false;
-        hold10sPrompted = false;
-        isrDownTime = 0;
-        triggerEasterEgg();
-        return;
-    }
 
-    // ---------------------------------------------------------
-    // 4. 5-TAP DETECTION (Instant Switch Main System Mode ⚡)
-    // (User tapped 5-6 times, finger is UP, and 260ms elapsed without reaching 7)
-    // ---------------------------------------------------------
-    if (isrTapCount >= 5 && isrTapCount < 7 && !isDown && (now - isrLastTapEndTime > 260)) {
-        isrTapCount = 0;
-        lastActivityTime = now;
-        isTemporaryLove = false;
-        hold10sReady = false;
-        hold10sPrompted = false;
-        isrDownTime = 0;
-
-        currentMode = (SystemMode)(((int)currentMode + 1) % 7);
-        tft.setBrightness(screenBrightness);
-        if (currentMode == MODE_DESK_COMPANION) {
-            deskPhase = DESK_DASAI;
-            deskPhaseStartTime = now;
-        }
-        isVideoPlaying = false;
-
-        const char* modeNames[] = { "CYBERPET 🐱", "DASAI MOCHI 🤖", "CYBER HUD ⚡", "MATRIX RAIN 📟", "TEXT SCROLL 📜", "STREAM MEDIA 🎬", "DESK DOCK ⏰" };
-        const uint16_t modeColors[] = { 0xFFE0, 0x07FF, 0x07FF, 0x07E0, 0xF77D, 0x07FF, 0x07FF };
-        triggerTouchVisual(modeNames[(int)currentMode], modeColors[(int)currentMode], 1400, "TOUCH:MODE");
-
-        if (bleConnected && pCharMode) {
-            char mChar[2] = { (char)('0' + (int)currentMode), '\0' };
-            pCharMode->setValue(std::string(mChar));
-            pCharMode->notify();
-        }
-        Serial.printf("[TOUCH] 5-Tap Gesture! -> Switched System Mode: %d (%s)\n", (int)currentMode, modeNames[(int)currentMode]);
-        return;
-    }
-
-    // ---------------------------------------------------------
-    // 4. MULTI-TAP / DOUBLE-TAP SUB-OPTION CYCLING 🔄
-    // (User tapped 2-4 times, finger is UP, and 280ms elapsed without further taps)
-    // ---------------------------------------------------------
-    if (isrTapCount >= 2 && isrTapCount < 5 && !isDown && (now - isrLastTapEndTime > 280)) {
-        int taps = isrTapCount;
-        isrTapCount = 0;
-        lastActivityTime = now;
-        isTemporaryLove = false;
-        hold10sReady = false;
-        hold10sPrompted = false;
-        isrDownTime = 0;
-
-        if (currentMode == MODE_CYBERPET) {
-            int next = ((int)memePet.currentEmotion + 1) % 7;
-            memePet.setEmotion((MemeEmotion)next);
-            memePet.defaultEmotion = (MemeEmotion)next;
-            const char* emoNames[] = { "LUFFY ⚡", "SHY LOVE 👉👈", "GIGGLE CAT 😸", "SAD BANANA 🍌", "UMARU CRY 😭", "ANGRY CAT 😾", "BUNNY 🐰" };
-            triggerTouchVisual(emoNames[next], 0xFFE0, 1000, "TOUCH:DOUBLE");
-
-            if (bleConnected && pCharPet) {
-                char emoChar[2] = { (char)('0' + (int)next), '\0' };
-                pCharPet->setValue(std::string(emoChar));
-                pCharPet->notify();
-            }
-            Serial.printf("[TOUCH] Double-Tap! -> Mascot: %d (%s)\n", next, emoNames[next]);
-        } else if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
-            if (taps >= 3) {
-                dasaiMochi.triggerTripleTapTurbo();
-                triggerTouchVisual("TURBO RACE 🏁", 0xFFE0, 1200, "DASAI:TURBO");
-                Serial.println("[TOUCH] Triple-Tap! -> Dasai Turbo Race Boost!");
+        if (taps == 1) {
+            // 1 TAP: Poke / Interact
+            if (isEasterEggActive) {
+                isEasterEggActive = false;
+                if (pCharSet) { pCharSet->setValue(std::string("TOUCH:REVERT")); pCharSet->notify(); }
+                triggerTouchVisual("DISMISSED 🔄", 0x07FF, 700, "TOUCH:REVERT");
             } else {
+                if (currentMode == MODE_CYBERPET) {
+                    memePet.triggerTap();
+                    triggerTouchVisual("POKE 👆", 0x07FF, 700, "TOUCH:POKE");
+                } else if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
+                    dasaiMochi.triggerTap();
+                    triggerTouchVisual("GIGGLE 😸", 0x7FFF, 700, "TOUCH:POKE");
+                } else if (currentMode == MODE_CYBER_HUD) {
+                    triggerTouchVisual("TICK ⏱️", 0x07E0, 700, "TOUCH:POKE");
+                } else if (currentMode == MODE_MATRIX_RAIN) {
+                    triggerTouchVisual("GLITCH ⚡", 0x07E0, 700, "TOUCH:POKE");
+                } else {
+                    triggerTouchVisual("TAP 👆", 0x07FF, 700, "TOUCH:POKE");
+                }
+                Serial.println("[TOUCH] Single Tap Confirmed -> Interact 👆");
+            }
+        }
+        else if (taps == 2) {
+            // 2 TAPS: Cycle Sub-option (Dasai Color Style / Pet Emotion / HUD Layout / Matrix Theme)
+            if (currentMode == MODE_CYBERPET) {
+                int next = ((int)memePet.currentEmotion + 1) % 7;
+                memePet.setEmotion((MemeEmotion)next);
+                memePet.defaultEmotion = (MemeEmotion)next;
+                const char* emoNames[] = { "LUFFY ⚡", "SHY LOVE 👉👈", "GIGGLE CAT 😸", "SAD BANANA 🍌", "UMARU CRY 😭", "ANGRY CAT 😾", "BUNNY 🐰" };
+                triggerTouchVisual(emoNames[next], 0xFFE0, 1000, "TOUCH:DOUBLE");
+                if (bleConnected && pCharPet) {
+                    char emoChar[2] = { (char)('0' + (int)next), '\0' };
+                    pCharPet->setValue(std::string(emoChar));
+                    pCharPet->notify();
+                }
+                Serial.printf("[TOUCH] Double-Tap! -> Mascot: %d (%s)\n", next, emoNames[next]);
+            } else if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
                 int next = dasaiMochi.cycleStyle();
                 robotEyes.setStyle(next);
                 const char* styleNames[] = { "WARM WHITE ⚪", "PASTEL CYAN 🩵", "SAKURA PINK 🌸", "MOCHI GOLD 🟡", "CYBER VIOLET 🟣" };
@@ -1431,178 +1426,74 @@ void processTouch() {
                     pCharSet->notify();
                 }
                 Serial.printf("[TOUCH] Double-Tap! -> Dasai Style: %d (%s)\n", next, styleNames[next]);
-            }
-        } else if (currentMode == MODE_CYBER_HUD) {
-            int next = cyberHUD.cycleLayout();
-            const char* hudNames[] = { "FULL CYBER HUD ⚡", "BIG CLOCK & DATE ⏰", "MINIMAL DASH 📟" };
-            triggerTouchVisual(hudNames[next], 0x07FF, 1000, "HUD:LAYOUT");
-            if (bleConnected && pCharSet) {
-                pCharSet->setValue("HUD_LAY:" + std::to_string(next));
-                pCharSet->notify();
-            }
-            Serial.printf("[TOUCH] Double-Tap! -> HUD Layout: %d (%s)\n", next, hudNames[next]);
-        } else if (currentMode == MODE_MATRIX_RAIN) {
-            int next = matrixRain.cycleTheme();
-            const char* thmNames[] = { "NEO GREEN 🟢", "CYBER CYAN 🔵", "SYNTH MAGENTA 🟣", "FIRE AMBER 🟡" };
-            const uint16_t thmCols[] = { 0x07E0, 0x07FF, 0xF81F, 0xFD20 };
-            triggerTouchVisual(thmNames[next], thmCols[next], 1000, "MATRIX:THEME");
-            if (bleConnected && pCharSet) {
-                pCharSet->setValue("MATRIX_THM:" + std::to_string(next));
-                pCharSet->notify();
-            }
-            Serial.printf("[TOUCH] Double-Tap! -> Matrix Theme: %d (%s)\n", next, thmNames[next]);
-        }
-        return;
-    }
-
-    // ---------------------------------------------------------
-    // 5. CONTINUOUS DIRECT HOLD (Finger is DOWN)
-    // ---------------------------------------------------------
-    if (isDown && isrTapCount == 0 && isrDownTime > 0) {
-        uint32_t holdDuration = now - isrDownTime;
-
-        // --- 14+ SECONDS: STUCK SENSOR / TABLE DETECTION -> CANCEL WITH LONG BLINK (450ms) ---
-        if (holdDuration >= 14000) {
-            hold14sCancelled = true;
-            touchStuckLockout = true;
-            hold10sReady = false;
-            hold10sPrompted = false;
-            shyLoveTriggered = false;
-            isrDownTime = 0;
-            isrTapCount = 0;
-
-            // Distinct long 450ms blue LED blink showing BLE did NOT turn on
-            blinkDebugLed(1, 450);
-            triggerTouchVisual("HELD >14s: CANCELLED 🛑", 0xF800, 2000, "TOUCH:CANCEL");
-            Serial.println("[TOUCH] Held >14s! Action CANCELLED with long blink. Locked out until released.");
-            return;
-        }
-
-        // --- 10.0s – 14.0s: PROMPT WINDOW (Short 60ms Blue Blink to cue user to release) ---
-        if (holdDuration >= 10000 && !hold10sPrompted) {
-            hold10sPrompted = true;
-            hold10sReady = true;
-            lastActivityTime = now;
-
-            // Crisp short 60ms pulse to indicate 10s reached
-            blinkDebugLed(1, 60);
-
-            if (!bleActive && !bleConnected) {
-                triggerTouchVisual("RELEASE FOR BLE ⚡", 0x07FF, 3500, "TOUCH:READY");
-                Serial.println("[TOUCH] 10s Hold reached! Short blue blink. Release finger now to turn BLE ON!");
-            } else {
-                triggerTouchVisual("RELEASE TO SLEEP 🌙", 0x8410, 3500, "TOUCH:READY");
-                Serial.println("[TOUCH] 10s Hold reached! Short blue blink. Release finger now to enter Deep Sleep!");
-            }
-            return;
-        }
-
-        // --- 2.0s – 9.5s: MODE-SPECIFIC SHY / SECRET REACTION ❤️ ---
-        if (holdDuration >= 2000 && holdDuration < 9500 && !shyLoveTriggered && !hold10sReady) {
-            shyLoveTriggered = true;
-            lastActivityTime = now;
-
-            if (currentMode == MODE_CYBER_HUD) {
-                cyberHUD.triggerShy(5000);
-                triggerTouchVisual("SECRET MSG 💌", 0xF81F, 5000, "TOUCH:SHY:HUD");
-                Serial.printf("[TOUCH] 2.0s Hold -> CyberHUD Shy Overlay (%s)\n", cyberHUD.customShyText.c_str());
-            } else if (currentMode == MODE_MATRIX_RAIN) {
-                matrixRain.triggerHeartRain(5000);
-                triggerTouchVisual("HEART RAIN 💖", 0xF81F, 5000, "TOUCH:SHY:MATRIX");
-                Serial.printf("[TOUCH] 2.0s Hold -> Matrix Cyber Heart Rain! (%s)\n", matrixRain.customShyText.c_str());
-            } else if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
-                dasaiMochi.triggerShyLove(5000);
-                triggerTouchVisual("HEART EYES ❤️", 0xF81F, 5000, "TOUCH:SHY:DASAI");
+            } else if (currentMode == MODE_CYBER_HUD) {
+                int next = cyberHUD.cycleLayout();
+                const char* hudNames[] = { "FULL CYBER HUD ⚡", "BIG CLOCK & DATE ⏰", "MINIMAL DASH 📟" };
+                triggerTouchVisual(hudNames[next], 0x07FF, 1000, "HUD:LAYOUT");
                 if (bleConnected && pCharSet) {
-                    pCharSet->setValue(std::string("TOUCH:SHY:DASAI"));
+                    pCharSet->setValue("HUD_LAY:" + std::to_string(next));
                     pCharSet->notify();
                 }
-                Serial.printf("[TOUCH] 2.0s Hold -> Dasai Mochi Happy Love! (%s)\n", dasaiMochi.customShyText.c_str());
-            } else {
-                // MODE_CYBERPET (or default)
-                preHoldEmotion = memePet.currentEmotion;
-                isTemporaryLove = true;
-                loveStartTime = now;
-
-                memePet.setEmotion(EMOTION_SHY);
-                currentMode = MODE_CYBERPET;
-                isVideoPlaying = false;
-                triggerTouchVisual("SHY LOVE ❤️", 0xF81F, 5000, "TOUCH:SHY:PET");
-
-                if (bleConnected && pCharPet) {
-                    char emoChar[2] = { (char)('0' + (int)EMOTION_SHY), '\0' };
-                    pCharPet->setValue(std::string(emoChar));
-                    pCharPet->notify();
+                Serial.printf("[TOUCH] Double-Tap! -> HUD Layout: %d (%s)\n", next, hudNames[next]);
+            } else if (currentMode == MODE_MATRIX_RAIN) {
+                int next = matrixRain.cycleTheme();
+                const char* thmNames[] = { "NEO GREEN 🟢", "CYBER CYAN 🔵", "SYNTH MAGENTA 🟣", "FIRE AMBER 🟡" };
+                const uint16_t thmCols[] = { 0x07E0, 0x07FF, 0xF81F, 0xFD20 };
+                triggerTouchVisual(thmNames[next], thmCols[next], 1000, "MATRIX:THEME");
+                if (bleConnected && pCharSet) {
+                    pCharSet->setValue("MATRIX_THM:" + std::to_string(next));
+                    pCharSet->notify();
                 }
-                Serial.printf("[TOUCH] 2.0s Hold -> Pet Shy Love! (Reverting to %d in 5s)\n", (int)preHoldEmotion);
+                Serial.printf("[TOUCH] Double-Tap! -> Matrix Theme: %d (%s)\n", next, thmNames[next]);
             }
-            return;
         }
-    }
-
-    // ---------------------------------------------------------
-    // 6. FINGER RELEASE & HUMAN CONFIRMATION (Finger is UP / !isDown)
-    // ---------------------------------------------------------
-    if (!isDown) {
-        // If user released between 10.0s and 14.0s -> EXECUTE ACTION!
-        if (hold10sReady && !hold14sCancelled) {
-            hold10sReady = false;
-            hold10sPrompted = false;
-            shyLoveTriggered = false;
-            isrTapCount = 0;
-            isrDownTime = 0;
-            lastActivityTime = now;
-
+        else if (taps == 3) {
+            // 3 TAPS: Turbo Boost
+            if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
+                dasaiMochi.triggerTripleTapTurbo();
+                triggerTouchVisual("TURBO RACE 🏁", 0xFFE0, 1200, "DASAI:TURBO");
+                Serial.println("[TOUCH] Triple-Tap! -> Dasai Turbo Race Boost!");
+            } else {
+                triggerTouchVisual("TURBO BOOST ⚡", 0xFFE0, 1000, "TOUCH:TRIPLE");
+                Serial.println("[TOUCH] Triple-Tap! -> Turbo Boost!");
+            }
+        }
+        else if (taps == 4) {
+            // 4 TAPS: TOGGLE BLE RADIO (ON / OFF) ⚡
             if (!bleActive && !bleConnected) {
-                Serial.println("[TOUCH] Human Release Confirmed (10s-14s) -> Turning BLE ON ⚡");
+                Serial.println("[TOUCH] 4-Tap Shortcut -> Turning BLE ON ⚡");
                 startBLE(true);
             } else {
-                Serial.println("[TOUCH] Human Release Confirmed (10s-14s) -> Entering Deep Sleep 🌙");
-                triggerTouchVisual("POWER OFF 🌙", 0x8410, 1000, "SYS:SLEEP");
-                enterDeepSleep();
+                Serial.println("[TOUCH] 4-Tap Shortcut -> Turning BLE OFF 💤");
+                stopBLE(true);
             }
-            return;
+        }
+        else if (taps >= 5 && taps < 7) {
+            // 5 TAPS: SWITCH SYSTEM MODE
+            currentMode = (SystemMode)(((int)currentMode + 1) % 7);
+            tft.setBrightness(screenBrightness);
+            if (currentMode == MODE_DESK_COMPANION) {
+                deskPhase = DESK_DASAI;
+                deskPhaseStartTime = now;
+            }
+            isVideoPlaying = false;
+            const char* modeNames[] = { "CYBERPET 🐱", "DASAI MOCHI 🤖", "CYBER HUD ⚡", "MATRIX RAIN 📟", "TEXT SCROLL 📜", "STREAM MEDIA 🎬", "DESK DOCK ⏰" };
+            const uint16_t modeColors[] = { 0xFFE0, 0x07FF, 0x07FF, 0x07E0, 0xF77D, 0x07FF, 0x07FF };
+            triggerTouchVisual(modeNames[(int)currentMode], modeColors[(int)currentMode], 1400, "TOUCH:MODE");
+            if (bleConnected && pCharMode) {
+                char mChar[2] = { (char)('0' + (int)currentMode), '\0' };
+                pCharMode->setValue(std::string(mChar));
+                pCharMode->notify();
+            }
+            Serial.printf("[TOUCH] 5-Tap Gesture! -> Switched System Mode: %d (%s)\n", (int)currentMode, modeNames[(int)currentMode]);
+        }
+        else if (taps >= 7) {
+            // 7 TAPS: DEVELOPER EASTER EGG 🎉
+            triggerEasterEgg();
         }
     }
 
-    // ---------------------------------------------------------
-    // 7. SINGLE TAP TIMEOUT (Poke / Interact 👆)
-    // 1 tap registered, finger lifted, and 350ms elapsed without a second tap
-    // ---------------------------------------------------------
-    if (isrTapCount == 1 && !isDown && (now - isrLastTapEndTime > 350)) {
-        isrTapCount = 0;
-        lastActivityTime = now;
-        if (isEasterEggActive) {
-            isEasterEggActive = false;
-            if (pCharSet) {
-                pCharSet->setValue(std::string("TOUCH:REVERT"));
-                pCharSet->notify();
-            }
-            triggerTouchVisual("DISMISSED 🔄", 0x07FF, 700, "TOUCH:REVERT");
-            Serial.println("[TOUCH] Single Tap during Easter Egg -> Dismissed.");
-            return;
-        }
-        if (!shyLoveTriggered && !hold10sReady && !hold14sCancelled) {
-            if (currentMode == MODE_CYBERPET) {
-                memePet.triggerTap();
-                triggerTouchVisual("POKE 👆", 0x07FF, 700, "TOUCH:POKE");
-            } else if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
-                dasaiMochi.triggerTap();
-                triggerTouchVisual("GIGGLE 😸", 0x7FFF, 700, "TOUCH:POKE");
-            } else if (currentMode == MODE_CYBER_HUD) {
-                triggerTouchVisual("TICK ⏱️", 0x07E0, 700, "TOUCH:POKE");
-            } else if (currentMode == MODE_MATRIX_RAIN) {
-                triggerTouchVisual("GLITCH ⚡", 0x07E0, 700, "TOUCH:POKE");
-            } else {
-                triggerTouchVisual("TAP 👆", 0x07FF, 700, "TOUCH:POKE");
-            }
-            Serial.println("[TOUCH] Single Tap Confirmed -> Interact 👆");
-        }
-    }
-
-    // =========================================================================
-    // 8. AUTO-REVERT FROM SHY LOVE AFTER 5 SECONDS BACK TO ORIGINAL STATE
-    // =========================================================================
+    // 8. Auto-revert from Shy Love after 5 seconds back to original state
     if (isTemporaryLove && (now - loveStartTime >= 5000)) {
         isTemporaryLove = false;
         memePet.setEmotion(preHoldEmotion);
@@ -1900,29 +1791,10 @@ void playBootSplash() {
 // INITIAL SETUP
 // =========================================================================
 void setup() {
-    // 0. Solid Human Touch Wakeup Verification
     esp_sleep_wakeup_cause_t wakeupReason = esp_sleep_get_wakeup_cause();
-    if (wakeupReason == ESP_SLEEP_WAKEUP_GPIO) {
-        pinMode(PIN_TOUCH, INPUT_PULLDOWN);
-        // Human touch verification: must be stable continuous HIGH for at least 75ms
-        uint32_t checkStart = millis();
-        bool isHumanTouch = true;
-        while (millis() - checkStart < 75) {
-            if (digitalRead(PIN_TOUCH) == LOW) {
-                isHumanTouch = false;
-                break;
-            }
-            delay(5);
-        }
-        if (!isHumanTouch) {
-            // Stray table noise / electrostatic glitch: Return to deep sleep immediately in <0.08s!
-            esp_deep_sleep_enable_gpio_wakeup(1ULL << PIN_TOUCH, ESP_GPIO_WAKEUP_GPIO_HIGH);
-            esp_deep_sleep_start();
-        }
-    }
 
     Serial.begin(115200);
-    delay(200);
+    delay(100);
     Serial.println("\n=== SPEARHEAD ENGINE v5.0 STARTUP ===");
 
     // 1. Release Deep Sleep GPIO Hold & Ensure Backlight & LED start OFF
@@ -1935,13 +1807,6 @@ void setup() {
 
     pinMode(PIN_TOUCH, INPUT_PULLDOWN);
     attachInterrupt(digitalPinToInterrupt(PIN_TOUCH), touchISR, CHANGE);
-    if (digitalRead(PIN_TOUCH) == HIGH) {
-        touchStuckLockout = true;
-        hold14sCancelled = true;
-        isrTouchDown = false;
-        isrDownTime = 0;
-        Serial.println("[TOUCH] Pin HIGH at startup (Surface/USB contact). Locked out until released.");
-    }
     analogSetPinAttenuation(PIN_BAT_ADC, ADC_11db);
     pinMode(PIN_BAT_ADC, INPUT);
 
@@ -2077,13 +1942,13 @@ void setup() {
     pAdv->setScanResponse(true);
     pAdv->addServiceUUID(SERVICE_UUID);
 
-    // Initial Startup: BLE starts in STANDBY (Radio OFF)
-    // Bluetooth only turns ON when user holds touch button for 10 seconds!
-    bleActive = false;
+    // Initial Startup: Automatically start BLE advertising for 180s pairing window!
+    bleActive = true;
     bleConnected = false;
-    setCpuFrequencyMhz(160); // Stable 160MHz CPU & bus frequency
-    digitalWrite(PIN_DEBUG_LED, HIGH); // Ensure LED is OFF
-    Serial.printf("[BLE] Stack initialized in STANDBY (Radio OFF, CPU @ 160MHz). Hold touch for 10s to activate.\n");
+    pAdv->start();
+    bleStartTimeMs = millis();
+    blinkDebugLed(2, 60);
+    Serial.println("[BLE] BLE Advertising active on startup (180s pairing window). Ready for Bluetooth pairing!");
 
     // 4. Cold Boot Splash vs Deep Sleep Wakeup (with smooth 0.7s fade-in)
     if (wakeupReason == ESP_SLEEP_WAKEUP_UNDEFINED) {
@@ -2179,8 +2044,8 @@ void loop() {
         startBLE(false);
     }
 
-    // Auto BLE power-down if no connection after 60 seconds (ONLY on battery!)
-    if (!isUsbPower && bleActive && !isConnected && (millis() - bleStartTimeMs > 60000)) {
+    // Auto BLE power-down if no connection after 3 minutes (180s) on battery
+    if (!isUsbPower && bleActive && !isConnected && (millis() - bleStartTimeMs > 180000)) {
         stopBLE(false);
     }
 
