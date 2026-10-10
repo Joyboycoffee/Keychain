@@ -2441,10 +2441,9 @@
       } else if (msg === "TOUCH:SHY:HUD" || msg === "TOUCH:SHY") {
         setTouchBanner("CYBERHUD SECRET MSG (2s HOLD)", "badge-mag", 5000);
         log("CyberHUD 2s Hold -> Secret Message Displayed!");
-      } else if (msg === "TOUCH:SHY:DASAI" || msg === "TOUCH:SHY:ROBOT") {
-        highlightDasaiStyleUI(2); // Sakura Pink highlight
-        setTouchBanner("DASAI HEART EYES (2s HOLD)", "badge-mag", 5000);
-        log("Dasai Mochi 2s Hold -> Heart Eyes & Blushing Active!");
+      } else if (msg === "TOUCH:ADORE:DASAI" || msg === "TOUCH:SHY:DASAI" || msg === "TOUCH:SHY:ROBOT") {
+        setTouchBanner("DASAI ADORE 😻 (2s HOLD)", "badge-mag", 5000);
+        log("Dasai Mochi 2s Hold -> Adore Animation Active!");
       } else if (msg === "TOUCH:SHY:MATRIX") {
         setTouchBanner("MATRIX LOVE RAIN (2s HOLD)", "badge-mag", 5000);
         log("Matrix Rain 2s Hold -> Heart Rain Active!");

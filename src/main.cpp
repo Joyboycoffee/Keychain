@@ -91,8 +91,8 @@ uint32_t    tapCount            = 0;
 uint32_t    lastTapReleaseTime  = 0;
 
 uint32_t    lastActivityTime    = 0;
-bool        shyLoveTriggered    = false;
-bool        bleToggleFired      = false;
+bool        adoreTriggered      = false;
+bool        bleArmed            = false;
 bool        sleepHoldTriggered  = false;
 
 MemeEmotion preHoldEmotion      = EMOTION_LUFFY;
@@ -1280,55 +1280,58 @@ void processTouch() {
         if (!touchActiveState) {
             touchActiveState = true;
             touchStartTime = now;
-            shyLoveTriggered = false;
-            bleToggleFired = false;
+            adoreTriggered = false;
+            bleArmed = false;
             sleepHoldTriggered = false;
         }
 
         uint32_t holdDuration = now - touchStartTime;
 
-        // 1. Hold >= 7.0s: Deep Sleep / Power Off 🌙
-        if (holdDuration >= 7000 && !sleepHoldTriggered) {
+        // 1. Hold >= 6.0s: DEEP SLEEP / POWER OFF (BLE IS DISABLED / NEVER TURNED ON!) 🌙
+        if (holdDuration >= 6000 && !sleepHoldTriggered) {
             sleepHoldTriggered = true;
+            bleArmed = false; // Disable BLE arming - do NOT turn on!
+            stopBLE(false);   // Force BLE radio completely OFF
             lastActivityTime = now;
             blinkDebugLed(1, 350);
             triggerTouchVisual("POWER OFF 🌙", 0x8410, 1000, "SYS:SLEEP");
-            Serial.println("[TOUCH] Held >= 7s -> Powering Off to Deep Sleep...");
+            Serial.println("[TOUCH] Held >= 6s -> Disabling BLE and powering off to Deep Sleep...");
             enterDeepSleep();
             return;
         }
 
-        // 2. Hold >= 4.0s: Toggle Bluetooth ON / OFF ⚡
-        else if (holdDuration >= 4000 && !bleToggleFired && !sleepHoldTriggered) {
-            bleToggleFired = true;
+        // 2. Hold >= 4.0s and < 6.0s: ARM BLUETOOTH (TURNS ON ONLY ON RELEASE IN THIS 4-6s WINDOW!) ⚡
+        else if (holdDuration >= 4000 && holdDuration < 6000 && !bleArmed && !sleepHoldTriggered) {
+            bleArmed = true;
             lastActivityTime = now;
+            blinkDebugLed(2, 60);
             if (!bleActive && !bleConnected) {
-                Serial.println("[TOUCH] 4.0s Hold -> Turning BLE ON ⚡");
-                startBLE(true);
+                triggerTouchVisual("RELEASE FOR BLE ⚡", 0x07FF, 2000, "BLE:ARMED");
+                Serial.println("[TOUCH] 4-6s Window Reached -> Release to turn BLE ON ⚡");
             } else {
-                Serial.println("[TOUCH] 4.0s Hold -> Turning BLE OFF 💤");
-                stopBLE(true);
+                triggerTouchVisual("RELEASE: BLE OFF 💤", 0x8410, 2000, "BLE:ARMED");
+                Serial.println("[TOUCH] 4-6s Window Reached -> Release to turn BLE OFF 💤");
             }
         }
 
-        // 3. Hold >= 2.0s: Shy Love / Heart Reaction ❤️
-        else if (holdDuration >= 2000 && holdDuration < 3800 && !shyLoveTriggered && !bleToggleFired && !sleepHoldTriggered) {
-            shyLoveTriggered = true;
+        // 3. Hold >= 2.0s and < 4.0s: ADORE ANIMATION 😻 / SHY LOVE ❤️
+        else if (holdDuration >= 2000 && holdDuration < 4000 && !adoreTriggered && !bleArmed && !sleepHoldTriggered) {
+            adoreTriggered = true;
             lastActivityTime = now;
 
-            if (currentMode == MODE_CYBER_HUD) {
+            if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
+                dasaiMochi.triggerAdore(5000);
+                triggerTouchVisual("ADORE 😻", 0xF81F, 3000, "TOUCH:ADORE:DASAI");
+                if (bleConnected && pCharSet) {
+                    pCharSet->setValue(std::string("TOUCH:ADORE:DASAI"));
+                    pCharSet->notify();
+                }
+            } else if (currentMode == MODE_CYBER_HUD) {
                 cyberHUD.triggerShy(5000);
                 triggerTouchVisual("SECRET MSG 💌", 0xF81F, 5000, "TOUCH:SHY:HUD");
             } else if (currentMode == MODE_MATRIX_RAIN) {
                 matrixRain.triggerHeartRain(5000);
                 triggerTouchVisual("HEART RAIN 💖", 0xF81F, 5000, "TOUCH:SHY:MATRIX");
-            } else if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
-                dasaiMochi.triggerShyLove(5000);
-                triggerTouchVisual("HEART EYES ❤️", 0xF81F, 5000, "TOUCH:SHY:DASAI");
-                if (bleConnected && pCharSet) {
-                    pCharSet->setValue(std::string("TOUCH:SHY:DASAI"));
-                    pCharSet->notify();
-                }
             } else {
                 preHoldEmotion = memePet.currentEmotion;
                 isTemporaryLove = true;
@@ -1347,26 +1350,40 @@ void processTouch() {
     } else {
         // Pin is LOW
         if (touchActiveState) {
-            // Glitch filter: only consider released if continuously LOW for >= 60ms
-            if (now - lastSeenHighTime >= 60) {
+            // Confirm release: 25ms continuously LOW
+            if (now - lastSeenHighTime >= 25) {
                 touchActiveState = false;
                 uint32_t pressDuration = (lastSeenHighTime >= touchStartTime) ? (lastSeenHighTime - touchStartTime) : 0;
                 lastTapReleaseTime = now;
 
-                if (!shyLoveTriggered && !bleToggleFired && !sleepHoldTriggered) {
-                    if (pressDuration >= 25 && pressDuration < 800) {
+                // Did user release in the 4.0s to 6.0s Bluetooth window?
+                if (bleArmed && !sleepHoldTriggered) {
+                    if (!bleActive && !bleConnected) {
+                        Serial.println("[TOUCH] Released in 4-6s window -> Turning BLE ON ⚡");
+                        startBLE(true);
+                    } else {
+                        Serial.println("[TOUCH] Released in 4-6s window -> Turning BLE OFF 💤");
+                        stopBLE(true);
+                    }
+                    bleArmed = false;
+                    adoreTriggered = false;
+                }
+                // Was it a clean tap (and NOT a hold)?
+                else if (!adoreTriggered && !bleArmed && !sleepHoldTriggered) {
+                    if (pressDuration >= 30 && pressDuration < 750) {
                         tapCount++;
+                        Serial.printf("[TOUCH] Tap registered! TapCount=%u (dur=%u ms)\n", (unsigned int)tapCount, (unsigned int)pressDuration);
                     }
                 }
-                shyLoveTriggered = false;
-                bleToggleFired = false;
+                adoreTriggered = false;
+                bleArmed = false;
                 sleepHoldTriggered = false;
             }
         }
     }
 
-    // MULTI-TAP GESTURE PROCESSING (when finger is up and 280ms elapsed since last tap release)
-    if (!touchActiveState && tapCount > 0 && (now - lastTapReleaseTime > 280)) {
+    // MULTI-TAP GESTURE PROCESSING (when finger is up and 420ms elapsed since last tap release)
+    if (!touchActiveState && tapCount > 0 && (now - lastTapReleaseTime > 420)) {
         int taps = tapCount;
         tapCount = 0;
         lastActivityTime = now;
@@ -1795,8 +1812,8 @@ void setup() {
     lastSeenHighTime = millis();
     tapCount = 0;
     lastTapReleaseTime = millis();
-    shyLoveTriggered = false;
-    bleToggleFired = false;
+    adoreTriggered = false;
+    bleArmed = false;
     sleepHoldTriggered = false;
     analogSetPinAttenuation(PIN_BAT_ADC, ADC_11db);
     pinMode(PIN_BAT_ADC, INPUT);

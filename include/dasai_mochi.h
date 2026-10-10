@@ -171,7 +171,12 @@ public:
         if (!isShyLoveActive) preShyEmotion = currentEmotion;
         isShyLoveActive = true;
         shyLoveStartTime = millis();
-        playAuthenticGif("/mochi/love.gif", false);
+        playAuthenticGif("/mochi/adore.gif", false);
+        Serial.println("[MOCHI] 2s Hold -> Playing ADORE animation 😻 (/mochi/adore.gif)");
+    }
+
+    void triggerAdore(uint32_t durMs = 5000) {
+        triggerShyLove(durMs);
     }
 
     void triggerTap() {
