@@ -206,7 +206,18 @@ public:
         playGif(path, (name == "blank"), 1);
     }
 
+    bool hasJustFinishedLoop = false;
+
+    bool checkAndClearLoopFinished() {
+        if (hasJustFinishedLoop) {
+            hasJustFinishedLoop = false;
+            return true;
+        }
+        return false;
+    }
+
     void update() {
+        hasJustFinishedLoop = false;
         if (!isLoaded) {
             if (LittleFS.exists("/mochi/blank.gif")) {
                 playGif("/mochi/blank.gif", true);
@@ -224,6 +235,7 @@ public:
 
             if (result == 0) {
                 // End of GIF reached
+                hasJustFinishedLoop = true;
                 loopCount++;
                 if (loopContinuous || loopCount < maxLoops) {
                     gif.reset();

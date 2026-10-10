@@ -46,11 +46,63 @@ enum DasaiCycleMode {
     CYCLE_MANUAL_LOCK= 4  // Locked to exact chosen emotion from Web Deck
 };
 
+struct MochiAnimItem {
+    const char* path;
+    const char* name;
+};
+
+static const MochiAnimItem MOCHI_ANIM_CATALOG[] = {
+    { "/mochi/blank.gif",     "BLANK IDLE ⚪" },
+    { "/mochi/happy.gif",     "HAPPY SQUINT 😊" },
+    { "/mochi/wink.gif",      "PLAYFUL WINK 😉" },
+    { "/mochi/love.gif",      "HEART LOVE ❤️" },
+    { "/mochi/sparkle.gif",   "SPARKLE JOY ✨" },
+    { "/mochi/playful.gif",   "PLAYFUL TILT 😋" },
+    { "/mochi/surprised.gif", "SURPRISED 😮" },
+    { "/mochi/dancing.gif",   "DANCING BOUNCE 💃" },
+    { "/mochi/angry.gif",     "ANGRY GLARE 😾" },
+    { "/mochi/fast.gif",      "TURBO RACE 🏁" },
+    { "/mochi/smoke.gif",     "DRIFT SMOKE 💨" },
+    { "/mochi/dizzy.gif",     "DIZZY SPIRAL 😵" },
+    { "/mochi/giggle.gif",    "GIGGLE LAUGH 😸" },
+    { "/mochi/drowsy.gif",    "DROWSY SLEEPY 🥱" },
+    { "/mochi/sleepy.gif",    "SLEEPY ZZZ 💤" },
+    { "/mochi/crying.gif",    "CRYING TEARS 😭" },
+    { "/mochi/devil.gif",     "DEVIL HORNS 😈" },
+    { "/mochi/handsome.gif",  "HANDSOME CHAD 😎" },
+    { "/mochi/yawn.gif",      "BIG YAWN 🥱" },
+    { "/mochi/smile.gif",     "WARM SMILE 🙂" },
+    { "/mochi/hello.gif",     "HELLO WAVE 👋" },
+    { "/mochi/laughing.gif",  "LAUGHING OUT LOUD 😆" },
+    { "/mochi/adore.gif",     "ADORE PET 😻" },
+    { "/mochi/brave.gif",     "BRAVE HERO 🦸" },
+    { "/mochi/rush.gif",      "SPEED RUSH 🏎️" },
+    { "/mochi/serene.gif",    "SERENE CHILL 🧘" },
+    { "/mochi/shy.gif",       "SHY BLUSH 👉👈" },
+    { "/mochi/sick.gif",      "SICK WHEEZE 🤢" },
+    { "/mochi/sneeze.gif",    "SNEEZE ACHOO 🤧" },
+    { "/mochi/sobbing.gif",   "SOBBING CRY 💧" },
+    { "/mochi/splash.gif",    "WATER SPLASH 💦" },
+    { "/mochi/spraying.gif",  "SPRAY CLEAN 🚿" },
+    { "/mochi/squint.gif",    "COOL SQUINT 😏" },
+    { "/mochi/teasing.gif",   "TEASING TONGUE 😜" },
+    { "/mochi/contempt.gif",  "SIDE EYE 👀" },
+    { "/mochi/enraged.gif",   "ENRAGED RAGE 🤬" },
+    { "/mochi/fierce.gif",    "FIERCE BATTLE ⚔️" },
+    { "/mochi/growing.gif",   "GROWING POWER 🌟" },
+    { "/mochi/left.gif",      "LOOK LEFT 👈" },
+    { "/mochi/right.gif",     "LOOK RIGHT 👉" },
+    { "/mochi/down.gif",      "LOOK DOWN 👇" },
+    { "/mochi/relaxed.gif",   "CHILL RELAXED ☕" }
+};
+static const int MOCHI_ANIM_COUNT = sizeof(MOCHI_ANIM_CATALOG) / sizeof(MOCHI_ANIM_CATALOG[0]);
+
 class DasaiMochi {
 public:
     DasaiEmotion   currentEmotion = DASAI_IDLE_LOOK;
     DasaiCycleMode cycleMode      = CYCLE_AUTO_ALL;
     int            currentStyle   = 0; // 0=Warm White, 1=Pastel Cyan, 2=Sakura Pink, 3=Mochi Gold, 4=Neon Violet
+    int            currentAnimIdx = 0;
     DasaiGifPlayer gifPlayer;
 
     // 2-Second Hold Secret Reaction Card
@@ -60,15 +112,18 @@ public:
     String       customShyText     = "I LOVE YOU :heart: :sparkles:";
 
 private:
-    uint32_t masterCycleStart = 0;
-    uint32_t stateStartTime   = 0;
-    DasaiEmotion lastLoadedEmotion = (DasaiEmotion)-1;
-    String   lastLoadedPath = "";
+    uint32_t masterCycleStart       = 0;
+    uint32_t stateStartTime         = 0;
+    uint32_t currentAnimStartTime   = 0;
+    int      showcaseIdx            = 0;
+    DasaiEmotion lastLoadedEmotion  = (DasaiEmotion)-1;
+    String   lastLoadedPath         = "";
 
 public:
     DasaiMochi() {
         masterCycleStart = millis();
         stateStartTime = millis();
+        currentAnimStartTime = millis();
     }
 
     void setStyle(int style) {
@@ -79,6 +134,33 @@ public:
     int cycleStyle() {
         currentStyle = gifPlayer.cycleStyle();
         return currentStyle;
+    }
+
+    // 2 Taps Action: Change animations one by one (DO NOT cycle colors!)
+    const char* cycleNextAnimation() {
+        currentAnimIdx = (currentAnimIdx + 1) % MOCHI_ANIM_COUNT;
+        showcaseIdx = currentAnimIdx;
+        cycleMode = CYCLE_MANUAL_LOCK;
+        const MochiAnimItem& item = MOCHI_ANIM_CATALOG[currentAnimIdx];
+        playAuthenticGif(item.path, true);
+        stateStartTime = millis();
+        currentAnimStartTime = millis();
+        Serial.printf("[MOCHI] 2 Taps -> Animation %d/%d: %s (%s)\n", currentAnimIdx + 1, MOCHI_ANIM_COUNT, item.name, item.path);
+        return item.name;
+    }
+
+    const char* getCurrentAnimationName() const {
+        if (currentAnimIdx >= 0 && currentAnimIdx < MOCHI_ANIM_COUNT) {
+            return MOCHI_ANIM_CATALOG[currentAnimIdx].name;
+        }
+        return "ROBOT EYES 🤖";
+    }
+
+    const char* getCurrentAnimationPath() const {
+        if (currentAnimIdx >= 0 && currentAnimIdx < MOCHI_ANIM_COUNT) {
+            return MOCHI_ANIM_CATALOG[currentAnimIdx].path;
+        }
+        return "/mochi/blank.gif";
     }
 
     void setShyText(const String& txt) {
@@ -154,6 +236,13 @@ public:
             playAuthenticGif(path, (name == "blank"));
             cycleMode = CYCLE_MANUAL_LOCK;
             stateStartTime = millis();
+            for (int i = 0; i < MOCHI_ANIM_COUNT; i++) {
+                if (String(MOCHI_ANIM_CATALOG[i].path).endsWith(name + ".gif")) {
+                    currentAnimIdx = i;
+                    showcaseIdx = i;
+                    break;
+                }
+            }
         }
     }
 
@@ -161,7 +250,13 @@ public:
         cycleMode = mode;
         masterCycleStart = millis();
         stateStartTime = millis();
+        currentAnimStartTime = millis();
         lastLoadedEmotion = (DasaiEmotion)-1;
+        if (cycleMode == CYCLE_AUTO_ALL) {
+            showcaseIdx = 0;
+            currentAnimIdx = 0;
+            playAuthenticGif(MOCHI_ANIM_CATALOG[showcaseIdx].path, false);
+        }
     }
 
     void playAuthenticGif(const String& path, bool loop = true) {
@@ -191,13 +286,10 @@ public:
         }
 
         // =====================================================================
-        // CHOREOGRAPHED CYCLE SEQUENCER
+        // CHOREOGRAPHED CYCLE SEQUENCER (FULL COMPLETION - NEVER CUT IN MIDDLE)
         // =====================================================================
         if (!isShyLoveActive && cycleMode != CYCLE_MANUAL_LOCK) {
             executeMasterCycle(now);
-            if (currentEmotion != lastLoadedEmotion) {
-                loadCurrentEmotionGif(false);
-            }
         }
 
         // =====================================================================
@@ -214,49 +306,30 @@ public:
 private:
     void executeMasterCycle(uint32_t now) {
         if (cycleMode == CYCLE_AUTO_ALL) {
-            // Full 72-second master story loop showcasing authentic expressions
-            uint32_t cycleTime = (now - masterCycleStart) % 72000;
+            // Grand Showcase: Play EACH animation FULLY to the end! Do NOT cut in the middle!
+            bool isIdleFace = (showcaseIdx == 0 || strcmp(MOCHI_ANIM_CATALOG[showcaseIdx].path, "/mochi/blank.gif") == 0);
 
-            if      (cycleTime < 6000)  currentEmotion = DASAI_IDLE_LOOK;      // blank.gif
-            else if (cycleTime < 10000) currentEmotion = DASAI_HAPPY_SQUINT;   // happy.gif
-            else if (cycleTime < 14000) currentEmotion = DASAI_WINK_L;         // wink.gif
-            else if (cycleTime < 18000) currentEmotion = DASAI_SPARKLE_JOY;    // sparkle.gif
-            else if (cycleTime < 22000) currentEmotion = DASAI_HEART_LOVE;     // love.gif
-            else if (cycleTime < 26000) currentEmotion = DASAI_CURIOUS_TILT;   // playful.gif
-            else if (cycleTime < 30000) currentEmotion = DASAI_SURPRISED;      // surprised.gif
-            else if (cycleTime < 34000) currentEmotion = DASAI_EXCITED_BOUNCE; // dancing.gif
-            else if (cycleTime < 38000) currentEmotion = DASAI_ANGRY_GLARE;    // angry.gif
-            else if (cycleTime < 43000) currentEmotion = DASAI_TURBO_RACE;     // fast.gif
-            else if (cycleTime < 48000) currentEmotion = DASAI_DRIFT_G_FORCE;  // smoke.gif
-            else if (cycleTime < 52500) currentEmotion = DASAI_DIZZY_SPIRAL;   // dizzy.gif
-            else if (cycleTime < 56500) currentEmotion = DASAI_SMUG_CAT;       // giggle.gif
-            else if (cycleTime < 61000) currentEmotion = DASAI_SLEEPY_DROOP;   // drowsy.gif
-            else if (cycleTime < 67000) currentEmotion = DASAI_SLEEPING_ZZZ;   // sleepy.gif
-            else                        currentEmotion = DASAI_SAD_TEAR;       // crying.gif
+            bool shouldAdvance = false;
+            if (isIdleFace) {
+                // Calm idle face pause for 3.5s
+                if (now - currentAnimStartTime >= 3500) {
+                    shouldAdvance = true;
+                }
+            } else {
+                // Action GIF: MUST finish entire animation to the last frame!
+                if (gifPlayer.checkAndClearLoopFinished()) {
+                    shouldAdvance = true;
+                }
+            }
 
-        } else if (cycleMode == CYCLE_JDM_ACTION) {
-            uint32_t cycleTime = (now - masterCycleStart) % 24000;
-            if      (cycleTime < 4000)  currentEmotion = DASAI_ANGRY_GLARE;
-            else if (cycleTime < 9000)  currentEmotion = DASAI_TURBO_RACE;
-            else if (cycleTime < 14000) currentEmotion = DASAI_DRIFT_G_FORCE;
-            else if (cycleTime < 18500) currentEmotion = DASAI_DIZZY_SPIRAL;
-            else                        currentEmotion = DASAI_SHOCKED_LIGHT;
-
-        } else if (cycleMode == CYCLE_KAWAII_CUTE) {
-            uint32_t cycleTime = (now - masterCycleStart) % 24000;
-            if      (cycleTime < 4000)  currentEmotion = DASAI_IDLE_LOOK;
-            else if (cycleTime < 8000)  currentEmotion = DASAI_HAPPY_SQUINT;
-            else if (cycleTime < 12000) currentEmotion = DASAI_SPARKLE_JOY;
-            else if (cycleTime < 16500) currentEmotion = DASAI_HEART_LOVE;
-            else if (cycleTime < 20500) currentEmotion = DASAI_WINK_L;
-            else                        currentEmotion = DASAI_SMUG_CAT;
-
-        } else if (cycleMode == CYCLE_CHILL_RELAX) {
-            uint32_t cycleTime = (now - masterCycleStart) % 20000;
-            if      (cycleTime < 5000)  currentEmotion = DASAI_IDLE_LOOK;
-            else if (cycleTime < 10000) currentEmotion = DASAI_SLEEPY_DROOP;
-            else if (cycleTime < 16000) currentEmotion = DASAI_SLEEPING_ZZZ;
-            else                        currentEmotion = DASAI_HAPPY_SQUINT;
+            if (shouldAdvance) {
+                showcaseIdx = (showcaseIdx + 1) % MOCHI_ANIM_COUNT;
+                currentAnimIdx = showcaseIdx;
+                currentAnimStartTime = now;
+                const MochiAnimItem& nextItem = MOCHI_ANIM_CATALOG[showcaseIdx];
+                bool nextIsIdle = (showcaseIdx == 0 || strcmp(nextItem.path, "/mochi/blank.gif") == 0);
+                playAuthenticGif(nextItem.path, nextIsIdle);
+            }
         }
     }
 
