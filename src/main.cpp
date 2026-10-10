@@ -1243,28 +1243,39 @@ void fadeOutBrightness(uint32_t durationMs) {
 // =========================================================================
 // POWER & BLE MANAGEMENT HELPERS
 // =========================================================================
-void blinkDebugLed(int count, int delayMs) {
-    pinMode(PIN_DEBUG_LED, OUTPUT);
-    for (int i = 0; i < count; i++) {
-        digitalWrite(PIN_DEBUG_LED, LOW);  // Turn ON (Active LOW on SuperMini)
-        delay(delayMs);
-        digitalWrite(PIN_DEBUG_LED, HIGH); // Turn OFF
-        delay(delayMs);
+// POWER & BLE MANAGEMENT HELPERS (SUBTLE INDICATOR LED + POWER SAVING)
+// =========================================================================
+#define BLE_LED_PWM_CHANNEL  4
+
+void initBleLed() {
+    ledcSetup(BLE_LED_PWM_CHANNEL, 2000, 8);
+    ledcAttachPin(PIN_DEBUG_LED, BLE_LED_PWM_CHANNEL);
+    ledcWrite(BLE_LED_PWM_CHANNEL, 255); // Completely OFF (active LOW on SuperMini)
+}
+
+void setBleLed(bool on) {
+    if (on) {
+        ledcWrite(BLE_LED_PWM_CHANNEL, 240); // Subtle dim glow (~6% duty active LOW)
+    } else {
+        ledcWrite(BLE_LED_PWM_CHANNEL, 255); // Completely OFF
     }
-    digitalWrite(PIN_DEBUG_LED, HIGH);     // Keep OFF
+}
+
+void blinkDebugLed(int count, int delayMs) {
+    // Deprecated: Blue LED is exclusively reserved as a subtle Bluetooth indicator
 }
 
 void startBLE(bool notifyVisual) {
     if (bleActive) return;
     bleActive = true;
-    setCpuFrequencyMhz(160);
-    blinkDebugLed(2, 60); // Crisp 2 quick pulses
+    setCpuFrequencyMhz(80); // Keep CPU at 80 MHz to save massive battery!
+    setBleLed(true);        // Subtle dim glow while Bluetooth is active!
     NimBLEAdvertising* pAdv = NimBLEDevice::getAdvertising();
     if (pAdv) pAdv->start();
     bleStartTimeMs = millis();
     lastActivityTime = millis();
     if (notifyVisual) triggerTouchVisual("BLE ON ⚡", 0x07FF, 2000, "BLE:ONLINE");
-    Serial.println("[BLE] BLE Radio Activated! CPU @ 160MHz.");
+    Serial.println("[BLE] BLE Radio Activated! CPU @ 80MHz. Blue LED glowing softly.");
 }
 
 void stopBLE(bool notifyVisual) {
@@ -1276,143 +1287,143 @@ void stopBLE(bool notifyVisual) {
         NimBLEDevice::getServer()->disconnect(0);
         bleConnected = false;
     }
-    blinkDebugLed(1, 60);
+    setBleLed(false); // Turn LED completely OFF
     setCpuFrequencyMhz(80); // Drop CPU clock to 80 MHz to run cool and save battery!
     if (notifyVisual) triggerTouchVisual("BLE OFF 💤", 0x8410, 1500, "BLE:OFFLINE");
-    Serial.println("[BLE] BLE Radio Deactivated! Standby mode. CPU @ 80MHz.");
+    Serial.println("[BLE] BLE Radio Deactivated! Standby mode. Blue LED OFF.");
 }
 
 // =========================================================================
-// ZERO-LATENCY HARDWARE TOUCH & RESPONSIVE GESTURE ENGINE
+// ZERO-LATENCY HARDWARE BUTTON / TOUCH & RESPONSIVE GESTURE ENGINE
 // =========================================================================
 void processTouch() {
     uint32_t now = millis();
     bool rawPin = (digitalRead(PIN_TOUCH) == HIGH);
 
-    static uint32_t pinHighStartTime = 0;
-    static uint32_t pinLowStartTime = 0;
+    // 8-bit rolling debounce shift register (polled every 2ms)
+    static uint8_t history = 0;
+    history = (history << 1) | (rawPin ? 1 : 0);
 
-    if (rawPin) {
-        if (pinHighStartTime == 0) pinHighStartTime = now;
-        pinLowStartTime = 0;
+    // 3 consecutive 1s = Pressed (6ms), 3 consecutive 0s = Released (6ms)
+    // Filters out any 1-2ms noise/glitches with instantaneous 6ms response
+    static bool stablePressed = false;
+    if ((history & 0x07) == 0x07) {
+        stablePressed = true;
+    } else if ((history & 0x07) == 0x00) {
+        stablePressed = false;
+    }
 
-        // Require pin to be HIGH continuously for >= 15ms to initiate a press (filters high-frequency EMI noise)
-        if (!touchActiveState && (now - pinHighStartTime >= 15)) {
-            touchActiveState = true;
-            touchStartTime = pinHighStartTime;
-            adoreTriggered = false;
-            bleArmed = false;
-            sleepHoldTriggered = false;
+    static bool prevStable = false;
+    bool justPressed  = (stablePressed && !prevStable);
+    bool justReleased = (!stablePressed && prevStable);
+    prevStable = stablePressed;
+
+    if (justPressed) {
+        touchActiveState = true;
+        touchStartTime = now;
+        adoreTriggered = false;
+        bleArmed = false;
+        sleepHoldTriggered = false;
+    }
+
+    if (stablePressed && touchActiveState) {
+        lastSeenHighTime = now;
+        uint32_t holdDuration = now - touchStartTime;
+
+        // 1. Hold >= 6.0s: DEEP SLEEP / POWER OFF (BLE IS DISABLED / NEVER TURNED ON!) 🌙
+        if (holdDuration >= 6000 && !sleepHoldTriggered) {
+            sleepHoldTriggered = true;
+            bleArmed = false; // Disable BLE arming - do NOT turn on!
+            stopBLE(false);   // Force BLE radio completely OFF
+            lastActivityTime = now;
+            triggerTouchVisual("POWER OFF 🌙", 0x8410, 1000, "SYS:SLEEP");
+            Serial.println("[BUTTON] Held >= 6s -> Powering off to Deep Sleep (BLE OFF)...");
+            enterDeepSleep();
+            return;
         }
 
-        if (touchActiveState) {
-            lastSeenHighTime = now;
-            uint32_t holdDuration = now - touchStartTime;
-
-            // 1. Hold >= 6.0s: DEEP SLEEP / POWER OFF (BLE IS DISABLED / NEVER TURNED ON!) 🌙
-            if (holdDuration >= 6000 && !sleepHoldTriggered) {
-                sleepHoldTriggered = true;
-                bleArmed = false; // Disable BLE arming - do NOT turn on!
-                stopBLE(false);   // Force BLE radio completely OFF
-                lastActivityTime = now;
-                blinkDebugLed(1, 350);
-                triggerTouchVisual("POWER OFF 🌙", 0x8410, 1000, "SYS:SLEEP");
-                Serial.println("[TOUCH] Held >= 6s -> Disabling BLE and powering off to Deep Sleep...");
-                enterDeepSleep();
-                return;
-            }
-
-            // 2. Hold >= 4.0s and < 6.0s: ARM BLUETOOTH (TURNS ON ONLY ON RELEASE IN THIS 4-6s WINDOW!) ⚡
-            else if (holdDuration >= 4000 && holdDuration < 6000 && !bleArmed && !sleepHoldTriggered) {
-                bleArmed = true;
-                lastActivityTime = now;
-                blinkDebugLed(2, 60);
-                if (!bleActive && !bleConnected) {
-                    triggerTouchVisual("RELEASE FOR BLE ⚡", 0x07FF, 2000, "BLE:ARMED");
-                    Serial.println("[TOUCH] 4-6s Window Reached -> Release to turn BLE ON ⚡");
-                } else {
-                    triggerTouchVisual("RELEASE: BLE OFF 💤", 0x8410, 2000, "BLE:ARMED");
-                    Serial.println("[TOUCH] 4-6s Window Reached -> Release to turn BLE OFF 💤");
-                }
-            }
-
-            // 3. Hold >= 2.0s and < 4.0s: ADORE ANIMATION 😻 / SHY LOVE ❤️
-            else if (holdDuration >= 2000 && holdDuration < 4000 && !adoreTriggered && !bleArmed && !sleepHoldTriggered) {
-                adoreTriggered = true;
-                lastActivityTime = now;
-
-                if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
-                    dasaiMochi.triggerAdore(5000);
-                    triggerTouchVisual("ADORE 😻", 0xF81F, 3000, "TOUCH:ADORE:DASAI");
-                    if (bleConnected && pCharSet) {
-                        pCharSet->setValue(std::string("TOUCH:ADORE:DASAI"));
-                        pCharSet->notify();
-                    }
-                } else if (currentMode == MODE_CYBER_HUD) {
-                    cyberHUD.triggerShy(5000);
-                    triggerTouchVisual("SECRET MSG 💌", 0xF81F, 5000, "TOUCH:SHY:HUD");
-                } else if (currentMode == MODE_MATRIX_RAIN) {
-                    matrixRain.triggerHeartRain(5000);
-                    triggerTouchVisual("HEART RAIN 💖", 0xF81F, 5000, "TOUCH:SHY:MATRIX");
-                } else {
-                    preHoldEmotion = memePet.currentEmotion;
-                    isTemporaryLove = true;
-                    loveStartTime = now;
-                    memePet.setEmotion(EMOTION_SHY);
-                    currentMode = MODE_CYBERPET;
-                    isVideoPlaying = false;
-                    triggerTouchVisual("SHY LOVE ❤️", 0xF81F, 5000, "TOUCH:SHY:PET");
-                    if (bleConnected && pCharPet) {
-                        char emoChar[2] = { (char)('0' + (int)EMOTION_SHY), '\0' };
-                        pCharPet->setValue(std::string(emoChar));
-                        pCharPet->notify();
-                    }
-                }
+        // 2. Hold >= 4.0s and < 6.0s: ARM BLUETOOTH (TURNS ON ONLY ON RELEASE IN THIS 4-6s WINDOW!) ⚡
+        else if (holdDuration >= 4000 && holdDuration < 6000 && !bleArmed && !sleepHoldTriggered) {
+            bleArmed = true;
+            lastActivityTime = now;
+            if (!bleActive && !bleConnected) {
+                triggerTouchVisual("RELEASE FOR BLE ⚡", 0x07FF, 2000, "BLE:ARMED");
+                Serial.println("[BUTTON] 4-6s Window -> Release to turn BLE ON ⚡");
+            } else {
+                triggerTouchVisual("RELEASE: BLE OFF 💤", 0x8410, 2000, "BLE:ARMED");
+                Serial.println("[BUTTON] 4-6s Window -> Release to turn BLE OFF 💤");
             }
         }
-    } else {
-        // Pin is LOW
-        pinHighStartTime = 0;
-        if (pinLowStartTime == 0) pinLowStartTime = now;
 
-        if (touchActiveState) {
-            // Confirm release: 25ms continuously LOW
-            if (now - pinLowStartTime >= 25) {
-                touchActiveState = false;
-                uint32_t pressDuration = (lastSeenHighTime >= touchStartTime) ? (lastSeenHighTime - touchStartTime) : 0;
-                lastTapReleaseTime = now;
+        // 3. Hold >= 2.0s and < 4.0s: ADORE ANIMATION 😻 / SHY LOVE ❤️
+        else if (holdDuration >= 2000 && holdDuration < 4000 && !adoreTriggered && !bleArmed && !sleepHoldTriggered) {
+            adoreTriggered = true;
+            lastActivityTime = now;
 
-                // Did user release in the 4.0s to 6.0s Bluetooth window?
-                if (bleArmed && !sleepHoldTriggered) {
-                    if (!bleActive && !bleConnected) {
-                        Serial.println("[TOUCH] Released in 4-6s window -> Turning BLE ON ⚡");
-                        startBLE(true);
-                    } else {
-                        Serial.println("[TOUCH] Released in 4-6s window -> Turning BLE OFF 💤");
-                        stopBLE(true);
-                    }
-                    bleArmed = false;
-                    adoreTriggered = false;
+            if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
+                dasaiMochi.triggerAdore(5000);
+                triggerTouchVisual("ADORE 😻", 0xF81F, 3000, "TOUCH:ADORE:DASAI");
+                if (bleConnected && pCharSet) {
+                    pCharSet->setValue(std::string("TOUCH:ADORE:DASAI"));
+                    pCharSet->notify();
                 }
-                // Was it a clean tap (and NOT a hold)?
-                else if (!adoreTriggered && !bleArmed && !sleepHoldTriggered) {
-                    if (pressDuration >= 20 && pressDuration < 750) {
-                        tapCount++;
-                        Serial.printf("[TOUCH] Tap registered! TapCount=%u (dur=%u ms)\n", (unsigned int)tapCount, (unsigned int)pressDuration);
-                    }
+            } else if (currentMode == MODE_CYBER_HUD) {
+                cyberHUD.triggerShy(5000);
+                triggerTouchVisual("SECRET MSG 💌", 0xF81F, 5000, "TOUCH:SHY:HUD");
+            } else if (currentMode == MODE_MATRIX_RAIN) {
+                matrixRain.triggerHeartRain(5000);
+                triggerTouchVisual("HEART RAIN 💖", 0xF81F, 5000, "TOUCH:SHY:MATRIX");
+            } else {
+                preHoldEmotion = memePet.currentEmotion;
+                isTemporaryLove = true;
+                loveStartTime = now;
+                memePet.setEmotion(EMOTION_SHY);
+                currentMode = MODE_CYBERPET;
+                isVideoPlaying = false;
+                triggerTouchVisual("SHY LOVE ❤️", 0xF81F, 5000, "TOUCH:SHY:PET");
+                if (bleConnected && pCharPet) {
+                    char emoChar[2] = { (char)('0' + (int)EMOTION_SHY), '\0' };
+                    pCharPet->setValue(std::string(emoChar));
+                    pCharPet->notify();
                 }
-                adoreTriggered = false;
-                bleArmed = false;
-                sleepHoldTriggered = false;
             }
         }
     }
 
+    if (justReleased) {
+        touchActiveState = false;
+        uint32_t pressDuration = (now >= touchStartTime) ? (now - touchStartTime) : 0;
+        lastTapReleaseTime = now;
+
+        // Did user release in the 4.0s to 6.0s Bluetooth window?
+        if (bleArmed && !sleepHoldTriggered) {
+            if (!bleActive && !bleConnected) {
+                Serial.println("[BUTTON] Released in 4-6s window -> Turning BLE ON ⚡");
+                startBLE(true);
+            } else {
+                Serial.println("[BUTTON] Released in 4-6s window -> Turning BLE OFF 💤");
+                stopBLE(true);
+            }
+            bleArmed = false;
+            adoreTriggered = false;
+        }
+        // Was it a clean tap / click (and NOT a hold)?
+        else if (!adoreTriggered && !bleArmed && !sleepHoldTriggered) {
+            if (pressDuration >= 15 && pressDuration < 800) {
+                tapCount++;
+                Serial.printf("[BUTTON] Tap #%u registered! (dur=%u ms)\n", (unsigned int)tapCount, (unsigned int)pressDuration);
+            }
+        }
+        adoreTriggered = false;
+        bleArmed = false;
+        sleepHoldTriggered = false;
+    }
+
     // MULTI-TAP GESTURE PROCESSING
-    // Calibrated timeout: 480ms after 1st tap (relaxed double tap cadence),
+    // Calibrated timeout: 520ms after 1st tap (comfortable double tap cadence),
     // 320ms after 2nd tap (for potential triple tap), 280ms for 3+ taps.
-    if (!touchActiveState && tapCount > 0) {
-        uint32_t tapTimeout = (tapCount == 1) ? 480 : ((tapCount == 2) ? 320 : 280);
+    if (!stablePressed && tapCount > 0) {
+        uint32_t tapTimeout = (tapCount == 1) ? 520 : ((tapCount == 2) ? 320 : 280);
         if (now - lastTapReleaseTime >= tapTimeout) {
             int taps = tapCount;
             tapCount = 0;
@@ -1835,8 +1846,7 @@ void setup() {
     gpio_hold_dis((gpio_num_t)PIN_DEBUG_LED);
     pinMode(PIN_TFT_BL, OUTPUT);
     digitalWrite(PIN_TFT_BL, LOW);
-    pinMode(PIN_DEBUG_LED, OUTPUT);
-    digitalWrite(PIN_DEBUG_LED, HIGH); // Ensure Blue LED is completely OFF
+    initBleLed(); // Initialize subtle PWM LED (starts completely OFF)
 
     pinMode(PIN_TOUCH, INPUT_PULLDOWN);
     touchActiveState = false;
@@ -1946,7 +1956,7 @@ void setup() {
     // 3. Initialize NimBLE Bluetooth
     Serial.println("[BLE] Initializing NimBLE stack...");
     NimBLEDevice::init("SPEARHEAD");
-    NimBLEDevice::setPower(ESP_PWR_LVL_P9);
+    NimBLEDevice::setPower(ESP_PWR_LVL_P3); // Energy efficient +3dBm (plenty for pocket/keychain, saves massive RF battery!)
     NimBLEDevice::setSecurityAuth(false, false, false);
     NimBLEDevice::setMTU(512);
 
@@ -1981,6 +1991,8 @@ void setup() {
     NimBLEAdvertising* pAdv = NimBLEDevice::getAdvertising();
     pAdv->setScanResponse(true);
     pAdv->addServiceUUID(SERVICE_UUID);
+    pAdv->setMinInterval(160); // 100ms interval for balanced discovery and low power
+    pAdv->setMaxInterval(320); // 200ms interval
 
     // Initial Startup: Keep BLE in Standby (OFF) to run cool, eliminate battery drain,
     // and prevent accidental Bluetooth popups on wake! Activate via 4 taps or 4.0s hold.
