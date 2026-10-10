@@ -3270,17 +3270,30 @@
           const withResponse = (chunkCount % 3 === 0) || (end >= totalLen);
           await safeBleWrite(charStream, chunkPacket, !withResponse);
           offset = end;
-          const pct = Math.round((offset / totalLen) * 100);
+          const pct = Math.round((offset / totalLen) * 95);
           if (progressBar) progressBar.style.width = `${pct}%`;
           await new Promise(r => setTimeout(r, 12));
         }
 
+        // 3. Send Finish packet (0x12) to ensure image is flushed and rendered
+        const finishPacket = new Uint8Array([0x12]);
+        await safeBleWrite(charStream, finishPacket, false);
+        if (progressBar) progressBar.style.width = '100%';
+
+        // Switch to mode 5 (Stream Media)
+        if (charMode) {
+          await safeBleWrite(charMode, new Uint8Array([0x35]), false); // '5'
+        }
+        selectMode(5, false);
+
+        if (evt.target) evt.target.value = '';
         setTimeout(() => { if (progressWrap) progressWrap.style.display = 'none'; }, 800);
         log("Single image frame rendered on Keychain!");
       } catch (err) {
         console.error(err);
         log(`Stream image error: ${err.message}`);
         if (progressWrap) progressWrap.style.display = 'none';
+        if (evt.target) evt.target.value = '';
       }
     }
 

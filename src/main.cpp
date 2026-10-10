@@ -119,6 +119,8 @@ uint8_t* pStreamBuf          = nullptr;
 size_t   streamBytesReceived = 0;
 size_t   expectedStreamBytes = 0;
 bool     newMediaFrameReady  = false;
+File     liveImageWriteFile;
+bool     hasStreamImageRendered = false;
 
 // 25 FPS Video / GIF Dynamic Stream Engine (LittleFS Flash Backed)
 File     liveVideoWriteFile;
@@ -872,41 +874,57 @@ class StreamCallback : public NimBLECharacteristicCallbacks {
             streamBytesReceived = 0;
             newMediaFrameReady = false;
             isVideoPlaying = false;
-            if (!pStreamBuf) pStreamBuf = (uint8_t*)malloc(STREAM_CHUNK_BUFFER);
-            if (pStreamBuf && len > 3) {
+            if (liveImageWriteFile) liveImageWriteFile.close();
+            LittleFS.remove("/live_image.jpg");
+            liveImageWriteFile = LittleFS.open("/live_image.jpg", "w");
+            if (liveImageWriteFile && len > 3) {
                 size_t payload = len - 3;
-                if (payload <= STREAM_CHUNK_BUFFER) {
-                    memcpy(pStreamBuf, bytes + 3, payload);
-                    streamBytesReceived = payload;
-                }
+                liveImageWriteFile.write(bytes + 3, payload);
+                streamBytesReceived = payload;
             }
             if (expectedStreamBytes > 0 && streamBytesReceived >= expectedStreamBytes) {
+                if (liveImageWriteFile) liveImageWriteFile.close();
                 newMediaFrameReady = true;
+                hasStreamImageRendered = false;
                 currentMode = MODE_STREAM_MEDIA;
                 streamStartTime = millis();
                 lastActivityTime = millis();
                 if (pCharMode) { pCharMode->setValue(std::string("5")); pCharMode->notify(); }
                 if (pCharSet) { pCharSet->setValue(std::string("STREAM:IMAGE_OK")); pCharSet->notify(); }
-                Serial.printf("[STREAM] Single Image ready (%d bytes)!\n", (int)streamBytesReceived);
+                Serial.printf("[STREAM] Single Image ready (%d bytes) in LittleFS!\n", (int)streamBytesReceived);
             }
             return;
         }
 
-        if (opcode == 0x11 && len > 1 && expectedStreamBytes > 0 && pStreamBuf) {
+        if (opcode == 0x11 && len > 1 && expectedStreamBytes > 0 && liveImageWriteFile) {
             size_t payload = len - 1;
-            if (streamBytesReceived + payload <= STREAM_CHUNK_BUFFER) {
-                memcpy(pStreamBuf + streamBytesReceived, bytes + 1, payload);
-                streamBytesReceived += payload;
-            }
+            liveImageWriteFile.write(bytes + 1, payload);
+            streamBytesReceived += payload;
             if (streamBytesReceived >= expectedStreamBytes) {
+                liveImageWriteFile.close();
                 newMediaFrameReady = true;
+                hasStreamImageRendered = false;
                 currentMode = MODE_STREAM_MEDIA;
                 streamStartTime = millis();
                 lastActivityTime = millis();
                 if (pCharMode) { pCharMode->setValue(std::string("5")); pCharMode->notify(); }
                 if (pCharSet) { pCharSet->setValue(std::string("STREAM:IMAGE_OK")); pCharSet->notify(); }
-                Serial.printf("[STREAM] Single Image upload complete (%d bytes)!\n", (int)streamBytesReceived);
+                Serial.printf("[STREAM] Single Image upload complete (%d bytes) in LittleFS!\n", (int)streamBytesReceived);
             }
+            return;
+        }
+
+        if (opcode == 0x12) {
+            if (liveImageWriteFile) liveImageWriteFile.close();
+            newMediaFrameReady = true;
+            hasStreamImageRendered = false;
+            currentMode = MODE_STREAM_MEDIA;
+            isVideoPlaying = false;
+            streamStartTime = millis();
+            lastActivityTime = millis();
+            if (pCharMode) { pCharMode->setValue(std::string("5")); pCharMode->notify(); }
+            if (pCharSet) { pCharSet->setValue(std::string("STREAM:IMAGE_OK")); pCharSet->notify(); }
+            Serial.printf("[STREAM] Single Image finish opcode 0x12 received (%d bytes) in LittleFS!\n", (int)streamBytesReceived);
             return;
         }
 
@@ -1265,93 +1283,101 @@ void stopBLE(bool notifyVisual) {
 }
 
 // =========================================================================
-// ZERO-LATENCY HARDWARE TOUCH ISR & RESPONSIVE GESTURE ENGINE
+// ZERO-LATENCY HARDWARE TOUCH & RESPONSIVE GESTURE ENGINE
 // =========================================================================
-void IRAM_ATTR touchISR() {
-    // Hardware interrupt wake vector
-}
-
 void processTouch() {
     uint32_t now = millis();
     bool rawPin = (digitalRead(PIN_TOUCH) == HIGH);
 
+    static uint32_t pinHighStartTime = 0;
+    static uint32_t pinLowStartTime = 0;
+
     if (rawPin) {
-        lastSeenHighTime = now;
-        if (!touchActiveState) {
+        if (pinHighStartTime == 0) pinHighStartTime = now;
+        pinLowStartTime = 0;
+
+        // Require pin to be HIGH continuously for >= 15ms to initiate a press (filters high-frequency EMI noise)
+        if (!touchActiveState && (now - pinHighStartTime >= 15)) {
             touchActiveState = true;
-            touchStartTime = now;
+            touchStartTime = pinHighStartTime;
             adoreTriggered = false;
             bleArmed = false;
             sleepHoldTriggered = false;
         }
 
-        uint32_t holdDuration = now - touchStartTime;
+        if (touchActiveState) {
+            lastSeenHighTime = now;
+            uint32_t holdDuration = now - touchStartTime;
 
-        // 1. Hold >= 6.0s: DEEP SLEEP / POWER OFF (BLE IS DISABLED / NEVER TURNED ON!) 🌙
-        if (holdDuration >= 6000 && !sleepHoldTriggered) {
-            sleepHoldTriggered = true;
-            bleArmed = false; // Disable BLE arming - do NOT turn on!
-            stopBLE(false);   // Force BLE radio completely OFF
-            lastActivityTime = now;
-            blinkDebugLed(1, 350);
-            triggerTouchVisual("POWER OFF 🌙", 0x8410, 1000, "SYS:SLEEP");
-            Serial.println("[TOUCH] Held >= 6s -> Disabling BLE and powering off to Deep Sleep...");
-            enterDeepSleep();
-            return;
-        }
-
-        // 2. Hold >= 4.0s and < 6.0s: ARM BLUETOOTH (TURNS ON ONLY ON RELEASE IN THIS 4-6s WINDOW!) ⚡
-        else if (holdDuration >= 4000 && holdDuration < 6000 && !bleArmed && !sleepHoldTriggered) {
-            bleArmed = true;
-            lastActivityTime = now;
-            blinkDebugLed(2, 60);
-            if (!bleActive && !bleConnected) {
-                triggerTouchVisual("RELEASE FOR BLE ⚡", 0x07FF, 2000, "BLE:ARMED");
-                Serial.println("[TOUCH] 4-6s Window Reached -> Release to turn BLE ON ⚡");
-            } else {
-                triggerTouchVisual("RELEASE: BLE OFF 💤", 0x8410, 2000, "BLE:ARMED");
-                Serial.println("[TOUCH] 4-6s Window Reached -> Release to turn BLE OFF 💤");
+            // 1. Hold >= 6.0s: DEEP SLEEP / POWER OFF (BLE IS DISABLED / NEVER TURNED ON!) 🌙
+            if (holdDuration >= 6000 && !sleepHoldTriggered) {
+                sleepHoldTriggered = true;
+                bleArmed = false; // Disable BLE arming - do NOT turn on!
+                stopBLE(false);   // Force BLE radio completely OFF
+                lastActivityTime = now;
+                blinkDebugLed(1, 350);
+                triggerTouchVisual("POWER OFF 🌙", 0x8410, 1000, "SYS:SLEEP");
+                Serial.println("[TOUCH] Held >= 6s -> Disabling BLE and powering off to Deep Sleep...");
+                enterDeepSleep();
+                return;
             }
-        }
 
-        // 3. Hold >= 2.0s and < 4.0s: ADORE ANIMATION 😻 / SHY LOVE ❤️
-        else if (holdDuration >= 2000 && holdDuration < 4000 && !adoreTriggered && !bleArmed && !sleepHoldTriggered) {
-            adoreTriggered = true;
-            lastActivityTime = now;
-
-            if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
-                dasaiMochi.triggerAdore(5000);
-                triggerTouchVisual("ADORE 😻", 0xF81F, 3000, "TOUCH:ADORE:DASAI");
-                if (bleConnected && pCharSet) {
-                    pCharSet->setValue(std::string("TOUCH:ADORE:DASAI"));
-                    pCharSet->notify();
+            // 2. Hold >= 4.0s and < 6.0s: ARM BLUETOOTH (TURNS ON ONLY ON RELEASE IN THIS 4-6s WINDOW!) ⚡
+            else if (holdDuration >= 4000 && holdDuration < 6000 && !bleArmed && !sleepHoldTriggered) {
+                bleArmed = true;
+                lastActivityTime = now;
+                blinkDebugLed(2, 60);
+                if (!bleActive && !bleConnected) {
+                    triggerTouchVisual("RELEASE FOR BLE ⚡", 0x07FF, 2000, "BLE:ARMED");
+                    Serial.println("[TOUCH] 4-6s Window Reached -> Release to turn BLE ON ⚡");
+                } else {
+                    triggerTouchVisual("RELEASE: BLE OFF 💤", 0x8410, 2000, "BLE:ARMED");
+                    Serial.println("[TOUCH] 4-6s Window Reached -> Release to turn BLE OFF 💤");
                 }
-            } else if (currentMode == MODE_CYBER_HUD) {
-                cyberHUD.triggerShy(5000);
-                triggerTouchVisual("SECRET MSG 💌", 0xF81F, 5000, "TOUCH:SHY:HUD");
-            } else if (currentMode == MODE_MATRIX_RAIN) {
-                matrixRain.triggerHeartRain(5000);
-                triggerTouchVisual("HEART RAIN 💖", 0xF81F, 5000, "TOUCH:SHY:MATRIX");
-            } else {
-                preHoldEmotion = memePet.currentEmotion;
-                isTemporaryLove = true;
-                loveStartTime = now;
-                memePet.setEmotion(EMOTION_SHY);
-                currentMode = MODE_CYBERPET;
-                isVideoPlaying = false;
-                triggerTouchVisual("SHY LOVE ❤️", 0xF81F, 5000, "TOUCH:SHY:PET");
-                if (bleConnected && pCharPet) {
-                    char emoChar[2] = { (char)('0' + (int)EMOTION_SHY), '\0' };
-                    pCharPet->setValue(std::string(emoChar));
-                    pCharPet->notify();
+            }
+
+            // 3. Hold >= 2.0s and < 4.0s: ADORE ANIMATION 😻 / SHY LOVE ❤️
+            else if (holdDuration >= 2000 && holdDuration < 4000 && !adoreTriggered && !bleArmed && !sleepHoldTriggered) {
+                adoreTriggered = true;
+                lastActivityTime = now;
+
+                if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
+                    dasaiMochi.triggerAdore(5000);
+                    triggerTouchVisual("ADORE 😻", 0xF81F, 3000, "TOUCH:ADORE:DASAI");
+                    if (bleConnected && pCharSet) {
+                        pCharSet->setValue(std::string("TOUCH:ADORE:DASAI"));
+                        pCharSet->notify();
+                    }
+                } else if (currentMode == MODE_CYBER_HUD) {
+                    cyberHUD.triggerShy(5000);
+                    triggerTouchVisual("SECRET MSG 💌", 0xF81F, 5000, "TOUCH:SHY:HUD");
+                } else if (currentMode == MODE_MATRIX_RAIN) {
+                    matrixRain.triggerHeartRain(5000);
+                    triggerTouchVisual("HEART RAIN 💖", 0xF81F, 5000, "TOUCH:SHY:MATRIX");
+                } else {
+                    preHoldEmotion = memePet.currentEmotion;
+                    isTemporaryLove = true;
+                    loveStartTime = now;
+                    memePet.setEmotion(EMOTION_SHY);
+                    currentMode = MODE_CYBERPET;
+                    isVideoPlaying = false;
+                    triggerTouchVisual("SHY LOVE ❤️", 0xF81F, 5000, "TOUCH:SHY:PET");
+                    if (bleConnected && pCharPet) {
+                        char emoChar[2] = { (char)('0' + (int)EMOTION_SHY), '\0' };
+                        pCharPet->setValue(std::string(emoChar));
+                        pCharPet->notify();
+                    }
                 }
             }
         }
     } else {
         // Pin is LOW
+        pinHighStartTime = 0;
+        if (pinLowStartTime == 0) pinLowStartTime = now;
+
         if (touchActiveState) {
             // Confirm release: 25ms continuously LOW
-            if (now - lastSeenHighTime >= 25) {
+            if (now - pinLowStartTime >= 25) {
                 touchActiveState = false;
                 uint32_t pressDuration = (lastSeenHighTime >= touchStartTime) ? (lastSeenHighTime - touchStartTime) : 0;
                 lastTapReleaseTime = now;
@@ -1370,7 +1396,7 @@ void processTouch() {
                 }
                 // Was it a clean tap (and NOT a hold)?
                 else if (!adoreTriggered && !bleArmed && !sleepHoldTriggered) {
-                    if (pressDuration >= 30 && pressDuration < 750) {
+                    if (pressDuration >= 20 && pressDuration < 750) {
                         tapCount++;
                         Serial.printf("[TOUCH] Tap registered! TapCount=%u (dur=%u ms)\n", (unsigned int)tapCount, (unsigned int)pressDuration);
                     }
@@ -1382,93 +1408,99 @@ void processTouch() {
         }
     }
 
-    // MULTI-TAP GESTURE PROCESSING (when finger is up and 420ms elapsed since last tap release)
-    if (!touchActiveState && tapCount > 0 && (now - lastTapReleaseTime > 420)) {
-        int taps = tapCount;
-        tapCount = 0;
-        lastActivityTime = now;
+    // MULTI-TAP GESTURE PROCESSING
+    // Calibrated timeout: 480ms after 1st tap (relaxed double tap cadence),
+    // 320ms after 2nd tap (for potential triple tap), 280ms for 3+ taps.
+    if (!touchActiveState && tapCount > 0) {
+        uint32_t tapTimeout = (tapCount == 1) ? 480 : ((tapCount == 2) ? 320 : 280);
+        if (now - lastTapReleaseTime >= tapTimeout) {
+            int taps = tapCount;
+            tapCount = 0;
+            lastActivityTime = now;
 
-        if (taps == 1) {
-            // 1 TAP: Poke / Interact
-            if (isEasterEggActive) {
-                isEasterEggActive = false;
-                if (pCharSet) { pCharSet->setValue(std::string("TOUCH:REVERT")); pCharSet->notify(); }
-                triggerTouchVisual("DISMISSED 🔄", 0x07FF, 700, "TOUCH:REVERT");
-            } else {
-                if (currentMode == MODE_CYBERPET) {
-                    memePet.triggerTap();
-                    triggerTouchVisual("POKE 👆", 0x07FF, 700, "TOUCH:POKE");
-                } else if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
-                    dasaiMochi.triggerTap();
-                    triggerTouchVisual("GIGGLE 😸", 0x7FFF, 700, "TOUCH:POKE");
-                } else if (currentMode == MODE_CYBER_HUD) {
-                    triggerTouchVisual("TICK ⏱️", 0x07E0, 700, "TOUCH:POKE");
-                } else if (currentMode == MODE_MATRIX_RAIN) {
-                    triggerTouchVisual("GLITCH ⚡", 0x07E0, 700, "TOUCH:POKE");
+            if (taps == 1) {
+                // 1 TAP: Poke / Giggle
+                if (isEasterEggActive) {
+                    isEasterEggActive = false;
+                    if (pCharSet) { pCharSet->setValue(std::string("TOUCH:REVERT")); pCharSet->notify(); }
+                    triggerTouchVisual("DISMISSED 🔄", 0x07FF, 700, "TOUCH:REVERT");
                 } else {
-                    triggerTouchVisual("TAP 👆", 0x07FF, 700, "TOUCH:POKE");
-                }
-                Serial.println("[TOUCH] Single Tap Confirmed -> Interact 👆");
-            }
-        }
-        else if (taps == 2) {
-            // 2 TAPS: In Robot Eyes mode -> Change animations ONE BY ONE! (DO NOT change colors!)
-            if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
-                const char* animName = dasaiMochi.cycleNextAnimation();
-                triggerTouchVisual(animName, 0x07FF, 1200, "DASAI:ANIM");
-                if (bleConnected && pCharSet) {
-                    pCharSet->setValue("DASAI_EMO:" + String(dasaiMochi.getCurrentAnimationPath()));
-                    pCharSet->notify();
-                }
-            } else if (currentMode == MODE_CYBERPET) {
-                int next = ((int)memePet.currentEmotion + 1) % 7;
-                memePet.setEmotion((MemeEmotion)next);
-                memePet.defaultEmotion = (MemeEmotion)next;
-                const char* emoNames[] = { "LUFFY ⚡", "SHY LOVE 👉👈", "GIGGLE CAT 😸", "SAD BANANA 🍌", "UMARU CRY 😭", "ANGRY CAT 😾", "BUNNY 🐰" };
-                triggerTouchVisual(emoNames[next], 0xFFE0, 1000, "TOUCH:DOUBLE");
-                if (bleConnected && pCharPet) {
-                    char emoChar[2] = { (char)('0' + (int)next), '\0' };
-                    pCharPet->setValue(std::string(emoChar));
-                    pCharPet->notify();
-                }
-            } else if (currentMode == MODE_CYBER_HUD) {
-                int next = cyberHUD.cycleLayout();
-                const char* hudNames[] = { "FULL CYBER HUD ⚡", "BIG CLOCK & DATE ⏰", "MINIMAL DASH 📟" };
-                triggerTouchVisual(hudNames[next], 0x07FF, 1000, "HUD:LAYOUT");
-                if (bleConnected && pCharSet) {
-                    pCharSet->setValue("HUD_LAY:" + std::to_string(next));
-                    pCharSet->notify();
-                }
-            } else if (currentMode == MODE_MATRIX_RAIN) {
-                int next = matrixRain.cycleTheme();
-                const char* thmNames[] = { "NEO GREEN 🟢", "CYBER CYAN 🔵", "SYNTH MAGENTA 🟣", "FIRE AMBER 🟡" };
-                const uint16_t thmCols[] = { 0x07E0, 0x07FF, 0xF81F, 0xFD20 };
-                triggerTouchVisual(thmNames[next], thmCols[next], 1000, "MATRIX:THEME");
-                if (bleConnected && pCharSet) {
-                    pCharSet->setValue("MATRIX_THM:" + std::to_string(next));
-                    pCharSet->notify();
+                    if (currentMode == MODE_CYBERPET) {
+                        memePet.triggerTap();
+                        triggerTouchVisual("POKE 👆", 0x07FF, 700, "TOUCH:POKE");
+                    } else if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
+                        dasaiMochi.triggerTap();
+                        triggerTouchVisual("GIGGLE 😸", 0x7FFF, 700, "TOUCH:POKE");
+                    } else if (currentMode == MODE_CYBER_HUD) {
+                        triggerTouchVisual("TICK ⏱️", 0x07E0, 700, "TOUCH:POKE");
+                    } else if (currentMode == MODE_MATRIX_RAIN) {
+                        triggerTouchVisual("GLITCH ⚡", 0x07E0, 700, "TOUCH:POKE");
+                    } else {
+                        triggerTouchVisual("TAP 👆", 0x07FF, 700, "TOUCH:POKE");
+                    }
+                    Serial.println("[TOUCH] Single Tap Confirmed -> Interact 👆");
                 }
             }
-        }
-        else if (taps == 3) {
-            // 3 TAPS: Turbo Boost
-            if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
-                dasaiMochi.triggerTripleTapTurbo();
-                triggerTouchVisual("TURBO RACE 🏁", 0xFFE0, 1200, "DASAI:TURBO");
-            } else {
-                triggerTouchVisual("TURBO BOOST ⚡", 0xFFE0, 1000, "TOUCH:TRIPLE");
+            else if (taps == 2) {
+                // 2 TAPS: In Robot Eyes mode -> Change animations ONE BY ONE! (DO NOT change colors!)
+                if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
+                    const char* animName = dasaiMochi.cycleNextAnimation();
+                    triggerTouchVisual(animName, 0x07FF, 1200, "DASAI:ANIM");
+                    if (bleConnected && pCharSet) {
+                        pCharSet->setValue("DASAI_EMO:" + String(dasaiMochi.getCurrentAnimationPath()));
+                        pCharSet->notify();
+                    }
+                } else if (currentMode == MODE_CYBERPET) {
+                    int next = ((int)memePet.currentEmotion + 1) % 7;
+                    memePet.setEmotion((MemeEmotion)next);
+                    memePet.defaultEmotion = (MemeEmotion)next;
+                    const char* emoNames[] = { "LUFFY ⚡", "SHY LOVE 👉👈", "GIGGLE CAT 😸", "SAD BANANA 🍌", "UMARU CRY 😭", "ANGRY CAT 😾", "BUNNY 🐰" };
+                    triggerTouchVisual(emoNames[next], 0xFFE0, 1000, "TOUCH:DOUBLE");
+                    if (bleConnected && pCharPet) {
+                        char emoChar[2] = { (char)('0' + (int)next), '\0' };
+                        pCharPet->setValue(std::string(emoChar));
+                        pCharPet->notify();
+                    }
+                } else if (currentMode == MODE_CYBER_HUD) {
+                    int next = cyberHUD.cycleLayout();
+                    const char* hudNames[] = { "FULL CYBER HUD ⚡", "BIG CLOCK & DATE ⏰", "MINIMAL DASH 📟" };
+                    triggerTouchVisual(hudNames[next], 0x07FF, 1000, "HUD:LAYOUT");
+                    if (bleConnected && pCharSet) {
+                        pCharSet->setValue("HUD_LAY:" + std::to_string(next));
+                        pCharSet->notify();
+                    }
+                } else if (currentMode == MODE_MATRIX_RAIN) {
+                    int next = matrixRain.cycleTheme();
+                    const char* thmNames[] = { "NEO GREEN 🟢", "CYBER CYAN 🔵", "SYNTH MAGENTA 🟣", "FIRE AMBER 🟡" };
+                    const uint16_t thmCols[] = { 0x07E0, 0x07FF, 0xF81F, 0xFD20 };
+                    triggerTouchVisual(thmNames[next], thmCols[next], 1000, "MATRIX:THEME");
+                    if (bleConnected && pCharSet) {
+                        pCharSet->setValue("MATRIX_THM:" + std::to_string(next));
+                        pCharSet->notify();
+                    }
+                }
+                Serial.printf("[TOUCH] Double Tap Confirmed (2 Taps) -> Action Executed!\n");
             }
-        }
-        else if (taps == 4) {
-            // 4 TAPS: TOGGLE BLE RADIO (ON / OFF) ⚡
-            if (!bleActive && !bleConnected) {
-                Serial.println("[TOUCH] 4-Tap Shortcut -> Turning BLE ON ⚡");
-                startBLE(true);
-            } else {
-                Serial.println("[TOUCH] 4-Tap Shortcut -> Turning BLE OFF 💤");
-                stopBLE(true);
+            else if (taps == 3) {
+                // 3 TAPS: Turbo Boost
+                if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
+                    dasaiMochi.triggerTripleTapTurbo();
+                    triggerTouchVisual("TURBO RACE 🏁", 0xFFE0, 1200, "DASAI:TURBO");
+                } else {
+                    triggerTouchVisual("TURBO BOOST ⚡", 0xFFE0, 1000, "TOUCH:TRIPLE");
+                }
+                Serial.printf("[TOUCH] Triple Tap Confirmed (3 Taps) -> Turbo Boost!\n");
             }
-        }
+            else if (taps == 4) {
+                // 4 TAPS: TOGGLE BLE RADIO (ON / OFF) ⚡
+                if (!bleActive && !bleConnected) {
+                    Serial.println("[TOUCH] 4-Tap Shortcut -> Turning BLE ON ⚡");
+                    startBLE(true);
+                } else {
+                    Serial.println("[TOUCH] 4-Tap Shortcut -> Turning BLE OFF 💤");
+                    stopBLE(true);
+                }
+            }
         else if (taps >= 5 && taps < 7) {
             // 5 TAPS: SWITCH SYSTEM MODE
             currentMode = (SystemMode)(((int)currentMode + 1) % 7);
@@ -1490,6 +1522,7 @@ void processTouch() {
         else if (taps >= 7) {
             // 7 TAPS: DEVELOPER EASTER EGG 🎉
             triggerEasterEgg();
+        }
         }
     }
 
@@ -1806,10 +1839,9 @@ void setup() {
     digitalWrite(PIN_DEBUG_LED, HIGH); // Ensure Blue LED is completely OFF
 
     pinMode(PIN_TOUCH, INPUT_PULLDOWN);
-    attachInterrupt(digitalPinToInterrupt(PIN_TOUCH), touchISR, CHANGE);
-    touchActiveState = (digitalRead(PIN_TOUCH) == HIGH);
+    touchActiveState = false;
     touchStartTime = millis();
-    lastSeenHighTime = millis();
+    lastSeenHighTime = 0;
     tapCount = 0;
     lastTapReleaseTime = millis();
     adoreTriggered = false;
@@ -1993,6 +2025,16 @@ void setup() {
         fadeInBrightness(screenBrightness, 700);
     }
 
+    // Cleanly re-arm touch after boot fade-in completes
+    touchActiveState = false;
+    touchStartTime = millis();
+    lastSeenHighTime = 0;
+    lastTapReleaseTime = millis();
+    tapCount = 0;
+    adoreTriggered = false;
+    bleArmed = false;
+    sleepHoldTriggered = false;
+
     lastActivityTime = millis();
     Serial.printf("[SYSTEM] Ready! Running active engine. Free Heap: %u bytes\n", (unsigned int)ESP.getFreeHeap());
 }
@@ -2064,10 +2106,37 @@ void loop() {
     }
 
 
-    // =========================================================================
-    // SECRET DEVELOPER EASTER EGG SCREEN OVERLAY (7-POKE UNLOCK)
-    // =========================================================================
-    if (isEasterEggActive) {
+    // Frame pacing engine: non-blocking timing ensures processTouch() samples at 500 Hz
+    static uint32_t lastFramePushTime = 0;
+    uint32_t now = millis();
+    uint32_t targetInterval = 25; // default ~40 FPS
+
+    if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
+        int d = dasaiMochi.gifPlayer.nextFrameDelayMs;
+        if (d < 16) d = 16;
+        if (d > 45) d = 45;
+        targetInterval = d;
+    } else if (currentMode == MODE_STREAM_MEDIA) {
+        if (isVideoPlaying && videoTargetFps > 0) {
+            targetInterval = 1000 / videoTargetFps;
+        } else {
+            targetInterval = 60; // Still image: steady refresh
+        }
+    } else if (currentMode == MODE_MATRIX_RAIN) {
+        targetInterval = 28;
+    } else if (currentMode == MODE_CYBER_HUD) {
+        targetInterval = 33;
+    } else {
+        targetInterval = 28;
+    }
+
+    if (now - lastFramePushTime >= targetInterval) {
+        lastFramePushTime = now;
+
+        // =========================================================================
+        // SECRET DEVELOPER EASTER EGG SCREEN OVERLAY (7-POKE UNLOCK)
+        // =========================================================================
+        if (isEasterEggActive) {
         if (millis() - easterEggStartTime >= easterEggDurationMs) {
             isEasterEggActive = false;
             if (pCharSet) {
@@ -2133,7 +2202,6 @@ void loop() {
             }
 
             canvas.pushSprite(0, 0);
-            delay(25);
             return;
         }
     }
@@ -2284,7 +2352,6 @@ void loop() {
 
         case MODE_STREAM_MEDIA: {
             if (isVideoPlaying && totalVideoFrames > 0 && liveVideoReadFile) {
-                uint32_t now = millis();
                 uint32_t frameInterval = 1000 / videoTargetFps;
                 if (now - lastVideoFrameTime >= frameInterval) {
                     lastVideoFrameTime = now;
@@ -2308,8 +2375,29 @@ void loop() {
                     }
                     currentVideoFrame = (currentVideoFrame + 1) % totalVideoFrames;
                 }
-            } else if (newMediaFrameReady && streamBytesReceived > 0 && pStreamBuf) {
-                canvas.drawJpg(pStreamBuf, streamBytesReceived, 0, 0, 240, 240);
+            } else {
+                // Single Still Image Mode: Render /live_image.jpg directly from LittleFS
+                if (newMediaFrameReady || !hasStreamImageRendered) {
+                    if (LittleFS.exists("/live_image.jpg")) {
+                        File imgF = LittleFS.open("/live_image.jpg", "r");
+                        if (imgF) {
+                            size_t fsz = imgF.size();
+                            if (fsz > 0 && fsz <= 45000) {
+                                uint8_t* tempBuf = (uint8_t*)malloc(fsz);
+                                if (tempBuf) {
+                                    imgF.read(tempBuf, fsz);
+                                    canvas.fillScreen(TFT_BLACK);
+                                    canvas.drawJpg(tempBuf, fsz, 0, 0, 240, 240);
+                                    free(tempBuf);
+                                }
+                            }
+                            imgF.close();
+                        }
+                        hasStreamImageRendered = true;
+                        newMediaFrameReady = false;
+                        Serial.println("[STREAM] Still Image rendered successfully from LittleFS!");
+                    }
+                }
             }
             break;
         }
@@ -2343,15 +2431,7 @@ void loop() {
 
     // Push Double Buffer to Physical ST7789 Screen
     canvas.pushSprite(0, 0);
-
-    if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
-        int d = dasaiMochi.gifPlayer.nextFrameDelayMs;
-        if (d < 16) d = 16;
-        if (d > 45) d = 45;
-        delay(d);
-    } else if (currentMode == MODE_STREAM_MEDIA && isVideoPlaying) {
-        delay(5);
-    } else {
-        delay(15);
     }
+
+    delay(2); // Yield 2ms so processTouch runs at 500 Hz, CPU runs cool, no FreeRTOS starvation
 }
