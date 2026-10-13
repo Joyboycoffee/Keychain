@@ -1458,6 +1458,54 @@
             </div>
           </div>
 
+          <!-- BATTERY VOLTAGE CORRECTOR (BMS CALIBRATOR) -->
+          <div class="sub-section" style="margin-top:14px; border-top:1px solid rgba(255,255,255,0.08); padding-top:14px;">
+            <div class="sub-title" style="display:flex; justify-content:space-between; align-items:center;">
+              <span>⚡ BATTERY VOLTAGE CORRECTOR (BMS)</span>
+              <span class="badge badge-cyan" id="batCalibStatus">NVS SYNCED</span>
+            </div>
+            <div style="font-size:0.70rem; color:var(--beige-muted); margin-bottom:10px; line-height:1.45;">
+              Unplug USB cable so the keychain runs on battery. Measure actual battery voltage with a multimeter, enter the exact reading below, and click Calibrate. The ESP32 will automatically compute the hardware voltage divider ratio and permanently save it to Flash memory (NVS)!
+            </div>
+
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(105px, 1fr)); gap:8px; margin-bottom:12px;">
+              <div class="metric-tile" style="padding:8px 10px;">
+                <span class="metric-tile-label">CALCULATED</span>
+                <span class="metric-tile-val" id="calibLiveVolt" style="color:var(--accent-warm); font-size:1.10rem;">-- V</span>
+                <span class="metric-tile-sub" id="calibLivePct">--%</span>
+              </div>
+              <div class="metric-tile" style="padding:8px 10px;">
+                <span class="metric-tile-label">RAW ADC</span>
+                <span class="metric-tile-val" id="calibRawMv" style="font-size:1.10rem;">-- mV</span>
+                <span class="metric-tile-sub">GPIO 0 Divider</span>
+              </div>
+              <div class="metric-tile" style="padding:8px 10px;">
+                <span class="metric-tile-label">MULTIPLIER</span>
+                <span class="metric-tile-val" id="calibMultiplier" style="font-size:1.10rem;">2.1600</span>
+                <span class="metric-tile-sub">Flash NVS</span>
+              </div>
+            </div>
+
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:8px;">
+              <div style="position:relative; flex:1; min-width:140px;">
+                <input type="number" step="0.01" min="2.5" max="5.5" id="inpMultimeterVolt" class="txt-input" placeholder="e.g. 3.85" style="width:100%; padding-right:28px;">
+                <span style="position:absolute; right:10px; top:50%; transform:translateY(-50%); font-size:0.75rem; color:var(--beige-muted); font-weight:700;">V</span>
+              </div>
+              <button class="btn-primary" style="white-space:nowrap; padding:8px 14px; font-size:0.75rem;" onclick="calibrateBatteryFromMultimeter()">
+                <svg viewBox="0 0 24 24" style="width:14px; height:14px; vertical-align:middle; margin-right:4px;"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                CALIBRATE & SAVE
+              </button>
+            </div>
+
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              <button class="btn-opt" style="padding:4px 8px; font-size:0.65rem;" onclick="nudgeBatteryVolt(-0.05)">-0.05V</button>
+              <button class="btn-opt" style="padding:4px 8px; font-size:0.65rem;" onclick="nudgeBatteryVolt(-0.01)">-0.01V</button>
+              <button class="btn-opt" style="padding:4px 8px; font-size:0.65rem;" onclick="nudgeBatteryVolt(+0.01)">+0.01V</button>
+              <button class="btn-opt" style="padding:4px 8px; font-size:0.65rem;" onclick="nudgeBatteryVolt(+0.05)">+0.05V</button>
+              <button class="btn-opt" style="padding:4px 8px; font-size:0.65rem; margin-left:auto;" onclick="resetBatteryCalibration()">RESET (2.16x)</button>
+            </div>
+          </div>
+
           <div class="sub-section">
             <div class="slider-row">
               <div class="slider-header">
@@ -1513,53 +1561,6 @@
               <span class="metric-tile-label">LIFETIME CYCLES</span>
               <span class="metric-tile-val" id="logCycles">Cycle #0</span>
               <span class="metric-tile-sub" id="logAllTime">Total: --</span>
-            </div>
-          </div>
-
-          <div class="sub-section" style="margin-top:16px; border-top:1px solid rgba(255,255,255,0.08); padding-top:14px;">
-            <div class="sub-title" style="display:flex; justify-content:space-between; align-items:center;">
-              <span>⚡ HARDWARE VOLTAGE CALIBRATION</span>
-              <span class="badge badge-cyan" id="batCalibStatus">NVS SYNCED</span>
-            </div>
-            <div style="font-size:0.70rem; color:var(--beige-muted); margin-bottom:10px; line-height:1.4;">
-              Measure your LiPo battery with a multimeter, enter the exact voltage reading below, and calibrate. The ESP will instantly compute the hardware voltage divider multiplier and permanently save it to Flash memory (NVS).
-            </div>
-            
-            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:8px; margin-bottom:12px;">
-              <div class="metric-tile" style="padding:8px 10px;">
-                <span class="metric-tile-label">CALIBRATED VOLTAGE</span>
-                <span class="metric-tile-val" id="calibLiveVolt" style="color:var(--accent-warm); font-size:1.10rem;">-- V</span>
-                <span class="metric-tile-sub" id="calibLivePct">--%</span>
-              </div>
-              <div class="metric-tile" style="padding:8px 10px;">
-                <span class="metric-tile-label">RAW ADC READING</span>
-                <span class="metric-tile-val" id="calibRawMv" style="font-size:1.10rem;">-- mV</span>
-                <span class="metric-tile-sub">GPIO 0 (Center Tap)</span>
-              </div>
-              <div class="metric-tile" style="padding:8px 10px;">
-                <span class="metric-tile-label">CALIB MULTIPLIER</span>
-                <span class="metric-tile-val" id="calibMultiplier" style="font-size:1.10rem;">2.1600</span>
-                <span class="metric-tile-sub">ESP32 Flash NVS</span>
-              </div>
-            </div>
-
-            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:8px;">
-              <div style="position:relative; flex:1; min-width:140px;">
-                <input type="number" step="0.01" min="2.5" max="5.0" id="inpMultimeterVolt" class="txt-input" placeholder="e.g. 4.12" style="width:100%; padding-right:28px;">
-                <span style="position:absolute; right:10px; top:50%; transform:translateY(-50%); font-size:0.75rem; color:var(--beige-muted); font-weight:700;">V</span>
-              </div>
-              <button class="btn-primary" style="white-space:nowrap; padding:8px 14px; font-size:0.75rem;" onclick="calibrateBatteryFromMultimeter()">
-                <svg viewBox="0 0 24 24" style="width:14px; height:14px; vertical-align:middle; margin-right:4px;"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                CALIBRATE & SAVE
-              </button>
-            </div>
-
-            <div style="display:flex; gap:6px; flex-wrap:wrap;">
-              <button class="btn-opt" style="padding:4px 8px; font-size:0.65rem;" onclick="nudgeBatteryVolt(-0.02)">-0.02V</button>
-              <button class="btn-opt" style="padding:4px 8px; font-size:0.65rem;" onclick="nudgeBatteryVolt(-0.01)">-0.01V</button>
-              <button class="btn-opt" style="padding:4px 8px; font-size:0.65rem;" onclick="nudgeBatteryVolt(+0.01)">+0.01V</button>
-              <button class="btn-opt" style="padding:4px 8px; font-size:0.65rem;" onclick="nudgeBatteryVolt(+0.02)">+0.02V</button>
-              <button class="btn-opt" style="padding:4px 8px; font-size:0.65rem; margin-left:auto;" onclick="resetBatteryCalibration()">RESET (2.16)</button>
             </div>
           </div>
 

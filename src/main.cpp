@@ -1169,8 +1169,10 @@ void updateBatteryTelemetry() {
     // Calibrated divider multiplier loaded from NVS
     float vbat = (rawMv * batCalibMultiplier) / 1000.0f;
     
-    if (rawMv < 80.0f || vbat < 2.2f) {
-        currentBatVoltage = 5.0f;
+    // USB Power Detection:
+    // If ADC is near zero OR calculated voltage exceeds max 1S LiPo limit (4.45V), device is powered via USB!
+    if (rawMv < 80.0f || vbat < 2.2f || vbat >= 4.45f) {
+        currentBatVoltage = (vbat >= 4.45f && vbat <= 5.5f) ? vbat : 5.0f;
         currentBatPercent = 100;
         isUsbPower = true;
     } else {
