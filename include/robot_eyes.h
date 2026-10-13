@@ -181,25 +181,18 @@ public:
 
 private:
     void renderShyLoveCard() {
-        canvas.fillRoundRect(8, 150, 224, 82, 6, 0x0841);
-        canvas.drawRoundRect(8, 150, 224, 82, 6, 0xF81F);
-        canvas.drawRoundRect(10, 152, 220, 78, 4, 0x981F);
+        int cardW = 196;
+        int cardH = 36;
+        int cardX = (240 - cardW) / 2;
+        int cardY = 192;
 
-        canvas.setTextColor(0xF81F, 0x0841);
-        canvas.setTextSize(1);
-        canvas.drawCenterString("ROBOT SHY LOVE // 2s HOLD", 120, 156);
+        canvas.fillRoundRect(cardX, cardY, cardW, cardH, 4, 0x0841);
+        canvas.drawRoundRect(cardX, cardY, cardW, cardH, 4, 0xF81F);
 
-        int txtSize = (customShyText.length() > 14) ? 2 : 3;
+        int txtSize = (customShyText.length() > 16) ? 1 : 2;
         int textW = customShyText.length() * 6 * txtSize;
-        int startX = max(16, 120 - (textW / 2));
-        EmojiRenderer::renderTextWithEmojis(&canvas, customShyText, startX, 174, txtSize, 0xFFFF, 0x0841);
-
-        uint32_t elapsed = millis() - shyLoveStartTime;
-        float pct = 1.0f - ((float)elapsed / 5000.0f);
-        if (pct < 0.0f) pct = 0.0f;
-        if (pct > 1.0f) pct = 1.0f;
-        canvas.drawRoundRect(28, 220, 184, 6, 2, 0xF81F);
-        canvas.fillRect(30, 221, (int)(180 * pct), 4, 0xF81F);
+        int startX = max(cardX + 6, 120 - (textW / 2));
+        EmojiRenderer::renderTextWithEmojis(&canvas, customShyText, startX, cardY + (txtSize == 1 ? 13 : 10), txtSize, 0xFFFF, 0x0841);
     }
 
     void drawHappyEye(float cx, float cy, float w, uint16_t color) {

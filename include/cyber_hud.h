@@ -408,30 +408,18 @@ private:
     // 2-SECOND HOLD SECRET REACTION OVERLAY
     // =========================================================================
     void renderShyOverlay() {
-        canvas.fillRoundRect(8, 30, 224, 180, 4, 0x0000);
-        canvas.drawRoundRect(8, 30, 224, 180, 4, 0xF81F); // Magenta / Pink frame
-        canvas.drawRoundRect(10, 32, 220, 176, 3, 0xF77D);
+        int cardW = 196;
+        int cardH = 36;
+        int cardX = (240 - cardW) / 2;
+        int cardY = 192;
 
-        // Header
-        canvas.fillRoundRect(20, 40, 200, 24, 3, 0x2004);
-        canvas.drawRoundRect(20, 40, 200, 24, 3, 0xF81F);
-        canvas.setTextColor(0xF81F, 0x2004);
-        canvas.setTextSize(1);
-        canvas.drawCenterString("SECRET REACTION (2s HOLD)", 120, 48);
+        canvas.fillRoundRect(cardX, cardY, cardW, cardH, 4, 0x0841);
+        canvas.drawRoundRect(cardX, cardY, cardW, cardH, 4, 0xF81F);
 
-        // Blushing Heart Eyes in Center
-        int eyeY = 86;
-        canvas.fillCircle(80, eyeY, 14, 0xF81F);
-        canvas.fillCircle(160, eyeY, 14, 0xF81F);
-        canvas.fillCircle(80, eyeY, 6, 0xFFFF);
-        canvas.fillCircle(160, eyeY, 6, 0xFFFF);
-        
-        // Rosy Cheeks
-        canvas.fillRoundRect(56, eyeY + 14, 16, 6, 2, 0xF9E7);
-        canvas.fillRoundRect(168, eyeY + 14, 16, 6, 2, 0xF9E7);
-
-        // Text Banner with Emojis
-        EmojiRenderer::renderTextWithEmojis(&canvas, customShyText, 16, 140, 2, 0xFFFF, 0x0000);
+        int txtSize = (customShyText.length() > 16) ? 1 : 2;
+        int textW = customShyText.length() * 6 * txtSize;
+        int startX = max(cardX + 6, 120 - (textW / 2));
+        EmojiRenderer::renderTextWithEmojis(&canvas, customShyText, startX, cardY + (txtSize == 1 ? 13 : 10), txtSize, 0xFFFF, 0x0841);
     }
 
     void drawBatteryBadge(int x, int y) {

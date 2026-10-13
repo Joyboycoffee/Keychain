@@ -320,44 +320,84 @@
       margin-left: 1px;
     }
 
-    /* VISUAL TOUCH SENSOR WIDGET */
-    .touch-sensor-widget {
+    /* INTERACTIVE PHYSICAL BUTTON WIDGET */
+    .button-card {
+      cursor: pointer;
+      user-select: none;
       display: flex;
       align-items: center;
-      gap: 10px;
+      justify-content: space-between;
     }
-    .touch-pad-visual {
-      width: 32px;
-      height: 32px;
-      background: var(--key-bg);
-      border: 1px solid var(--border-accent);
-      position: relative;
+    .physical-button-widget {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .tactile-switch-housing {
+      width: 34px;
+      height: 34px;
+      background: #141518;
+      border: 1px solid #2e3138;
+      border-radius: 6px;
       display: flex;
       align-items: center;
       justify-content: center;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.8), 0 1px 1px rgba(255,255,255,0.06);
+      position: relative;
+    }
+    .tactile-switch-actuator {
+      width: 22px;
+      height: 22px;
+      background: radial-gradient(circle at 35% 35%, #42464d, #1c1d20);
+      border-radius: 50%;
+      border: 1px solid #50555e;
+      box-shadow: 0 3px 5px rgba(0,0,0,0.8), inset 0 1px 1px rgba(255,255,255,0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.08s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.08s ease, background 0.08s ease;
+    }
+    .tactile-switch-cap {
+      width: 8px;
+      height: 8px;
+      background: var(--cyan);
+      border-radius: 50%;
+      opacity: 0.6;
+      transition: opacity 0.08s ease, box-shadow 0.08s ease;
+    }
+    .button-card:active .tactile-switch-actuator,
+    .button-card.active .tactile-switch-actuator,
+    .tactile-switch-actuator.pressed {
+      transform: translateY(2px) scale(0.90);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.9), inset 0 2px 4px rgba(0,0,0,0.85);
+      background: radial-gradient(circle at 45% 45%, #24262a, #121315);
+    }
+    .button-card:active .tactile-switch-cap,
+    .button-card.active .tactile-switch-cap,
+    .tactile-switch-actuator.pressed .tactile-switch-cap {
+      opacity: 1;
+      box-shadow: 0 0 8px var(--cyan);
+    }
+
+    /* MODAL TABS */
+    .modal-tab-btn {
+      flex: 1;
+      padding: 9px 6px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--beige-muted);
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
       transition: all 0.15s ease;
     }
-    .touch-pad-visual::before {
-      content: '';
-      width: 18px;
-      height: 18px;
-      border: 1px dashed var(--cyan);
-      opacity: 0.6;
-    }
-    .touch-pad-visual::after {
-      content: '';
-      width: 6px;
-      height: 6px;
-      background: var(--cyan);
-      position: absolute;
-    }
-    .touch-card.active .touch-pad-visual {
-      background: var(--cyan-bg);
-      border-color: var(--cyan);
-    }
-    .touch-card.active .touch-pad-visual::before {
-      border-color: #fff;
-      opacity: 1;
+    .modal-tab-btn.active {
+      color: var(--cyan);
+      border-bottom-color: var(--cyan);
+      background: rgba(0, 240, 255, 0.05);
     }
 
     /* BADGES */
@@ -891,9 +931,9 @@
 
   <div class="app-container">
 
-    <!-- HEADER (TAP SPEARHEAD BOX 3 TIMES FOR CREATOR ABOUT MODAL) -->
+    <!-- HEADER (CLICK SPEARHEAD LOGO FOR BLUETOOTH GUIDE, UPLOAD MEDIA & ARCHITECTURE) -->
     <header class="header">
-      <div class="brand" onclick="handleLogoTap()" title="Spearhead (Tap 3x for System Info)">
+      <div class="brand" onclick="openAboutModal()" title="Spearhead System Guide, Media Upload & Architecture">
         <div class="brand-logo-box">SPEARHEAD</div>
         <span class="brand-badge">ESP32-C3 // OS v5.0</span>
       </div>
@@ -958,17 +998,12 @@
         </div>
       </div>
 
-      <!-- POD 3: COMPACT VISUAL TOUCH SENSOR -->
-      <div class="hud-card touch-card" id="touchBanner">
-        <div class="touch-sensor-widget">
-          <div class="touch-pad-visual" title="Capacitive Touch Pad"></div>
-          <div class="hud-card-info">
-            <div class="hud-card-title">
-              <span>TOUCH SENSOR</span>
-              <span class="meta-sep">PIN 04</span>
-            </div>
-            <div class="hud-card-meta">
-              <span>ISR DEBOUNCED</span>
+      <!-- POD 3: INTERACTIVE PHYSICAL BUTTON WIDGET -->
+      <div class="hud-card button-card" id="touchBanner" onclick="sendTestButtonTap()" title="Physical Push Button (GPIO 1)">
+        <div class="physical-button-widget">
+          <div class="tactile-switch-housing">
+            <div class="tactile-switch-actuator" id="tactileBtn">
+              <div class="tactile-switch-cap"></div>
             </div>
           </div>
         </div>
@@ -1061,7 +1096,7 @@
           <div id="panelMode1" class="sub-section" style="display:none;">
 
             <!-- SAVE AS DEFAULT BOOT ANIMATION CARD -->
-            <div class="save-default-banner" style="background:linear-gradient(135deg, rgba(255,107,0,0.18), rgba(0,240,255,0.12)); border:1px solid rgba(255,107,0,0.40); border-radius:8px; padding:12px 14px; margin-bottom:14px; display:flex; flex-direction:column; gap:8px;">
+            <div class="save-default-banner" style="background:linear-gradient(135deg, rgba(255,107,0,0.18), rgba(0,240,255,0.12)); border:1px solid rgba(255,107,0,0.40); border-radius:8px; padding:12px 14px; margin-bottom:12px; display:flex; flex-direction:column; gap:8px;">
               <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
                 <div style="font-size:0.75rem; font-weight:800; color:var(--accent-warm); letter-spacing:0.8px; display:flex; align-items:center; gap:6px;">
                   <svg viewBox="0 0 24 24" style="width:16px; height:16px; fill:currentColor;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
@@ -1070,11 +1105,32 @@
                 <span class="badge badge-ok" id="dasaiSaveBadge">SAVED IN FLASH</span>
               </div>
               <div style="font-size:0.70rem; color:var(--beige-muted); line-height:1.4;">
-                Active: <strong id="dasaiActiveSummary" style="color:var(--text-light);">Natural Idle (Warm White ⚪)</strong>. Click Save below to store your selected animation and palette permanently in ESP32 Flash memory so it runs automatically when woken from Deep Sleep!
+                Active: <strong id="dasaiActiveSummary" style="color:var(--text-light);">Natural Idle (Warm White)</strong>. Save your chosen animation and palette permanently into Flash memory so it runs automatically when woken from Deep Sleep!
               </div>
-              <button class="btn-primary" style="width:100%; padding:10px 16px; font-weight:800; font-size:0.75rem; background:linear-gradient(135deg, #ff6b00, #ff8c00); border-color:#ff6b00;" onclick="saveCurrentDasaiAsDefault()">
-                💾 SAVE CURRENT ANIMATION & PALETTE AS DEFAULT
+              <button class="btn-primary" style="width:100%; padding:9px 16px; font-weight:800; font-size:0.75rem; background:linear-gradient(135deg, #ff6b00, #ff8c00); border-color:#ff6b00;" onclick="saveCurrentDasaiAsDefault()">
+                SAVE CURRENT ANIMATION & PALETTE AS DEFAULT
               </button>
+            </div>
+
+            <!-- SINGLE-CLICK BUTTON REACTION ACTION -->
+            <div class="save-default-banner" style="background:linear-gradient(135deg, rgba(0,240,255,0.14), rgba(255,107,0,0.10)); border:1px solid rgba(0,240,255,0.35); border-radius:8px; padding:12px 14px; margin-bottom:14px; display:flex; flex-direction:column; gap:8px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                <div style="font-size:0.75rem; font-weight:800; color:var(--cyan); letter-spacing:0.8px; display:flex; align-items:center; gap:6px;">
+                  <svg viewBox="0 0 24 24" style="width:16px; height:16px; fill:currentColor;"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/></svg>
+                  SINGLE-CLICK BUTTON REACTION
+                </div>
+                <span class="badge badge-cyan" id="singleClickBadge">ACTIVE ACTION</span>
+              </div>
+              <div style="font-size:0.70rem; color:var(--beige-muted); line-height:1.4;">
+                Select which animation plays when you single-press the physical button on your keychain (saved in Flash):
+              </div>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <select id="selSingleClickAnim" style="flex:1; background:#121418; border:1px solid #333742; color:#fff; padding:9px 10px; border-radius:6px; font-size:0.74rem; font-family:inherit; outline:none;">
+                </select>
+                <button class="btn-primary" style="padding:9px 14px; font-size:0.74rem; white-space:nowrap;" onclick="saveSingleClickAnimation()">
+                  APPLY ACTION
+                </button>
+              </div>
             </div>
 
             <div class="sub-title">DASAI MOCHI CHOREOGRAPHY LOOPS</div>
@@ -1687,58 +1743,153 @@
   </div>
 
   <!-- ========================================================= -->
-  <!-- HIDDEN 3-TAP ABOUT MODAL (GOURAV KUMAR & SPEARHEAD ARCHITECTURE) -->
+  <!-- SPEARHEAD SYSTEM & GUIDE MODAL (TABS: BLE GUIDE, UPLOAD MEDIA, ARCHITECTURE) -->
   <!-- ========================================================= -->
   <div id="aboutModal" class="modal-backdrop" onclick="closeAboutModal(event)">
-    <div class="modal-card" onclick="event.stopPropagation()">
+    <div class="modal-card" style="max-width:540px;" onclick="event.stopPropagation()">
       <div class="modal-header">
         <div class="modal-title">
           <div class="brand-logo-box" style="padding:2px 6px; font-size:0.72rem;">SPEARHEAD</div>
-          <span>SYSTEM ARCHITECTURE</span>
+          <span>CONTROL & SYSTEM GUIDE</span>
         </div>
         <button class="modal-close" onclick="closeAboutModal()">&times;</button>
       </div>
-      <div class="modal-body">
-        
-        <div class="about-section">
-          <div class="about-sec-title">ARCHITECT & LEAD ENGINEER</div>
-          <div style="font-size:0.95rem; font-weight:800; color:var(--beige-light);">Gourav Kumar</div>
-          <div style="font-size:0.72rem; color:var(--beige-muted);">Embedded Firmware, BLE Communication & Hardware UI Development</div>
-        </div>
 
-        <div class="about-section">
-          <div class="about-sec-title">HARDWARE ARCHITECTURE</div>
-          <div style="font-size:0.74rem; color:var(--beige-muted); display:flex; flex-direction:column; gap:4px;">
-            <div>• <b>Microcontroller:</b> ESP32-C3 RISC-V 32-bit Single-Core @ 160MHz</div>
-            <div>• <b>Display Panel:</b> 1.3" 240×240 IPS TFT (ST7789 via LovyanGFX High-Speed SPI)</div>
-            <div>• <b>Input Engine:</b> TTP223 Capacitive Touch ISR with Hardware Edge Debounce</div>
-            <div>• <b>Power Subsystem:</b> 1S LiPo Battery with 16-Sample Calibrated ADC & Standby Optimization</div>
-            <div>• <b>Wireless:</b> Bluetooth Low Energy 5.0 (NimBLE Sequential GATT Engine)</div>
+      <!-- MODAL TAB HEADER -->
+      <div style="display:flex; border-bottom:1px solid var(--border); background:rgba(0,0,0,0.25);">
+        <button class="modal-tab-btn active" id="modalTabBtnGuide" onclick="switchModalTab('guide')">BLUETOOTH GUIDE</button>
+        <button class="modal-tab-btn" id="modalTabBtnUpload" onclick="switchModalTab('upload')">UPLOAD MEDIA</button>
+        <button class="modal-tab-btn" id="modalTabBtnSystem" onclick="switchModalTab('system')">ARCHITECTURE</button>
+      </div>
+
+      <div class="modal-body" style="padding:16px;">
+        
+        <!-- PANE 1: BLUETOOTH GUIDE -->
+        <div id="modalPaneGuide" class="modal-pane active">
+          <div class="about-section">
+            <div class="about-sec-title">HOW TO TURN ON BLUETOOTH ON ESP32 KEYCHAIN</div>
+            
+            <div style="display:flex; flex-direction:column; gap:12px; margin-top:8px;">
+              
+              <!-- OPTION 1 -->
+              <div style="background:#131518; border:1px solid #282b33; border-radius:8px; padding:12px;">
+                <div style="font-size:0.75rem; font-weight:800; color:var(--cyan); margin-bottom:5px; display:flex; align-items:center; gap:6px;">
+                  <span style="background:var(--cyan); color:#000; font-size:0.65rem; padding:1px 6px; border-radius:4px; font-weight:900;">OPTION 1</span>
+                  PRESS & HOLD (10 TO 14 SECONDS)
+                </div>
+                <div style="font-size:0.72rem; color:var(--beige-light); line-height:1.5;">
+                  1. Press and hold down the physical button on the keychain.<br>
+                  2. At <b>6 seconds</b>, the screen displays the large Battery HUD.<br>
+                  3. Keep holding until <b>10 seconds</b> when the screen displays <b>"RELEASE FOR BLE"</b>.<br>
+                  4. Release the button between <b>10 and 14 seconds</b> to activate Bluetooth!
+                </div>
+                <div style="font-size:0.66rem; color:var(--beige-muted); margin-top:6px;">
+                  <i>(If held past 14 seconds, the device will safely cancel and power off).</i>
+                </div>
+              </div>
+
+              <!-- OPTION 2 -->
+              <div style="background:#131518; border:1px solid #282b33; border-radius:8px; padding:12px;">
+                <div style="font-size:0.75rem; font-weight:800; color:var(--accent); margin-bottom:5px; display:flex; align-items:center; gap:6px;">
+                  <span style="background:var(--accent); color:#000; font-size:0.65rem; padding:1px 6px; border-radius:4px; font-weight:900;">OPTION 2</span>
+                  QUICK 4-CLICK SHORTCUT
+                </div>
+                <div style="font-size:0.72rem; color:var(--beige-light); line-height:1.5;">
+                  Rapidly click/press the physical push button <b>4 times</b> in a row to toggle the Bluetooth radio ON or OFF immediately without waiting!
+                </div>
+              </div>
+
+              <!-- CONNECT ACTION BUTTON -->
+              <button class="btn-primary" style="width:100%; padding:11px; font-weight:800; font-size:0.76rem;" onclick="connectBLE(); closeAboutModal();">
+                PAIR / CONNECT BLUETOOTH NOW
+              </button>
+
+            </div>
           </div>
         </div>
 
-        <div class="about-section">
-          <div class="about-sec-title">VERSION RELEASE HISTORY</div>
-          <div style="font-size:0.72rem; color:var(--beige-muted); display:flex; flex-direction:column; gap:6px;">
-            <div>
-              <b style="color:var(--accent);">v5.0 (Spearhead Release):</b>
-              <br>Full Spearhead rebrand, custom bootloader with animated slanted progress telemetry, 3-tap engineer modal, dedicated 2s-hold secret message hub, zero-bloom matte dark professional UI.
+        <!-- PANE 2: UPLOAD MEDIA (LITTLEFS) -->
+        <div id="modalPaneUpload" class="modal-pane" style="display:none;">
+          <div class="about-section">
+            <div class="about-sec-title">UPLOAD MEDIA & STREAM TO ESP32 (LITTLEFS)</div>
+            <div style="font-size:0.72rem; color:var(--beige-muted); margin-bottom:12px; line-height:1.45;">
+              Upload custom boot animations, logos, or stream live media directly into the ESP32 SPI Flash memory.
             </div>
-            <div>
-              <b style="color:var(--beige-light);">v4.3:</b>
-              <br>LittleFS 25 FPS video stream playback, WebAPK Android PWA offline caching, persistent Easter egg trigger counter.
+
+            <div style="display:flex; flex-direction:column; gap:10px;">
+              <div style="background:#131518; border:1px solid #282b33; border-radius:8px; padding:12px; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <div style="font-size:0.75rem; font-weight:800; color:var(--beige-light);">BOOT SPLASH / LOGO</div>
+                  <div style="font-size:0.68rem; color:var(--beige-muted);">Custom GIF or JPEG boot screen</div>
+                </div>
+                <button class="btn-secondary" style="padding:6px 12px; font-size:0.70rem;" onclick="switchTab('tabBoot'); closeAboutModal();">
+                  OPEN BOOT TAB
+                </button>
+              </div>
+
+              <div style="background:#131518; border:1px solid #282b33; border-radius:8px; padding:12px; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <div style="font-size:0.75rem; font-weight:800; color:var(--beige-light);">LIVE VIDEO & IMAGE STREAM</div>
+                  <div style="font-size:0.68rem; color:var(--beige-muted);">Stream frames directly to ST7789 display</div>
+                </div>
+                <button class="btn-secondary" style="padding:6px 12px; font-size:0.70rem;" onclick="switchTab('tabStream'); closeAboutModal();">
+                  OPEN STREAM TAB
+                </button>
+              </div>
+
+              <div style="background:#131518; border:1px solid #282b33; border-radius:8px; padding:12px;">
+                <div style="font-size:0.74rem; font-weight:800; color:var(--beige-light); margin-bottom:6px;">QUICK FILE UPLOADER</div>
+                <input type="file" id="modalMediaFileInput" accept="image/*,.gif,.jpg,.jpeg,.bmp" style="font-size:0.70rem; color:var(--beige-muted); width:100%; margin-bottom:8px;">
+                <button class="btn-primary" style="width:100%; padding:8px; font-size:0.72rem;" onclick="handleQuickUploadModal()">
+                  UPLOAD TO ESP32 FLASH
+                </button>
+              </div>
             </div>
-            <div>
-              <b style="color:var(--beige-light);">v3.0:</b>
-              <br>Non-Volatile flash battery discharge logger, calibrated multi-point LiPo voltage telemetry.
+          </div>
+        </div>
+
+        <!-- PANE 3: SYSTEM ARCHITECTURE -->
+        <div id="modalPaneSystem" class="modal-pane" style="display:none;">
+          <div class="about-section">
+            <div class="about-sec-title">ARCHITECT & LEAD ENGINEER</div>
+            <div style="font-size:0.95rem; font-weight:800; color:var(--beige-light);">Gourav Kumar</div>
+            <div style="font-size:0.72rem; color:var(--beige-muted);">Embedded Firmware, BLE Communication & Hardware UI Development</div>
+          </div>
+
+          <div class="about-section">
+            <div class="about-sec-title">HARDWARE ARCHITECTURE</div>
+            <div style="font-size:0.74rem; color:var(--beige-muted); display:flex; flex-direction:column; gap:4px;">
+              <div>• <b>Microcontroller:</b> ESP32-C3 RISC-V 32-bit Single-Core @ 160MHz</div>
+              <div>• <b>Display Panel:</b> 1.3" 240x240 IPS TFT (ST7789 via LovyanGFX High-Speed SPI)</div>
+              <div>• <b>Input Engine:</b> Tactile Push Button (GPIO 1 to 3.3V) with Hardware ISR Edge Debounce</div>
+              <div>• <b>Power Subsystem:</b> 1S LiPo Battery with 16-Sample Calibrated ADC & Standby Optimization</div>
+              <div>• <b>Wireless:</b> Bluetooth Low Energy 5.0 (NimBLE Sequential GATT Engine)</div>
             </div>
-            <div>
-              <b style="color:var(--beige-light);">v2.0:</b>
-              <br>Procedural robot eyes, CyberHUD clock, matrix digital rain, multi-mascot emotion engine.
-            </div>
-            <div>
-              <b style="color:var(--beige-light);">v1.0:</b>
-              <br>Initial hardware prototype & Bluetooth Low Energy web terminal.
+          </div>
+
+          <div class="about-section">
+            <div class="about-sec-title">VERSION RELEASE HISTORY</div>
+            <div style="font-size:0.72rem; color:var(--beige-muted); display:flex; flex-direction:column; gap:6px;">
+              <div>
+                <b style="color:var(--accent);">v5.0 (Spearhead Release):</b>
+                <br>Physical tactile button integration (GPIO 1), 10-14s BLE hold & 4-click shortcut, enlarged 5s Battery HUD, custom 1-click animation selection, zero-emoji clean text centering, zero-bloom matte dark professional UI.
+              </div>
+              <div>
+                <b style="color:var(--beige-light);">v4.3:</b>
+                <br>LittleFS 25 FPS video stream playback, WebAPK Android PWA offline caching, persistent Easter egg trigger counter.
+              </div>
+              <div>
+                <b style="color:var(--beige-light);">v3.0:</b>
+                <br>Non-Volatile flash battery discharge logger, calibrated multi-point LiPo voltage telemetry.
+              </div>
+              <div>
+                <b style="color:var(--beige-light);">v2.0:</b>
+                <br>Procedural robot eyes, CyberHUD clock, matrix digital rain, multi-mascot emotion engine.
+              </div>
+              <div>
+                <b style="color:var(--beige-light);">v1.0:</b>
+                <br>Initial hardware prototype & Bluetooth Low Energy web terminal.
+              </div>
             </div>
           </div>
         </div>
@@ -1805,14 +1956,7 @@
 
     function handleLogoTap() {
       vibrate(15);
-      logoTapCount++;
-      if (logoTapTimer) clearTimeout(logoTapTimer);
-      logoTapTimer = setTimeout(() => { logoTapCount = 0; }, 1200);
-
-      if (logoTapCount >= 3) {
-        logoTapCount = 0;
-        openAboutModal();
-      }
+      openAboutModal();
     }
 
     function openAboutModal() {
@@ -1825,6 +1969,31 @@
       if (e && e.target && e.target !== e.currentTarget && !e.target.classList.contains('modal-close')) return;
       const modal = document.getElementById('aboutModal');
       if (modal) modal.classList.remove('active');
+    }
+
+    function switchModalTab(tabId) {
+      vibrate(10);
+      const tabs = ['guide', 'upload', 'system'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`modalTabBtn${t.charAt(0).toUpperCase() + t.slice(1)}`);
+        const pane = document.getElementById(`modalPane${t.charAt(0).toUpperCase() + t.slice(1)}`);
+        if (btn) btn.classList.toggle('active', t === tabId);
+        if (pane) {
+          pane.style.display = (t === tabId) ? 'block' : 'none';
+          pane.classList.toggle('active', t === tabId);
+        }
+      });
+    }
+
+    function handleQuickUploadModal() {
+      const input = document.getElementById('modalMediaFileInput');
+      if (!input || !input.files || input.files.length === 0) {
+        alert("Please select a photo, GIF, or boot image first.");
+        return;
+      }
+      closeAboutModal();
+      switchTab('tabBoot');
+      uploadBootImage({ target: input });
     }
 
     // -------------------------------------------------------------
@@ -2208,16 +2377,39 @@
       if (!tb || !tt) return;
       if (touchResetTimer) clearTimeout(touchResetTimer);
       
-      tb.className = "hud-card touch-card active";
+      tb.className = "hud-card button-card active";
       tt.innerText = text;
       tt.className = `badge ${badgeClass}`;
       
+      const btn = document.getElementById('tactileBtn');
+      if (btn) {
+        btn.classList.add('pressed');
+        setTimeout(() => btn.classList.remove('pressed'), 220);
+      }
+      
       if (autoClearMs > 0) {
         touchResetTimer = setTimeout(() => {
-          tb.className = "hud-card touch-card";
+          tb.className = "hud-card button-card";
           tt.innerText = "[ IDLE ]";
           tt.className = "badge badge-cyan";
         }, autoClearMs);
+      }
+    }
+
+    async function sendTestButtonTap() {
+      vibrate(15);
+      const btn = document.getElementById('tactileBtn');
+      if (btn) {
+        btn.classList.add('pressed');
+        setTimeout(() => btn.classList.remove('pressed'), 220);
+      }
+      setTouchBanner("CLICK", "badge-cyan", 1200);
+      if (charSettings && isConnected) {
+        try {
+          const data = new TextEncoder().encode("BTN:TAP");
+          await safeBleWrite(charSettings, data, false);
+          log("Sent virtual button click to Keychain");
+        } catch (e) {}
       }
     }
 
@@ -2416,10 +2608,17 @@
       } else if (msg.startsWith("SAVED:DASAI") || msg === "SAVED:OK") {
         const badge = document.getElementById('dasaiSaveBadge');
         if (badge) {
-          badge.innerText = "SAVED IN FLASH 💾";
+          badge.innerText = "SAVED IN FLASH";
           badge.className = "badge badge-ok";
         }
-        setTouchBanner("SAVED AS DEFAULT 💾", "badge-ok", 2500);
+        setTouchBanner("SAVED AS DEFAULT", "badge-ok", 2500);
+      } else if (msg.startsWith("TAP_ANIM:") || msg === "TAP_ANIM:OK") {
+        const badge = document.getElementById('singleClickBadge');
+        if (badge) {
+          badge.innerText = "SAVED IN FLASH";
+          badge.className = "badge badge-ok";
+        }
+        setTouchBanner("1-TAP ACTION SET", "badge-ok", 2500);
       } else if (msg.startsWith("DOCK_AUTO:")) {
         const enabled = (msg.substring(10) === '1');
         updateDockAutoUI(enabled);
@@ -2442,7 +2641,7 @@
         setTouchBanner("CYBERHUD SECRET MSG (2s HOLD)", "badge-mag", 5000);
         log("CyberHUD 2s Hold -> Secret Message Displayed!");
       } else if (msg === "TOUCH:ADORE:DASAI" || msg === "TOUCH:SHY:DASAI" || msg === "TOUCH:SHY:ROBOT") {
-        setTouchBanner("DASAI ADORE 😻 (2s HOLD)", "badge-mag", 5000);
+        setTouchBanner("DASAI ADORE (2s HOLD)", "badge-mag", 5000);
         log("Dasai Mochi 2s Hold -> Adore Animation Active!");
       } else if (msg === "TOUCH:SHY:MATRIX") {
         setTouchBanner("MATRIX LOVE RAIN (2s HOLD)", "badge-mag", 5000);
@@ -2452,7 +2651,7 @@
         setTouchBanner("CYBERPET SHY LOVE (2s HOLD)", "badge-mag", 5000);
         log("CyberPet 2s Hold -> Shy Love Avatar Active!");
       } else if (msg.startsWith("DOCK:ACTIVE")) {
-        setTouchBanner("DESK DOCK ENGAGED ⚡", "badge-ok", 2500);
+        setTouchBanner("DESK DOCK ENGAGED", "badge-ok", 2500);
         highlightModeUI(6);
         log("Device plugged into USB! Smart Desk Companion mode active.");
       } else if (msg.startsWith("EASTER:UNLOCKED")) {
@@ -2619,38 +2818,96 @@
     let currentDasaiEmo   = 'blank';
     let currentActiveDasaiEmoName = 'blank';
 
-    const dasaiStyleNames = ["Warm White ⚪", "Pastel Cyan 🩵", "Sakura Pink 🌸", "Mochi Gold 🟡", "Neon Violet 🟣"];
+    const dasaiStyleNames = ["Warm White", "Pastel Cyan", "Sakura Pink", "Mochi Gold", "Neon Violet"];
     const dasaiEmoFriendlyNames = {
-      'blank': 'Natural Idle 👀',
-      'wink': 'Playful Wink 😉',
-      'happy': 'Happy Smile 😸',
-      'smile': 'Gentle Smile 😊',
-      'love': 'Heart Love ❤️',
-      'adore': 'Adore 😍',
-      'sparkle': 'Sparkle Eyes ✨',
-      'fast': 'Turbo Speed ⚡',
-      'rush': 'High-Speed Rush 💨',
-      'smoke': 'Drift Smoke 🚬',
-      'dizzy': 'Dizzy 360 Spin 🌀',
-      'devil': 'Devil Horns 😈',
-      'dancing': 'Dance Party 💃',
-      'giggle': 'Giggle 🤭',
-      'playful': 'Playful 😜',
-      'shy': 'Shy Blush 👉👈',
-      'sleeping': 'Sleeping Zzz 💤',
-      'sleepy': 'Sleepy Droop 🥱',
-      'yawn': 'Yawn 🥱',
-      'crying': 'Sad Crying 😭',
-      'sobbing': 'Sobbing 🥺',
-      'handsome': 'Handsome JDM 😎',
-      'serene': 'Look Up / Serene ☝️',
-      'left': 'Look Left 👈',
-      'right': 'Look Right 👉',
-      'down': 'Look Down 👇',
-      'angry': 'Angry Bosozoku 😠',
-      'fierce': 'Fierce Glare 🏎️',
-      'enraged': 'Enraged 🤬'
+      'blank': 'Natural Idle',
+      'wink': 'Playful Wink',
+      'happy': 'Happy Smile',
+      'smile': 'Gentle Smile',
+      'love': 'Heart Love',
+      'adore': 'Adore',
+      'sparkle': 'Sparkle Eyes',
+      'fast': 'Turbo Speed',
+      'rush': 'High-Speed Rush',
+      'smoke': 'Drift Smoke',
+      'dizzy': 'Dizzy 360 Spin',
+      'devil': 'Devil Horns',
+      'dancing': 'Dance Party',
+      'giggle': 'Giggle',
+      'playful': 'Playful',
+      'shy': 'Shy Blush',
+      'sleeping': 'Sleeping Zzz',
+      'sleepy': 'Sleepy Droop',
+      'yawn': 'Yawn',
+      'crying': 'Sad Crying',
+      'sobbing': 'Sobbing',
+      'handsome': 'Handsome JDM',
+      'serene': 'Look Up / Serene',
+      'left': 'Look Left',
+      'right': 'Look Right',
+      'down': 'Look Down',
+      'angry': 'Angry Bosozoku',
+      'fierce': 'Fierce Glare',
+      'enraged': 'Enraged'
     };
+
+    const singleClickAnimations = [
+      { path: "/mochi/happy.gif",     name: "Happy Smile" },
+      { path: "/mochi/giggle.gif",    name: "Giggle" },
+      { path: "/mochi/blank.gif",     name: "Natural Idle" },
+      { path: "/mochi/wink.gif",      name: "Playful Wink" },
+      { path: "/mochi/love.gif",      name: "Heart Love" },
+      { path: "/mochi/adore.gif",     name: "Adore" },
+      { path: "/mochi/sparkle.gif",   name: "Sparkle Eyes" },
+      { path: "/mochi/dancing.gif",   name: "Dance Party" },
+      { path: "/mochi/playful.gif",   name: "Playful" },
+      { path: "/mochi/fast.gif",      name: "Turbo Speed" },
+      { path: "/mochi/smoke.gif",     name: "Drift Smoke" },
+      { path: "/mochi/dizzy.gif",     name: "Dizzy 360 Spin" },
+      { path: "/mochi/smile.gif",     name: "Gentle Smile" },
+      { path: "/mochi/hello.gif",     name: "Hello Wave" },
+      { path: "/mochi/laughing.gif",  name: "Laughing" },
+      { path: "/mochi/brave.gif",     name: "Brave" },
+      { path: "/mochi/shy.gif",       name: "Shy Blush" },
+      { path: "/mochi/relaxed.gif",   name: "Relaxed Chill" },
+      { path: "/mochi/handsome.gif",  name: "Handsome Chad" },
+      { path: "/mochi/devil.gif",     name: "Devil Horns" },
+      { path: "/mochi/surprised.gif", name: "Surprised" }
+    ];
+
+    function initSingleClickAnimOptions() {
+      const sel = document.getElementById('selSingleClickAnim');
+      if (!sel) return;
+      sel.innerHTML = '';
+      singleClickAnimations.forEach(item => {
+        const opt = document.createElement('option');
+        opt.value = item.path;
+        opt.textContent = item.name;
+        if (item.path === "/mochi/happy.gif") opt.selected = true;
+        sel.appendChild(opt);
+      });
+    }
+
+    async function saveSingleClickAnimation() {
+      vibrate();
+      const sel = document.getElementById('selSingleClickAnim');
+      if (!sel) return;
+      const path = sel.value;
+      const animName = sel.options[sel.selectedIndex].text;
+      if (!charSettings) {
+        alert("Please pair your keychain over Bluetooth first.");
+        return;
+      }
+      const data = new TextEncoder().encode(`TAP_ANIM:${path}`);
+      await safeBleWrite(charSettings, data, false);
+      log(`Single-Click Action set to: ${animName} (${path})`);
+      const badge = document.getElementById('singleClickBadge');
+      if (badge) {
+        badge.innerText = "SAVED IN FLASH";
+        badge.className = "badge badge-ok";
+      }
+      setTouchBanner("1-TAP ANIM SAVED", "badge-ok", 2500);
+    }
 
     function updateDasaiActiveSummary() {
       const elem = document.getElementById('dasaiActiveSummary');
@@ -2669,13 +2926,13 @@
       await safeBleWrite(charSettings, new TextEncoder().encode(cmd), false);
       const badge = document.getElementById('dasaiSaveBadge');
       if (badge) {
-        badge.innerText = "SAVED IN FLASH 💾";
+        badge.innerText = "SAVED IN FLASH";
         badge.className = "badge badge-ok";
       }
       const emoName = dasaiEmoFriendlyNames[currentActiveDasaiEmoName] || currentActiveDasaiEmoName;
       const styleName = dasaiStyleNames[currentDasaiStyle] || `Style ${currentDasaiStyle}`;
       log(`Saved Default Boot Animation to Flash: ${emoName} (${styleName})`);
-      setTouchBanner("SAVED AS DEFAULT 💾", "badge-ok", 2500);
+      setTouchBanner("SAVED AS DEFAULT", "badge-ok", 2500);
     }
 
     async function setDasaiStyle(styleNum) {
@@ -2684,7 +2941,7 @@
       if (!charSettings) return;
       const data = new TextEncoder().encode(`DASAI_STYLE:${styleNum}`);
       await safeBleWrite(charSettings, data, false);
-      const styleNames = ["WARM WHITE ⚪", "PASTEL CYAN 🩵", "SAKURA PINK 🌸", "MOCHI GOLD 🟡", "CYBER VIOLET 🟣"];
+      const styleNames = ["WARM WHITE", "PASTEL CYAN", "SAKURA PINK", "MOCHI GOLD", "CYBER VIOLET"];
       log(`Dasai Mochi Style: ${styleNames[styleNum] || styleNum}`);
       setTouchBanner("STYLE UPDATED", "badge-cyan", 1500);
     }
@@ -3508,6 +3765,9 @@
       const modal = document.getElementById('installGuideModal');
       if (modal) modal.classList.remove('active');
     }
+
+    // Initialize UI Dropdowns
+    initSingleClickAnimOptions();
   </script>
 </body>
 </html>

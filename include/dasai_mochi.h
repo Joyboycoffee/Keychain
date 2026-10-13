@@ -52,48 +52,48 @@ struct MochiAnimItem {
 };
 
 static const MochiAnimItem MOCHI_ANIM_CATALOG[] = {
-    { "/mochi/blank.gif",     "BLANK ⚪" },
-    { "/mochi/happy.gif",     "HAPPY 😊" },
-    { "/mochi/wink.gif",      "WINK 😉" },
-    { "/mochi/love.gif",      "LOVE ❤️" },
-    { "/mochi/sparkle.gif",   "SPARKLE ✨" },
-    { "/mochi/playful.gif",   "PLAYFUL 😋" },
-    { "/mochi/surprised.gif", "SURPRISE 😮" },
-    { "/mochi/dancing.gif",   "DANCE 💃" },
-    { "/mochi/angry.gif",     "ANGRY 😾" },
-    { "/mochi/fast.gif",      "TURBO 🏁" },
-    { "/mochi/smoke.gif",     "SMOKE 💨" },
-    { "/mochi/dizzy.gif",     "DIZZY 😵" },
-    { "/mochi/giggle.gif",    "GIGGLE 😸" },
-    { "/mochi/drowsy.gif",    "DROWSY 🥱" },
-    { "/mochi/sleepy.gif",    "SLEEP 💤" },
-    { "/mochi/crying.gif",    "CRY 😭" },
-    { "/mochi/devil.gif",     "DEVIL 😈" },
-    { "/mochi/handsome.gif",  "CHAD 😎" },
-    { "/mochi/yawn.gif",      "YAWN 🥱" },
-    { "/mochi/smile.gif",     "SMILE 🙂" },
-    { "/mochi/hello.gif",     "HELLO 👋" },
-    { "/mochi/laughing.gif",  "LAUGH 😆" },
-    { "/mochi/adore.gif",     "ADORE 😻" },
-    { "/mochi/brave.gif",     "BRAVE 🦸" },
-    { "/mochi/rush.gif",      "SPEED 🏎️" },
-    { "/mochi/serene.gif",    "SERENE 🧘" },
-    { "/mochi/shy.gif",       "SHY 👉👈" },
-    { "/mochi/sick.gif",      "SICK 🤢" },
-    { "/mochi/sneeze.gif",    "ACHOO 🤧" },
-    { "/mochi/sobbing.gif",   "SOBBING 💧" },
-    { "/mochi/splash.gif",    "SPLASH 💦" },
-    { "/mochi/spraying.gif",  "SPRAY 🚿" },
-    { "/mochi/squint.gif",    "SQUINT 😏" },
-    { "/mochi/teasing.gif",   "TEASE 😜" },
-    { "/mochi/contempt.gif",  "SIDE-EYE 👀" },
-    { "/mochi/enraged.gif",   "RAGE 🤬" },
-    { "/mochi/fierce.gif",    "FIERCE ⚔️" },
-    { "/mochi/growing.gif",   "GROW 🌟" },
-    { "/mochi/left.gif",      "LEFT 👈" },
-    { "/mochi/right.gif",     "RIGHT 👉" },
-    { "/mochi/down.gif",      "DOWN 👇" },
-    { "/mochi/relaxed.gif",   "CHILL ☕" }
+    { "/mochi/blank.gif",     "BLANK" },
+    { "/mochi/happy.gif",     "HAPPY" },
+    { "/mochi/wink.gif",      "WINK" },
+    { "/mochi/love.gif",      "LOVE" },
+    { "/mochi/sparkle.gif",   "SPARKLE" },
+    { "/mochi/playful.gif",   "PLAYFUL" },
+    { "/mochi/surprised.gif", "SURPRISE" },
+    { "/mochi/dancing.gif",   "DANCE" },
+    { "/mochi/angry.gif",     "ANGRY" },
+    { "/mochi/fast.gif",      "TURBO" },
+    { "/mochi/smoke.gif",     "SMOKE" },
+    { "/mochi/dizzy.gif",     "DIZZY" },
+    { "/mochi/giggle.gif",    "GIGGLE" },
+    { "/mochi/drowsy.gif",    "DROWSY" },
+    { "/mochi/sleepy.gif",    "SLEEP" },
+    { "/mochi/crying.gif",    "CRY" },
+    { "/mochi/devil.gif",     "DEVIL" },
+    { "/mochi/handsome.gif",  "CHAD" },
+    { "/mochi/yawn.gif",      "YAWN" },
+    { "/mochi/smile.gif",     "SMILE" },
+    { "/mochi/hello.gif",     "HELLO" },
+    { "/mochi/laughing.gif",  "LAUGH" },
+    { "/mochi/adore.gif",     "ADORE" },
+    { "/mochi/brave.gif",     "BRAVE" },
+    { "/mochi/rush.gif",      "SPEED" },
+    { "/mochi/serene.gif",    "SERENE" },
+    { "/mochi/shy.gif",       "SHY" },
+    { "/mochi/sick.gif",      "SICK" },
+    { "/mochi/sneeze.gif",    "ACHOO" },
+    { "/mochi/sobbing.gif",   "SOBBING" },
+    { "/mochi/splash.gif",    "SPLASH" },
+    { "/mochi/spraying.gif",  "SPRAY" },
+    { "/mochi/squint.gif",    "SQUINT" },
+    { "/mochi/teasing.gif",   "TEASE" },
+    { "/mochi/contempt.gif",  "SIDE-EYE" },
+    { "/mochi/enraged.gif",   "RAGE" },
+    { "/mochi/fierce.gif",    "FIERCE" },
+    { "/mochi/growing.gif",   "GROW" },
+    { "/mochi/left.gif",      "LEFT" },
+    { "/mochi/right.gif",     "RIGHT" },
+    { "/mochi/down.gif",      "DOWN" },
+    { "/mochi/relaxed.gif",   "CHILL" }
 };
 static const int MOCHI_ANIM_COUNT = sizeof(MOCHI_ANIM_CATALOG) / sizeof(MOCHI_ANIM_CATALOG[0]);
 
@@ -153,7 +153,7 @@ public:
         if (currentAnimIdx >= 0 && currentAnimIdx < MOCHI_ANIM_COUNT) {
             return MOCHI_ANIM_CATALOG[currentAnimIdx].name;
         }
-        return "ROBOT EYES 🤖";
+        return "ROBOT EYES";
     }
 
     const char* getCurrentAnimationPath() const {
@@ -161,6 +161,23 @@ public:
             return MOCHI_ANIM_CATALOG[currentAnimIdx].path;
         }
         return "/mochi/blank.gif";
+    }
+
+    String singleTapGifPath = "/mochi/happy.gif";
+
+    void setSingleTapGif(const String& path) {
+        if (path.length() > 0) {
+            singleTapGifPath = path;
+        }
+    }
+
+    const char* getSingleTapName() const {
+        for (int i = 0; i < MOCHI_ANIM_COUNT; i++) {
+            if (singleTapGifPath == MOCHI_ANIM_CATALOG[i].path) {
+                return MOCHI_ANIM_CATALOG[i].name;
+            }
+        }
+        return "TAP";
     }
 
     void setShyText(const String& txt) {
@@ -172,7 +189,7 @@ public:
         isShyLoveActive = true;
         shyLoveStartTime = millis();
         playAuthenticGif("/mochi/adore.gif", false);
-        Serial.println("[MOCHI] 2s Hold -> Playing ADORE animation 😻 (/mochi/adore.gif)");
+        Serial.println("[MOCHI] 2s Hold -> Playing ADORE animation (/mochi/adore.gif)");
     }
 
     void triggerAdore(uint32_t durMs = 5000) {
@@ -180,7 +197,9 @@ public:
     }
 
     void triggerTap() {
-        if (currentEmotion == DASAI_HAPPY_SQUINT) {
+        if (singleTapGifPath.length() > 0 && LittleFS.exists(singleTapGifPath)) {
+            playAuthenticGif(singleTapGifPath, false);
+        } else if (currentEmotion == DASAI_HAPPY_SQUINT) {
             playAuthenticGif("/mochi/dancing.gif", false);
             currentEmotion = DASAI_EXCITED_BOUNCE;
         } else {
@@ -339,24 +358,17 @@ private:
     }
 
     void renderShyLoveCard() {
-        canvas.fillRoundRect(8, 150, 224, 82, 6, 0x0841);
-        canvas.drawRoundRect(8, 150, 224, 82, 6, 0xF81F);
-        canvas.drawRoundRect(10, 152, 220, 78, 4, 0x981F);
+        int cardW = 196;
+        int cardH = 36;
+        int cardX = (240 - cardW) / 2;
+        int cardY = 192;
 
-        canvas.setTextColor(0xF81F, 0x0841);
-        canvas.setTextSize(1);
-        canvas.drawCenterString("DASAI MOCHI // 2s HOLD", 120, 156);
+        canvas.fillRoundRect(cardX, cardY, cardW, cardH, 4, 0x0841);
+        canvas.drawRoundRect(cardX, cardY, cardW, cardH, 4, 0xF81F);
 
-        int txtSize = (customShyText.length() > 14) ? 2 : 3;
+        int txtSize = (customShyText.length() > 16) ? 1 : 2;
         int textW = customShyText.length() * 6 * txtSize;
-        int startX = max(16, 120 - (textW / 2));
-        EmojiRenderer::renderTextWithEmojis(&canvas, customShyText, startX, 174, txtSize, 0xFFFF, 0x0841);
-
-        uint32_t elapsed = millis() - shyLoveStartTime;
-        float pct = 1.0f - ((float)elapsed / 5000.0f);
-        if (pct < 0.0f) pct = 0.0f;
-        if (pct > 1.0f) pct = 1.0f;
-        canvas.drawRoundRect(28, 220, 184, 6, 2, 0xF81F);
-        canvas.fillRect(30, 221, (int)(180 * pct), 4, 0xF81F);
+        int startX = max(cardX + 6, 120 - (textW / 2));
+        EmojiRenderer::renderTextWithEmojis(&canvas, customShyText, startX, cardY + (txtSize == 1 ? 13 : 10), txtSize, 0xFFFF, 0x0841);
     }
 };

@@ -120,35 +120,18 @@ public:
 
 private:
     void renderMatrixShyCard() {
-        // Translucent Cyber Love Card
-        canvas.fillRoundRect(8, 46, 224, 148, 8, 0x0841);
-        canvas.drawRoundRect(8, 46, 224, 148, 8, 0xF81F);
-        canvas.drawRoundRect(10, 48, 220, 144, 6, 0x981F);
+        int cardW = 196;
+        int cardH = 36;
+        int cardX = (240 - cardW) / 2;
+        int cardY = 192;
 
-        // Cyber Matrix Header
-        canvas.setTextColor(0xF81F, 0x0841);
-        canvas.setTextSize(1);
-        canvas.drawCenterString("CYBER MATRIX // SHY LOVE <3", 120, 58);
+        canvas.fillRoundRect(cardX, cardY, cardW, cardH, 4, 0x0841);
+        canvas.drawRoundRect(cardX, cardY, cardW, cardH, 4, 0xF81F);
 
-        // Render Custom Shy / Secret Message with Emojis
-        int textY = 96;
-        int txtSize = (customShyText.length() > 14) ? 2 : 3;
+        int txtSize = (customShyText.length() > 16) ? 1 : 2;
         int textW = customShyText.length() * 6 * txtSize;
-        int startX = max(16, 120 - (textW / 2));
-        EmojiRenderer::renderTextWithEmojis(&canvas, customShyText, startX, textY, txtSize, 0xFFFF, 0x0841);
-
-        // Subtitle / Heart Icon
-        canvas.setTextColor(0x07E0, 0x0841);
-        canvas.setTextSize(1);
-        canvas.drawCenterString("<3 SPECIAL SECRET MESSAGE <3", 120, 142);
-
-        // Progress Timeout Bar
-        uint32_t elapsed = millis() - heartRainStartTime;
-        float pct = 1.0f - ((float)elapsed / 5000.0f);
-        if (pct < 0.0f) pct = 0.0f;
-        if (pct > 1.0f) pct = 1.0f;
-        canvas.drawRoundRect(30, 168, 180, 8, 3, 0xF81F);
-        canvas.fillRect(32, 170, (int)(176 * pct), 4, 0xF81F);
+        int startX = max(cardX + 6, 120 - (textW / 2));
+        EmojiRenderer::renderTextWithEmojis(&canvas, customShyText, startX, cardY + (txtSize == 1 ? 13 : 10), txtSize, 0xFFFF, 0x0841);
     }
 
     char getRandomChar() {

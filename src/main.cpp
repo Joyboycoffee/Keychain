@@ -352,7 +352,7 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
                 pCharSet->setValue(std::string("SAVED:OK"));
                 pCharSet->notify();
             }
-            triggerTouchVisual("SAVED DEFAULTS 💾", 0x07E0, 1500, "SAVED:OK");
+            triggerTouchVisual("SAVED DEFAULTS", 0x07E0, 1500, "SAVED:OK");
             Serial.printf("[SETTINGS] Default Boot screen saved: Mode=%d, DasaiStyle=%d, DasaiPath=%s\n",
                           (int)defaultMode, dasaiMochi.currentStyle, dasaiMochi.gifPlayer.currentGifPath.c_str());
         }
@@ -371,9 +371,22 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
                 pCharSet->setValue("SAVED:DASAI:" + std::to_string(dasaiMochi.currentStyle) + ":" + std::string(dasaiMochi.gifPlayer.currentGifPath.c_str()));
                 pCharSet->notify();
             }
-            triggerTouchVisual("SAVED ANIMATION 💾", 0x07E0, 2000, "SAVED:DASAI");
+            triggerTouchVisual("SAVED ANIMATION", 0x07E0, 2000, "SAVED:DASAI");
             Serial.printf("[SETTINGS] Dasai Animation Flashed as Default: Style=%d, Path=%s\n",
                           dasaiMochi.currentStyle, dasaiMochi.gifPlayer.currentGifPath.c_str());
+        }
+        // 3c. Set Single-Tap Action Animation: "TAP_ANIM:<path>"
+        else if (cmd.startsWith("TAP_ANIM:")) {
+            String path = cmd.substring(9);
+            dasaiMochi.setSingleTapGif(path);
+            prefs.putString("tap_gif", path);
+            if (pCharSet) {
+                pCharSet->setValue("TAP_ANIM:" + std::string(path.c_str()));
+                pCharSet->notify();
+            }
+            const char* tapName = dasaiMochi.getSingleTapName();
+            triggerTouchVisual(tapName, 0x07E0, 1500, "TAP:SAVED");
+            Serial.printf("[SETTINGS] Single-tap animation configured: %s (%s)\n", tapName, path.c_str());
         }
         // 4. Boot Splash Type: "BOOT_TYPE:0" .. "BOOT_TYPE:3"
         else if (cmd.startsWith("BOOT_TYPE:")) {
@@ -792,7 +805,7 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
                 pCharSet->setValue(std::string("SAVED:OK"));
                 pCharSet->notify();
             }
-            triggerTouchVisual("SAVED DEFAULTS 💾", 0x07E0, 1500, "SAVED:OK");
+            triggerTouchVisual("SAVED DEFAULTS", 0x07E0, 1500, "SAVED:OK");
             Serial.printf("[SETTINGS] Settings flashed to NVS memory: Brightness=%d, Sleep=%u ms\n", screenBrightness, (unsigned int)sleepTimeoutMs);
         }
         // 23. Query Full Config Dashboard: "CFG:GET" or "GET_CONFIG"
@@ -1208,7 +1221,7 @@ void triggerEasterEgg() {
     prefs.putUInt("egg_cnt", easterEggCount);
     char bleEgg[32];
     snprintf(bleEgg, sizeof(bleEgg), "EASTER:UNLOCKED:%u", (unsigned int)easterEggCount);
-    triggerTouchVisual("EASTER EGG! 🎉", 0xF81F, easterEggDurationMs, bleEgg);
+    triggerTouchVisual("EASTER EGG!", 0xF81F, easterEggDurationMs, bleEgg);
     Serial.printf("[EASTER EGG] Unlocked (#%u)! -> %s\n", (unsigned int)easterEggCount, easterEggMessage.c_str());
 }
 
@@ -1278,7 +1291,7 @@ void startBLE(bool notifyVisual) {
     if (pAdv) pAdv->start();
     bleStartTimeMs = millis();
     lastActivityTime = millis();
-    if (notifyVisual) triggerTouchVisual("BLE ON ⚡", 0x07FF, 2000, "BLE:ONLINE");
+    if (notifyVisual) triggerTouchVisual("BLE ON", 0x07FF, 2000, "BLE:ONLINE");
     Serial.println("[BLE] BLE Radio Activated! CPU @ 80MHz. Blue LED glowing softly.");
 }
 
@@ -1293,7 +1306,8 @@ void stopBLE(bool notifyVisual) {
     }
     setBleLed(false); // Turn LED completely OFF
     setCpuFrequencyMhz(80); // Drop CPU clock to 80 MHz to run cool and save battery!
-    if (notifyVisual) triggerTouchVisual("BLE OFF 💤", 0x8410, 1500, "BLE:OFFLINE");
+    lastActivityTime = millis(); // Refresh activity timer so device does not instantly sleep upon deactivating BLE
+    if (notifyVisual) triggerTouchVisual("BLE OFF", 0x8410, 1500, "BLE:OFFLINE");
     Serial.println("[BLE] BLE Radio Deactivated! Standby mode. Blue LED OFF.");
 }
 
@@ -1301,10 +1315,10 @@ void stopBLE(bool notifyVisual) {
 // REAL-TIME BATTERY OVERLAY CARD (6-SECOND HOLD HUD WITH STATUS BARS)
 // =========================================================================
 void renderBatteryOverlay() {
-    int cardX = 35;
+    int cardX = 18;
     int cardY = 16;
-    int cardW = 170;
-    int cardH = 46;
+    int cardW = 204;
+    int cardH = 62;
 
     // Obsidian card background
     canvas.fillRoundRect(cardX, cardY, cardW, cardH, 6, 0x10A2);
@@ -1317,21 +1331,21 @@ void renderBatteryOverlay() {
     // Header Title
     canvas.setTextColor(bCol, 0x10A2);
     canvas.setTextSize(1);
-    canvas.drawCenterString("BATTERY MONITOR", cardX + cardW / 2, cardY + 5);
+    canvas.drawCenterString("BATTERY MONITOR", cardX + cardW / 2, cardY + 6);
 
-    // Battery Shell Icon (32 x 16 px)
-    int bx = cardX + 12;
-    int by = cardY + 22;
-    canvas.drawRoundRect(bx, by, 32, 16, 3, bCol);
-    canvas.drawRoundRect(bx + 1, by + 1, 30, 14, 2, 0x0000);
+    // Large Battery Shell Icon (48 x 24 px)
+    int bx = cardX + 14;
+    int by = cardY + 24;
+    canvas.drawRoundRect(bx, by, 48, 24, 3, bCol);
+    canvas.drawRoundRect(bx + 1, by + 1, 46, 22, 2, 0x0000);
     // Terminal tip (+)
-    canvas.fillRect(bx + 32, by + 4, 3, 8, bCol);
+    canvas.fillRect(bx + 48, by + 6, 4, 12, bCol);
 
-    // 4 Segment Bars inside battery shell
-    int barW = 5;
-    int barH = 10;
-    int barY = by + 3;
-    int startBarX = bx + 3;
+    // 4 Large Segment Bars inside battery shell
+    int barW = 8;
+    int barH = 16;
+    int barY = by + 4;
+    int startBarX = bx + 4;
     int barsFilled = 0;
     if (currentBatPercent >= 80) barsFilled = 4;
     else if (currentBatPercent >= 55) barsFilled = 3;
@@ -1350,18 +1364,20 @@ void renderBatteryOverlay() {
 
     // Right-side text: Percentage & Voltage
     canvas.setTextColor(0xFFFF, 0x10A2);
+    canvas.setTextSize(2);
     char pctStr[16];
     if (isUsbPower) {
-        snprintf(pctStr, sizeof(pctStr), "%d%% [USB]", currentBatPercent);
+        snprintf(pctStr, sizeof(pctStr), "%d%% USB", currentBatPercent);
     } else {
         snprintf(pctStr, sizeof(pctStr), "%d%%", currentBatPercent);
     }
-    canvas.drawString(pctStr, bx + 42, by + 1);
+    canvas.drawString(pctStr, bx + 60, by + 1);
 
     canvas.setTextColor(0xC618, 0x10A2);
+    canvas.setTextSize(1);
     char vStr[16];
     snprintf(vStr, sizeof(vStr), "%.2f V", currentBatVoltage);
-    canvas.drawString(vStr, bx + 42, by + 10);
+    canvas.drawString(vStr, bx + 60, by + 16);
 }
 
 // =========================================================================
@@ -1411,8 +1427,8 @@ void buttonTask(void* pvParameters) {
                     // Released in 10.0s - 14.0s window -> Toggle Bluetooth!
                     btnEventBleToggle = true;
                 } else if (batteryFired) {
-                    // Released in 6.0s - 10.0s window -> Keep battery HUD card visible for 2.5s!
-                    batteryOverlayEndTime = now + 2500;
+                    // Released in 6.0s - 10.0s window -> Keep battery HUD card visible for 5.0s!
+                    batteryOverlayEndTime = now + 5000;
                     batteryOverlayActive = false;
                 } else if (adoreFired) {
                     // Released in 2.0s - 6.0s window -> Adore already playing
@@ -1434,6 +1450,7 @@ void buttonTask(void* pvParameters) {
         if (stableState) {
             uint32_t holdDur = now - pressStart;
             btnHoldMs = holdDur;
+            lastActivityTime = now; // Actively held down, keep system awake
 
             if (holdDur >= 14000 && !sleepFired) {
                 sleepFired = true;
@@ -1474,7 +1491,7 @@ void handleButtonEvents() {
     // 1. Deep Sleep / Power Off (Held >= 14 seconds)
     if (btnEventSleep) {
         btnEventSleep = false;
-        triggerTouchVisual("POWER OFF 🌙", 0x8410, 1000, "SYS:SLEEP");
+        triggerTouchVisual("POWER OFF", 0x8410, 1000, "SYS:SLEEP");
         Serial.println("[BUTTON] Held >= 14s -> Powering off to Deep Sleep (BLE OFF)...");
         enterDeepSleep();
         return;
@@ -1483,11 +1500,12 @@ void handleButtonEvents() {
     // 2. Bluetooth Toggle (Released in 10s-14s window)
     if (btnEventBleToggle) {
         btnEventBleToggle = false;
+        lastActivityTime = now; // Reset activity timer so display doesn't sleep upon BLE toggle
         if (!bleActive && !bleConnected) {
-            Serial.println("[BUTTON] Released in 10-14s window -> Turning BLE ON ⚡");
+            Serial.println("[BUTTON] Released in 10-14s window -> Turning BLE ON");
             startBLE(true);
         } else {
-            Serial.println("[BUTTON] Released in 10-14s window -> Turning BLE OFF 💤");
+            Serial.println("[BUTTON] Released in 10-14s window -> Turning BLE OFF");
             stopBLE(true);
         }
     }
@@ -1497,11 +1515,11 @@ void handleButtonEvents() {
         btnEventBleArm = false;
         lastActivityTime = now;
         if (!bleActive && !bleConnected) {
-            triggerTouchVisual("RELEASE FOR BLE ⚡", 0x07FF, 4000, "BLE:ARMED");
-            Serial.println("[BUTTON] 10s Mark Reached -> Release to turn BLE ON ⚡");
+            triggerTouchVisual("RELEASE FOR BLE", 0x07FF, 4000, "BLE:ARMED");
+            Serial.println("[BUTTON] 10s Mark Reached -> Release to turn BLE ON");
         } else {
-            triggerTouchVisual("RELEASE: BLE OFF 💤", 0x8410, 4000, "BLE:ARMED");
-            Serial.println("[BUTTON] 10s Mark Reached -> Release to turn BLE OFF 💤");
+            triggerTouchVisual("RELEASE: BLE OFF", 0x8410, 4000, "BLE:ARMED");
+            Serial.println("[BUTTON] 10s Mark Reached -> Release to turn BLE OFF");
         }
     }
 
@@ -1520,17 +1538,17 @@ void handleButtonEvents() {
         lastActivityTime = now;
         if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
             dasaiMochi.triggerAdore(5000);
-            triggerTouchVisual("ADORE 😻", 0xF81F, 2000, "TOUCH:ADORE:DASAI");
+            triggerTouchVisual("ADORE", 0xF81F, 2000, "TOUCH:ADORE:DASAI");
             if (bleConnected && pCharSet) {
                 pCharSet->setValue(std::string("TOUCH:ADORE:DASAI"));
                 pCharSet->notify();
             }
         } else if (currentMode == MODE_CYBER_HUD) {
             cyberHUD.triggerShy(5000);
-            triggerTouchVisual("SECRET MSG 💌", 0xF81F, 3000, "TOUCH:SHY:HUD");
+            triggerTouchVisual("SECRET MSG", 0xF81F, 3000, "TOUCH:SHY:HUD");
         } else if (currentMode == MODE_MATRIX_RAIN) {
             matrixRain.triggerHeartRain(5000);
-            triggerTouchVisual("HEART RAIN 💖", 0xF81F, 3000, "TOUCH:SHY:MATRIX");
+            triggerTouchVisual("HEART RAIN", 0xF81F, 3000, "TOUCH:SHY:MATRIX");
         } else {
             preHoldEmotion = memePet.currentEmotion;
             isTemporaryLove = true;
@@ -1538,7 +1556,7 @@ void handleButtonEvents() {
             memePet.setEmotion(EMOTION_SHY);
             currentMode = MODE_CYBERPET;
             isVideoPlaying = false;
-            triggerTouchVisual("SHY LOVE ❤️", 0xF81F, 3000, "TOUCH:SHY:PET");
+            triggerTouchVisual("SHY LOVE", 0xF81F, 3000, "TOUCH:SHY:PET");
             if (bleConnected && pCharPet) {
                 char emoChar[2] = { (char)('0' + (int)EMOTION_SHY), '\0' };
                 pCharPet->setValue(std::string(emoChar));
@@ -1554,33 +1572,34 @@ void handleButtonEvents() {
         lastActivityTime = now;
 
         if (taps == 1) {
-            // 1 TAP: Poke / Giggle
+            // 1 TAP: Custom Single-Click Action / Mascot Interaction
             if (isEasterEggActive) {
                 isEasterEggActive = false;
                 if (pCharSet) { pCharSet->setValue(std::string("TOUCH:REVERT")); pCharSet->notify(); }
-                triggerTouchVisual("DISMISSED 🔄", 0x07FF, 600, "TOUCH:REVERT");
+                triggerTouchVisual("DISMISSED", 0x07FF, 600, "TOUCH:REVERT");
             } else {
                 if (currentMode == MODE_CYBERPET) {
                     memePet.triggerTap();
-                    triggerTouchVisual("POKE 👆", 0x07FF, 600, "TOUCH:POKE");
+                    triggerTouchVisual("POKE", 0x07FF, 600, "TOUCH:POKE");
                 } else if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
                     dasaiMochi.triggerTap();
-                    triggerTouchVisual("GIGGLE 😸", 0x7FFF, 600, "TOUCH:POKE");
+                    const char* tapName = dasaiMochi.getSingleTapName();
+                    triggerTouchVisual(tapName, 0x07FF, 800, "TOUCH:POKE");
                 } else if (currentMode == MODE_CYBER_HUD) {
-                    triggerTouchVisual("TICK ⏱️", 0x07E0, 600, "TOUCH:POKE");
+                    triggerTouchVisual("TICK", 0x07E0, 600, "TOUCH:POKE");
                 } else if (currentMode == MODE_MATRIX_RAIN) {
-                    triggerTouchVisual("GLITCH ⚡", 0x07E0, 600, "TOUCH:POKE");
+                    triggerTouchVisual("GLITCH", 0x07E0, 600, "TOUCH:POKE");
                 } else {
-                    triggerTouchVisual("TAP 👆", 0x07FF, 600, "TOUCH:POKE");
+                    triggerTouchVisual("TAP", 0x07FF, 600, "TOUCH:POKE");
                 }
-                Serial.println("[BUTTON] Single Tap Confirmed -> Interact 👆");
+                Serial.println("[BUTTON] Single Tap Confirmed -> Interact");
             }
         }
         else if (taps == 2) {
-            // 2 TAPS: Cycle animations with compact sleek micro-pill!
+            // 2 TAPS: Cycle animations
             if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
                 const char* animName = dasaiMochi.cycleNextAnimation();
-                triggerTouchVisual(animName, 0x07FF, 800, "DASAI:ANIM"); // Sleek compact 800ms pill!
+                triggerTouchVisual(animName, 0x07FF, 1000, "DASAI:ANIM");
                 if (bleConnected && pCharSet) {
                     pCharSet->setValue("DASAI_EMO:" + String(dasaiMochi.getCurrentAnimationPath()));
                     pCharSet->notify();
@@ -1589,8 +1608,8 @@ void handleButtonEvents() {
                 int next = ((int)memePet.currentEmotion + 1) % 7;
                 memePet.setEmotion((MemeEmotion)next);
                 memePet.defaultEmotion = (MemeEmotion)next;
-                const char* emoNames[] = { "LUFFY ⚡", "SHY 👉👈", "GIGGLE 😸", "BANANA 🍌", "CRY 😭", "ANGRY 😾", "BUNNY 🐰" };
-                triggerTouchVisual(emoNames[next], 0xFFE0, 800, "TOUCH:DOUBLE");
+                const char* emoNames[] = { "LUFFY", "SHY", "GIGGLE", "BANANA", "CRY", "ANGRY", "BUNNY" };
+                triggerTouchVisual(emoNames[next], 0xFFE0, 1000, "TOUCH:DOUBLE");
                 if (bleConnected && pCharPet) {
                     char emoChar[2] = { (char)('0' + (int)next), '\0' };
                     pCharPet->setValue(std::string(emoChar));
@@ -1598,17 +1617,17 @@ void handleButtonEvents() {
                 }
             } else if (currentMode == MODE_CYBER_HUD) {
                 int next = cyberHUD.cycleLayout();
-                const char* hudNames[] = { "CYBER HUD ⚡", "CLOCK ⏰", "MINIMAL 📟" };
-                triggerTouchVisual(hudNames[next], 0x07FF, 800, "HUD:LAYOUT");
+                const char* hudNames[] = { "CYBER HUD", "CLOCK", "MINIMAL" };
+                triggerTouchVisual(hudNames[next], 0x07FF, 1000, "HUD:LAYOUT");
                 if (bleConnected && pCharSet) {
                     pCharSet->setValue("HUD_LAY:" + std::to_string(next));
                     pCharSet->notify();
                 }
             } else if (currentMode == MODE_MATRIX_RAIN) {
                 int next = matrixRain.cycleTheme();
-                const char* thmNames[] = { "GREEN 🟢", "CYAN 🔵", "MAGENTA 🟣", "AMBER 🟡" };
+                const char* thmNames[] = { "GREEN", "CYAN", "MAGENTA", "AMBER" };
                 const uint16_t thmCols[] = { 0x07E0, 0x07FF, 0xF81F, 0xFD20 };
-                triggerTouchVisual(thmNames[next], thmCols[next], 800, "MATRIX:THEME");
+                triggerTouchVisual(thmNames[next], thmCols[next], 1000, "MATRIX:THEME");
                 if (bleConnected && pCharSet) {
                     pCharSet->setValue("MATRIX_THM:" + std::to_string(next));
                     pCharSet->notify();
@@ -1620,19 +1639,19 @@ void handleButtonEvents() {
             // 3 TAPS: Turbo Boost
             if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
                 dasaiMochi.triggerTripleTapTurbo();
-                triggerTouchVisual("TURBO 🏁", 0xFFE0, 800, "DASAI:TURBO");
+                triggerTouchVisual("TURBO", 0xFFE0, 1000, "DASAI:TURBO");
             } else {
-                triggerTouchVisual("TURBO ⚡", 0xFFE0, 800, "TOUCH:TRIPLE");
+                triggerTouchVisual("TURBO", 0xFFE0, 1000, "TOUCH:TRIPLE");
             }
             Serial.println("[BUTTON] Triple Tap Confirmed -> Turbo Boost!");
         }
         else if (taps == 4) {
-            // 4 TAPS: TOGGLE BLE RADIO (ON / OFF) ⚡
+            // 4 TAPS: TOGGLE BLE RADIO (ON / OFF)
             if (!bleActive && !bleConnected) {
-                Serial.println("[BUTTON] 4-Tap Shortcut -> Turning BLE ON ⚡");
+                Serial.println("[BUTTON] 4-Tap Shortcut -> Turning BLE ON");
                 startBLE(true);
             } else {
-                Serial.println("[BUTTON] 4-Tap Shortcut -> Turning BLE OFF 💤");
+                Serial.println("[BUTTON] 4-Tap Shortcut -> Turning BLE OFF");
                 stopBLE(true);
             }
         }
@@ -1645,9 +1664,9 @@ void handleButtonEvents() {
                 deskPhaseStartTime = now;
             }
             isVideoPlaying = false;
-            const char* modeNames[] = { "CYBERPET 🐱", "DASAI MOCHI 🤖", "CYBER HUD ⚡", "MATRIX RAIN 📟", "TEXT SCROLL 📜", "STREAM MEDIA 🎬", "DESK DOCK ⏰" };
+            const char* modeNames[] = { "CYBERPET", "DASAI MOCHI", "CYBER HUD", "MATRIX RAIN", "TEXT SCROLL", "STREAM MEDIA", "DESK DOCK" };
             const uint16_t modeColors[] = { 0xFFE0, 0x07FF, 0x07FF, 0x07E0, 0xF77D, 0x07FF, 0x07FF };
-            triggerTouchVisual(modeNames[(int)currentMode], modeColors[(int)currentMode], 1000, "TOUCH:MODE");
+            triggerTouchVisual(modeNames[(int)currentMode], modeColors[(int)currentMode], 1200, "TOUCH:MODE");
             if (bleConnected && pCharMode) {
                 char mChar[2] = { (char)('0' + (int)currentMode), '\0' };
                 pCharMode->setValue(std::string(mChar));
@@ -1655,7 +1674,7 @@ void handleButtonEvents() {
             }
         }
         else if (taps >= 7) {
-            // 7 TAPS: DEVELOPER EASTER EGG 🎉
+            // 7 TAPS: DEVELOPER EASTER EGG
             triggerEasterEgg();
         }
     }
@@ -1670,7 +1689,7 @@ void handleButtonEvents() {
             pCharPet->setValue(std::string(emoChar));
             pCharPet->notify();
         }
-        const char* emoNames[] = { "LUFFY ⚡", "SHY 👉👈", "GIGGLE 😸", "BANANA 🍌", "CRY 😭", "ANGRY 😾", "BUNNY 🐰" };
+        const char* emoNames[] = { "LUFFY", "SHY", "GIGGLE", "BANANA", "CRY", "ANGRY", "BUNNY" };
         triggerTouchVisual(emoNames[preHoldEmotion], 0x07FF, 700, "TOUCH:REVERT");
         Serial.printf("[BUTTON] 5s elapsed -> Reverted to %d (%s)\n", (int)preHoldEmotion, emoNames[preHoldEmotion]);
     }
@@ -2049,6 +2068,8 @@ void setup() {
     } else {
         dasaiMochi.loadCurrentEmotionGif(true);
     }
+    String savedTapGif = prefs.getString("tap_gif", "/mochi/happy.gif");
+    dasaiMochi.setSingleTapGif(savedTapGif);
     autoDeskDockOnUsb = prefs.getBool("dock_auto", true);
     deskDasaiDurationMs = prefs.getUInt("dock_dasai_ms", 12000);
     deskClockDurationMs = prefs.getUInt("dock_clk_ms", 7000);
@@ -2218,7 +2239,7 @@ void loop() {
             currentMode = MODE_DESK_COMPANION;
             deskPhase = DESK_DASAI;
             deskPhaseStartTime = millis();
-            triggerTouchVisual("DESK DOCK ON ⚡", 0x07FF, 2000, "DOCK:ACTIVE");
+            triggerTouchVisual("DESK DOCK ON", 0x07FF, 2000, "DOCK:ACTIVE");
             if (bleConnected && pCharMode) {
                 pCharMode->setValue(std::string("6"));
                 pCharMode->notify();
@@ -2558,25 +2579,29 @@ void loop() {
     }
 
     // =====================================================================
-    // ON-SCREEN TOUCH / BUTTON VISUALIZER (COMPACT SLEEK MICRO-PILL)
+    // ON-SCREEN TOUCH / BUTTON VISUALIZER OVERLAY
     // =====================================================================
     if (millis() < touchVisualEndTime) {
         canvas.setTextSize(1);
         int textW = canvas.textWidth(touchVisualText.c_str());
-        int pillW = textW + 12;
-        if (pillW < 36) pillW = 36;
-        if (pillW > 230) pillW = 230;
-        int pillH = 14;
-        int pillX = (240 - pillW) / 2; // Perfectly centered
-        int pillY = 4;                 // Tucked neatly at top edge
+        int pillW = textW + 18;
+        if (pillW < 50) pillW = 50;
+        if (pillW > 224) pillW = 224; // Screen width is 240, keeps 8px clean margins
+        int pillH = 22;
+        int pillX = (240 - pillW) / 2; // Centered
+        int pillY = 8;
 
-        // Dark charcoal backdrop & crisp minimal 1px border
-        canvas.fillRoundRect(pillX - 1, pillY - 1, pillW + 2, pillH + 2, 4, 0x0000);
-        canvas.fillRoundRect(pillX, pillY, pillW, pillH, 3, 0x0841);
-        canvas.drawRoundRect(pillX, pillY, pillW, pillH, 3, touchVisualColor);
+        // Obsidian Backdrop & Crisp Theme Border
+        canvas.fillRoundRect(pillX - 1, pillY - 1, pillW + 2, pillH + 2, 6, 0x0000);
+        canvas.fillRoundRect(pillX, pillY, pillW, pillH, 5, 0x10A2);
+        canvas.drawRoundRect(pillX, pillY, pillW, pillH, 5, touchVisualColor);
 
-        canvas.setTextColor(touchVisualColor, 0x0841);
-        canvas.drawCenterString(touchVisualText.c_str(), pillX + pillW / 2, pillY + 3);
+        // Subtle side accent ticks
+        canvas.drawFastVLine(pillX + 4, pillY + 6, 10, touchVisualColor);
+        canvas.drawFastVLine(pillX + pillW - 5, pillY + 6, 10, touchVisualColor);
+
+        canvas.setTextColor(touchVisualColor, 0x10A2);
+        canvas.drawCenterString(touchVisualText.c_str(), pillX + pillW / 2, pillY + 7);
     }
 
     // Real-Time Battery HUD Overlay (Triggered on 6s hold or stays for 2.5s on release)
