@@ -9,12 +9,14 @@ def generate_header():
     lines.append('')
     
     fonts_to_gen = [
-        ('FredokaBold_48pt', 48),
+        ('FredokaBold_64pt', 64),
+        ('FredokaBold_20pt', 20),
         ('FredokaBold_16pt', 16)
     ]
     
     for font_name, pt in fonts_to_gen:
-        font = ImageFont.truetype('fredoka.ttf', pt)
+        font = ImageFont.truetype('fredoka_variable.ttf', pt)
+        font.set_variation_by_axes([700.0, 100.0]) # True Weight 700 Bold!
         ascent, descent = font.getmetrics()
         y_advance = ascent + descent
         

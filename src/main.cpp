@@ -82,6 +82,7 @@ uint32_t allTimeRunSec       = 0;
 bool     bleActive           = false;
 bool     bleConnected        = false;
 uint32_t bleStartTimeMs      = 0;
+volatile bool shouldEnterDeepSleep = false;
 
 // Hardware Button & Gesture Engine State (FreeRTOS Background Task)
 volatile uint8_t  btnEventTaps      = 0;     // 1, 2, 3, 4, 5, 7
@@ -287,6 +288,9 @@ class TimeCallback : public NimBLECharacteristicCallbacks {
             int m = atoi(val.substr(3, 2).c_str());
             int s = atoi(val.substr(6, 2).c_str());
             cyberHUD.setTime(h, m, s);
+            prefs.putInt("saved_h", h);
+            prefs.putInt("saved_m", m);
+            prefs.putInt("saved_s", s);
             
             size_t barIdx = val.find('|');
             if (barIdx != std::string::npos) {
@@ -302,10 +306,13 @@ class TimeCallback : public NimBLECharacteristicCallbacks {
                         cyberHUD.setWeather(temp, "SYNCED");
                         cyberHUD.setDate(dateStr);
                         cyberHUD.setFullDate(fullDateStr);
+                        prefs.putString("saved_date", dateStr);
+                        prefs.putString("saved_fdate", fullDateStr);
                     } else {
                         String dateStr = String(dateAndFull.c_str());
                         cyberHUD.setWeather(temp, "SYNCED");
                         cyberHUD.setDate(dateStr);
+                        prefs.putString("saved_date", dateStr);
                     }
                 } else {
                     float temp = atof(rest.c_str());
@@ -313,7 +320,7 @@ class TimeCallback : public NimBLECharacteristicCallbacks {
                 }
             }
             lastActivityTime = millis();
-            Serial.printf("[BLE] Time Synced: %02d:%02d:%02d\n", h, m, s);
+            Serial.printf("[BLE] Time Synced & Saved to NVS: %02d:%02d:%02d\n", h, m, s);
         }
     }
 };
@@ -864,8 +871,8 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
         }
         // 15. Enter Deep Sleep Immediately: "SYS:SLEEP"
         else if (cmd == "SYS:SLEEP") {
-            Serial.println("[SETTINGS] Web requested immediate deep sleep.");
-            enterDeepSleep();
+            Serial.println("[SETTINGS] Web requested immediate deep sleep -> Scheduling deep sleep in main loop.");
+            shouldEnterDeepSleep = true;
         }
         // 16. Brightness Value: "BR:<10..255>" or "10".."255"
         else if (cmd.startsWith("BR:")) {
@@ -1187,6 +1194,16 @@ void updateBatteryTelemetry() {
     bool isTpFull     = (digitalRead(PIN_TP_BLUE) == LOW);
     bool isTpUsb      = (isTpCharging || isTpFull);
 
+    static bool lastTpChg = false;
+    static bool lastTpFullLogged = false;
+    if (isTpCharging != lastTpChg || isTpFull != lastTpFullLogged) {
+        lastTpChg = isTpCharging;
+        lastTpFullLogged = isTpFull;
+        Serial.printf("[TP4056] Status -> Red(CHRG 21)=%d, Blue(STDBY 20)=%d | %s\n",
+                      digitalRead(PIN_TP_RED), digitalRead(PIN_TP_BLUE),
+                      isTpUsb ? "DOCK CONNECTED" : "DOCK UNPLUGGED");
+    }
+
     if (isEspUsb || isTpUsb || rawMv < 80.0f || vbat < 2.2f || vbat >= 4.45f) {
         isUsbPower = true;
         currentBatVoltage = isEspUsb ? 5.00f : vbat;
@@ -1296,39 +1313,49 @@ void fadeOutBrightness(uint32_t durationMs) {
 // =========================================================================
 // POWER & BLE MANAGEMENT HELPERS
 // =========================================================================
-// POWER & BLE MANAGEMENT HELPERS (SUBTLE INDICATOR LED + POWER SAVING)
 // =========================================================================
-#define BLE_LED_PWM_CHANNEL  4
-
+// POWER & BLE MANAGEMENT HELPERS (SHORT BLINK INDICATOR + RELIABLE 160MHZ)
+// =========================================================================
 void initBleLed() {
-    ledcSetup(BLE_LED_PWM_CHANNEL, 2000, 8);
-    ledcAttachPin(PIN_DEBUG_LED, BLE_LED_PWM_CHANNEL);
-    ledcWrite(BLE_LED_PWM_CHANNEL, 255); // Completely OFF (active LOW on SuperMini)
+    pinMode(PIN_DEBUG_LED, OUTPUT);
+    digitalWrite(PIN_DEBUG_LED, HIGH); // Completely OFF (active LOW on SuperMini)
+}
+
+void blinkBleLedOn() {
+    digitalWrite(PIN_DEBUG_LED, LOW);  // Turn ON
+    delay(100);                         // Blink once shortly (100ms)
+    digitalWrite(PIN_DEBUG_LED, HIGH); // Turn OFF
+}
+
+void blinkBleLedOff() {
+    digitalWrite(PIN_DEBUG_LED, LOW);  // 1st blink ON
+    delay(60);
+    digitalWrite(PIN_DEBUG_LED, HIGH); // OFF
+    delay(60);
+    digitalWrite(PIN_DEBUG_LED, LOW);  // 2nd blink ON
+    delay(60);
+    digitalWrite(PIN_DEBUG_LED, HIGH); // OFF
 }
 
 void setBleLed(bool on) {
-    if (on) {
-        ledcWrite(BLE_LED_PWM_CHANNEL, 240); // Subtle dim glow (~6% duty active LOW)
-    } else {
-        ledcWrite(BLE_LED_PWM_CHANNEL, 255); // Completely OFF
-    }
+    // Kept for backward compatibility; blue LED is strictly disabled except for state transition blinks
+    digitalWrite(PIN_DEBUG_LED, HIGH);
 }
 
 void blinkDebugLed(int count, int delayMs) {
-    // Deprecated: Blue LED is exclusively reserved as a subtle Bluetooth indicator
+    // Deprecated: Blue LED only blinks for BLE on/off events
 }
 
 void startBLE(bool notifyVisual) {
     if (bleActive) return;
     bleActive = true;
-    setCpuFrequencyMhz(80); // Keep CPU at 80 MHz to save massive battery!
-    setBleLed(true);        // Subtle dim glow while Bluetooth is active!
+    blinkBleLedOn(); // Blink once shortly when Bluetooth turns ON
     NimBLEAdvertising* pAdv = NimBLEDevice::getAdvertising();
     if (pAdv) pAdv->start();
     bleStartTimeMs = millis();
     lastActivityTime = millis();
     if (notifyVisual) triggerTouchVisual("BLE ON", 0x07FF, 2000, "BLE:ONLINE");
-    Serial.println("[BLE] BLE Radio Activated! CPU @ 80MHz. Blue LED glowing softly.");
+    Serial.println("[BLE] BLE Radio Activated! Full 160MHz RF stability. Blinked Blue LED 1x.");
 }
 
 void stopBLE(bool notifyVisual) {
@@ -1340,11 +1367,10 @@ void stopBLE(bool notifyVisual) {
         NimBLEDevice::getServer()->disconnect(0);
         bleConnected = false;
     }
-    setBleLed(false); // Turn LED completely OFF
-    setCpuFrequencyMhz(80); // Drop CPU clock to 80 MHz to run cool and save battery!
+    blinkBleLedOff(); // Blink twice fast when Bluetooth turns OFF
     lastActivityTime = millis(); // Refresh activity timer so device does not instantly sleep upon deactivating BLE
     if (notifyVisual) triggerTouchVisual("BLE OFF", 0x8410, 1500, "BLE:OFFLINE");
-    Serial.println("[BLE] BLE Radio Deactivated! Standby mode. Blue LED OFF.");
+    Serial.println("[BLE] BLE Radio Deactivated! Standby mode. Blinked Blue LED 2x.");
 }
 
 // =========================================================================
@@ -1776,6 +1802,12 @@ void handleButtonEvents() {
 void enterDeepSleep() {
     Serial.println("[POWER] Entering Deep Sleep (Ultra-Low Power Mode)...");
 
+    // Save time and telemetry to NVS so state is restored on next wakeup
+    prefs.putInt("saved_h", cyberHUD.hours);
+    prefs.putInt("saved_m", cyberHUD.minutes);
+    prefs.putInt("saved_s", cyberHUD.seconds);
+    prefs.putString("saved_date", cyberHUD.dateString);
+    prefs.putString("saved_fdate", cyberHUD.fullDateString);
     saveBatteryDischargeLog();
 
     if (bleActive || bleConnected) {
@@ -1786,6 +1818,7 @@ void enterDeepSleep() {
         if (NimBLEDevice::getServer()) {
             NimBLEDevice::getServer()->disconnect(0);
         }
+        delay(80);
     }
     // Fully de-initialize NimBLE & radio stack to drop RF power to 0
     NimBLEDevice::deinit(true);
@@ -1831,18 +1864,12 @@ void enterDeepSleep() {
     gpio_deep_sleep_hold_en();
 
     // Wait until button is completely released before sleeping so it doesn't immediately re-wake!
-    uint32_t lowStart = 0;
     uint32_t waitRelease = millis();
-    while (millis() - waitRelease < 5000) {
-        if (digitalRead(PIN_TOUCH) == LOW) {
-            if (lowStart == 0) lowStart = millis();
-            if (millis() - lowStart >= 120) break; // Cleanly LOW for 120ms
-        } else {
-            lowStart = 0;
-        }
-        delay(15);
+    while (digitalRead(PIN_TOUCH) == HIGH) {
+        delay(20);
+        if (millis() - waitRelease > 10000) break; // 10s failsafe
     }
-    delay(50); // Extra settling delay
+    delay(100); // Settling debounce delay
 
     detachInterrupt(digitalPinToInterrupt(PIN_TOUCH));
     esp_deep_sleep_enable_gpio_wakeup(1ULL << PIN_TOUCH, ESP_GPIO_WAKEUP_GPIO_HIGH);
@@ -2072,6 +2099,9 @@ void setup() {
     pinMode(PIN_BAT_ADC, INPUT);
 
     // TP4056 Charger Status Pins (Open-drain, pulled HIGH by ESP32 internal pullups)
+    // CRITICAL: Reset GPIO 20 & 21 to detach them completely from UART0 hardware peripheral!
+    gpio_reset_pin((gpio_num_t)PIN_TP_BLUE);
+    gpio_reset_pin((gpio_num_t)PIN_TP_RED);
     pinMode(PIN_TP_BLUE, INPUT_PULLUP);
     pinMode(PIN_TP_RED,  INPUT_PULLUP);
 
@@ -2099,6 +2129,15 @@ void setup() {
     cyberHUD.showCustomText = prefs.getBool("hud_text", true);
     cyberHUD.setCustomText(prefs.getString("hud_msg", "SPEARHEAD // SYS_ONLINE"));
     cyberHUD.setTimeFormat(prefs.getUChar("time_fmt", 12) == 12);
+    int savedH = prefs.getInt("saved_h", -1);
+    if (savedH >= 0) {
+        int savedM = prefs.getInt("saved_m", 0);
+        int savedS = prefs.getInt("saved_s", 0);
+        cyberHUD.setTime(savedH, savedM, savedS);
+        cyberHUD.setDate(prefs.getString("saved_date", "SUN 13 SEP 2026"));
+        cyberHUD.setFullDate(prefs.getString("saved_fdate", "Tuesday, 13th October"));
+        Serial.printf("[NVS] Restored last synced time: %02d:%02d:%02d\n", savedH, savedM, savedS);
+    }
     String shyMsg = prefs.getString("hud_shy", "I LOVE YOU");
     cyberHUD.setShyText(shyMsg);
     robotEyes.setShyText(shyMsg);
@@ -2218,8 +2257,7 @@ void setup() {
     // and prevent accidental Bluetooth popups on wake! Activate via 4 taps or 4.0s hold.
     bleActive = false;
     bleConnected = false;
-    setCpuFrequencyMhz(80); // Run cool at 80 MHz in standby
-    Serial.println("[BLE] BLE Initialized in Standby (OFF). CPU @ 80MHz. Quad-tap or hold 4s to activate BLE.");
+    Serial.println("[BLE] BLE Initialized in Standby (OFF). CPU @ 160MHz. Quad-tap or hold 10s to activate BLE.");
 
     // 4. Cold Boot Splash vs Deep Sleep Wakeup (with smooth 0.7s fade-in)
     if (wakeupReason == ESP_SLEEP_WAKEUP_UNDEFINED) {
@@ -2267,6 +2305,12 @@ void setup() {
 void loop() {
     handleButtonEvents();
 
+    if (shouldEnterDeepSleep) {
+        shouldEnterDeepSleep = false;
+        enterDeepSleep();
+        return;
+    }
+
     bool isConnected = bleConnected || (NimBLEDevice::getServer() != nullptr && NimBLEDevice::getServer()->getConnectedCount() > 0);
 
     // Keep resetting activity timer while connected so sleep timer only starts AFTER disconnect
@@ -2274,9 +2318,9 @@ void loop() {
         lastActivityTime = millis();
     }
 
-    // USB Charging Connection & Auto Desk Dock Detection (15-Second Confirmation Hysteresis)
+    // USB Charging Connection & Auto Desk Dock Detection (10-Second Confirmation Hysteresis)
     static bool confirmedDockState = false;       // Committed dock mode state
-    static bool candidateDockState = false;       // Candidate state waiting for 15s confirmation
+    static bool candidateDockState = false;       // Candidate state waiting for 10s confirmation
     static uint32_t candidateDockStartTime = 0;   // When candidate state was first observed
     static bool bleAutoTurnedOnByDock = false;    // Tracks if Bluetooth was turned on automatically by Dock Mode
     static uint32_t dockOffBleInactivityStartTime = 0; // Timer for 30s BLE inactivity turn-off
@@ -2288,12 +2332,12 @@ void loop() {
         if (targetDockState != candidateDockState) {
             candidateDockState = targetDockState;
             candidateDockStartTime = millis();
-        } else if (millis() - candidateDockStartTime >= 15000) {
+        } else if (millis() - candidateDockStartTime >= 10000) {
             confirmedDockState = candidateDockState;
 
             if (confirmedDockState) {
-                // USB POWER CONFIRMED ON for 15 seconds -> ENGAGE DESK DOCK
-                Serial.println("[POWER] USB 5V Confirmed Stable (15s)! Engaging Smart Desk Dock.");
+                // USB POWER CONFIRMED ON for 10 seconds -> ENGAGE DESK DOCK
+                Serial.println("[POWER] USB 5V Confirmed Stable (10s)! Engaging Smart Desk Dock.");
                 if (autoDeskDockOnUsb && currentMode != MODE_STREAM_MEDIA) {
                     if (!preUsbModeSaved) {
                         preUsbMode = currentMode;
@@ -2318,8 +2362,8 @@ void loop() {
                 dockOffTimerPending = false;
 
             } else {
-                // USB DISCONNECTED CONFIRMED for 15 seconds -> DISENGAGE DESK DOCK
-                Serial.println("[POWER] USB Disconnect Confirmed Stable (15s)! Restoring battery power saving mode.");
+                // USB DISCONNECTED CONFIRMED for 10 seconds -> DISENGAGE DESK DOCK
+                Serial.println("[POWER] USB Disconnect Confirmed Stable (10s)! Restoring battery power saving mode.");
                 if (preUsbModeSaved) {
                     currentMode = preUsbMode;
                     preUsbModeSaved = false;
