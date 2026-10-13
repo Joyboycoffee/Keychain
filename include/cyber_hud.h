@@ -6,7 +6,7 @@
 
 class CyberHUD {
 public:
-    int currentLayout = 0; // 0 = Full HUD with Eyes, 1 = Big Clock & Date, 2 = Minimalist Dashboard
+    int currentLayout = 0; // 0 = Full HUD with Eyes, 1 = Big Clock & Date, 2 = Minimalist Dashboard, 3 = Minimalistic One
     bool is12HourFormat = true; // Default 12-hour format with AM/PM
     bool showSeconds = true;
     bool showBattery = true;
@@ -16,6 +16,7 @@ public:
     String customMessage = "SPEARHEAD // HUD";
     String customShyText = "I LOVE YOU <3";
     String dateString = "SUN 13 SEP 2026";
+    String fullDateString = "Tuesday, 13th October";
 
     bool isShyActive = false;
     uint32_t shyStartTime = 0;
@@ -40,6 +41,10 @@ public:
         if (d.length() > 0) dateString = d;
     }
 
+    void setFullDate(const String& fd) {
+        if (fd.length() > 0) fullDateString = fd;
+    }
+
     void setWeather(float temp, String stat) {
         temperature = temp; statusText = stat;
     }
@@ -51,7 +56,7 @@ public:
     }
 
     void setLayout(int lay) {
-        currentLayout = (lay >= 0 && lay < 3) ? lay : 0;
+        currentLayout = (lay >= 0 && lay < 4) ? lay : 0;
     }
 
     void setTimeFormat(bool is12) {
@@ -59,7 +64,7 @@ public:
     }
 
     int cycleLayout() {
-        currentLayout = (currentLayout + 1) % 3;
+        currentLayout = (currentLayout + 1) % 4;
         return currentLayout;
     }
 
@@ -84,7 +89,7 @@ public:
         showCustomText = text;
     }
 
-    void update() {
+    void tick() {
         if (millis() - lastTick > 1000) {
             lastTick = millis();
             seconds++;
@@ -97,6 +102,10 @@ public:
                 }
             }
         }
+    }
+
+    void update() {
+        tick();
         animPhase = (animPhase + 1) % 360;
 
         // Auto revert shy mode after 5 seconds
@@ -110,12 +119,14 @@ public:
             renderFullHUD();
         } else if (currentLayout == 1) {
             renderBigClockDate();
-        } else {
+        } else if (currentLayout == 2) {
             renderMinimalDashboard();
+        } else {
+            renderMinimalisticClock();
         }
 
         // Overlay 2-Second Hold Shy / Love Reaction
-        if (isShyActive) {
+        if (isShyActive && currentLayout != 3) {
             renderShyOverlay();
         }
     }
@@ -423,14 +434,66 @@ private:
     }
 
     void drawBatteryBadge(int x, int y) {
-        canvas.drawRoundRect(x, y, 26, 12, 2, 0x07FF);
-        canvas.drawFastVLine(x + 27, y + 3, 6, 0x07FF);
+        // Consistent Rounded Battery Indicator (28 x 14 px)
+        uint16_t bCol = (batteryPercent <= 20) ? 0xF800 : (batteryPercent <= 50 ? 0xFFE0 : 0x07E0);
+        if (isUsbPowered) bCol = 0x07E0;
 
-        int filledWidth = (batteryPercent * 22) / 100;
-        if (filledWidth < 2 && batteryPercent > 0) filledWidth = 2;
-        if (filledWidth > 22) filledWidth = 22;
+        // Clean white shell
+        canvas.drawRoundRect(x, y, 28, 14, 3, 0xFFFF);
+        // Terminal tip (+) on right
+        canvas.fillRect(x + 28, y + 4, 3, 6, 0xFFFF);
 
-        uint16_t bCol = (batteryPercent <= 15) ? 0xF800 : (isUsbPowered ? 0x07FF : 0x07E0);
-        canvas.fillRect(x + 2, y + 2, filledWidth, 8, bCol);
+        // Filled level inside shell
+        int fillW = (batteryPercent * 22) / 100;
+        if (fillW < 2 && batteryPercent > 0) fillW = 2;
+        if (fillW > 22) fillW = 22;
+
+        if (isUsbPowered) {
+            // Charging fill: full green bar with lightning bolt
+            canvas.fillRect(x + 3, y + 3, 22, 8, bCol);
+            // 1px dark lightning bolt in center
+            canvas.drawLine(x + 15, y + 3, x + 12, y + 7, 0x0000);
+            canvas.drawLine(x + 12, y + 7, x + 16, y + 7, 0x0000);
+            canvas.drawLine(x + 16, y + 7, x + 13, y + 10, 0x0000);
+        } else {
+            canvas.fillRect(x + 3, y + 3, fillW, 8, bCol);
+        }
+    }
+
+public:
+    // =========================================================================
+    // LAYOUT 3: MINIMALISTIC ONE (FREDOKA BOLD CLOCK & PURE BLACK BACKGROUND)
+    // =========================================================================
+    void renderMinimalisticClock() {
+        tick();
+
+        // 1. Consistent Battery Badge in top-right corner
+        if (showBattery) {
+            drawBatteryBadge(196, 14);
+        }
+
+        // 2. Big Time in HH:MM format only (no seconds) in rounded bold font
+        int dispH = is12HourFormat ? (hours % 12 == 0 ? 12 : hours % 12) : hours;
+        char timeStr[16];
+        snprintf(timeStr, sizeof(timeStr), "%02d:%02d", dispH, minutes);
+
+        canvas.setFont(&fonts::DejaVu56);
+        canvas.setTextDatum(textdatum_t::middle_center);
+        canvas.setTextColor(0xFFFF, TFT_BLACK);
+        canvas.drawString(timeStr, 120, 104);
+
+        // 3. Current Date underneath in clean rounded font: e.g. "Tuesday, 13th October"
+        canvas.setFont(&fonts::FreeSansBold9pt7b);
+        canvas.setTextColor(0xFFFF, TFT_BLACK);
+        canvas.drawString(fullDateString.c_str(), 120, 154);
+
+        // Restore default font & datum
+        canvas.setFont(&fonts::Font0);
+        canvas.setTextDatum(textdatum_t::top_left);
+
+        // Secret Love / Shy Overlay (2s hold)
+        if (isShyActive) {
+            renderShyOverlay();
+        }
     }
 };

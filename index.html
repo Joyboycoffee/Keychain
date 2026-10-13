@@ -1236,6 +1236,7 @@
               <button class="btn-opt active" id="hudLayBtn0" onclick="setHudLayout(0)">COMPACT (EYES ON TOP)</button>
               <button class="btn-opt" id="hudLayBtn1" onclick="setHudLayout(1)">BIG CLOCK & GAUGES</button>
               <button class="btn-opt" id="hudLayBtn2" onclick="setHudLayout(2)">MINIMALIST DASH</button>
+              <button class="btn-opt" id="hudLayBtn3" onclick="setHudLayout(3)">MINIMALISTIC ONE</button>
             </div>
 
             <div class="sub-title" style="margin-top:6px;">CLOCK TIME FORMAT</div>
@@ -2655,6 +2656,9 @@
         setTouchBanner("DESK DOCK ENGAGED", "badge-ok", 2500);
         highlightModeUI(6);
         log("Device plugged into USB! Smart Desk Companion mode active.");
+      } else if (msg.startsWith("DOCK:INACTIVE")) {
+        setTouchBanner("DESK DOCK DISENGAGED", "badge-warn", 2500);
+        log("Device unplugged! Restored battery profile.");
       } else if (msg.startsWith("EASTER:UNLOCKED")) {
         let eggCnt = easterEggCount + 1;
         if (msg.includes(':') && msg.split(':').length >= 3) {
@@ -3065,7 +3069,7 @@
 
     function highlightHudLayoutUI(layNum) {
       currentHudLayout = layNum;
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < 4; i++) {
         const b = document.getElementById(`hudLayBtn${i}`);
         if (b) b.className = (i === layNum) ? "btn-opt active" : "btn-opt";
       }
@@ -3319,11 +3323,25 @@
       const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
       const dateStr = `${days[now.getDay()]} ${now.getDate()} ${months[now.getMonth()]}`;
 
+      const fullDays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+      const fullMonths = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+      const dNum = now.getDate();
+      function getOrdinalSuffix(d) {
+        if (d > 3 && d < 21) return 'th';
+        switch (d % 10) {
+          case 1: return 'st';
+          case 2: return 'nd';
+          case 3: return 'rd';
+          default: return 'th';
+        }
+      }
+      const fullDateStr = `${fullDays[now.getDay()]}, ${dNum}${getOrdinalSuffix(dNum)} ${fullMonths[now.getMonth()]}`;
+
       let temp = 24.5;
-      const payload = `${h}:${m}:${s}|${temp}|${dateStr}`;
+      const payload = `${h}:${m}:${s}|${temp}|${dateStr}|${fullDateStr}`;
       const data = new TextEncoder().encode(payload);
       await safeBleWrite(charTime, data, false);
-      log(`Time & Date synced: ${h}:${m}:${s} (${dateStr})`);
+      log(`Time & Date synced: ${h}:${m}:${s} (${fullDateStr})`);
     }
 
     // -------------------------------------------------------------

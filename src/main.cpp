@@ -294,9 +294,19 @@ class TimeCallback : public NimBLECharacteristicCallbacks {
                 size_t secondBar = rest.find('|');
                 if (secondBar != std::string::npos) {
                     float temp = atof(rest.substr(0, secondBar).c_str());
-                    String dateStr = String(rest.substr(secondBar + 1).c_str());
-                    cyberHUD.setWeather(temp, "SYNCED");
-                    cyberHUD.setDate(dateStr);
+                    std::string dateAndFull = rest.substr(secondBar + 1);
+                    size_t thirdBar = dateAndFull.find('|');
+                    if (thirdBar != std::string::npos) {
+                        String dateStr = String(dateAndFull.substr(0, thirdBar).c_str());
+                        String fullDateStr = String(dateAndFull.substr(thirdBar + 1).c_str());
+                        cyberHUD.setWeather(temp, "SYNCED");
+                        cyberHUD.setDate(dateStr);
+                        cyberHUD.setFullDate(fullDateStr);
+                    } else {
+                        String dateStr = String(dateAndFull.c_str());
+                        cyberHUD.setWeather(temp, "SYNCED");
+                        cyberHUD.setDate(dateStr);
+                    }
                 } else {
                     float temp = atof(rest.c_str());
                     cyberHUD.setWeather(temp, "SYNCED");
@@ -1332,28 +1342,30 @@ void renderBatteryOverlay() {
     // Obsidian card background
     canvas.fillRoundRect(cardX, cardY, cardW, cardH, 6, 0x10A2);
 
-    // Dynamic accent color based on battery health
-    uint16_t bCol = (currentBatPercent <= 20) ? 0xF800 : (isUsbPower ? 0x07FF : (currentBatPercent <= 45 ? 0xFD00 : 0x07E0));
-    canvas.drawRoundRect(cardX, cardY, cardW, cardH, 6, bCol);
+    // Clean white border
+    canvas.drawRoundRect(cardX, cardY, cardW, cardH, 6, 0xFFFF);
     canvas.drawRoundRect(cardX + 1, cardY + 1, cardW - 2, cardH - 2, 5, 0x0000);
 
-    // Header Title
-    canvas.setTextColor(bCol, 0x10A2);
+    // Header Title in clean white
+    canvas.setTextColor(0xFFFF, 0x10A2);
     canvas.setTextSize(1);
     canvas.drawCenterString("BATTERY MONITOR", cardX + cardW / 2, cardY + 6);
-    canvas.drawFastHLine(cardX + 12, cardY + 18, cardW - 24, 0x2124);
+    canvas.drawFastHLine(cardX + 12, cardY + 18, cardW - 24, 0x3186);
 
-    // Large Battery Shell Icon (50 x 36 px) on left side
+    // Battery accent color based on percentage (Green, Yellow, Red)
+    uint16_t batCol = (currentBatPercent <= 20) ? 0xF800 : (currentBatPercent <= 50 ? 0xFFE0 : 0x07E0);
+
+    // Large Battery Shell Icon (50 x 36 px) on left side colored by percentage
     int bx = cardX + 14;
     int by = cardY + 26;
     int bShellW = 50;
     int bShellH = 36;
-    canvas.drawRoundRect(bx, by, bShellW, bShellH, 4, bCol);
+    canvas.drawRoundRect(bx, by, bShellW, bShellH, 4, batCol);
     canvas.drawRoundRect(bx + 1, by + 1, bShellW - 2, bShellH - 2, 3, 0x0000);
     // Terminal tip (+) on right of battery shell
-    canvas.fillRect(bx + bShellW, by + 10, 4, 16, bCol);
+    canvas.fillRect(bx + bShellW, by + 10, 4, 16, batCol);
 
-    // 4 Segment Bars inside battery shell
+    // 4 Segment Bars inside battery shell colored by percentage
     int barW = 8;
     int barH = 24;
     int barY = by + 6;
@@ -1368,33 +1380,29 @@ void renderBatteryOverlay() {
     for (int i = 0; i < 4; i++) {
         int xPos = startBarX + i * (barW + 3);
         if (i < barsFilled) {
-            canvas.fillRect(xPos, barY, barW, barH, bCol);
+            canvas.fillRect(xPos, barY, barW, barH, batCol);
         } else {
             canvas.drawRect(xPos, barY, barW, barH, 0x2965); // Dim slot
         }
     }
 
-    // Right-side text: Percentage and Voltage in bold Size 2 text!
+    // Right-side text: Percentage and Voltage in bold Size 2 White text!
     int textX = bx + bShellW + 16;
 
-    // Line 1: Percentage
+    // Line 1: Percentage in Size 2 White text
     canvas.setTextSize(2);
     canvas.setTextColor(0xFFFF, 0x10A2);
     char pctStr[16];
     snprintf(pctStr, sizeof(pctStr), "%d%%", currentBatPercent);
     canvas.drawString(pctStr, textX, by + 2);
 
+    // Line 2: Voltage with USB right after the voltage (e.g. "5.00V USB" or "3.85V")
+    char vStr[24];
     if (isUsbPower) {
-        canvas.setTextSize(1);
-        canvas.setTextColor(0x07FF, 0x10A2);
-        canvas.drawString("USB", textX + canvas.textWidth(pctStr) + 6, by + 6);
+        snprintf(vStr, sizeof(vStr), "%.2fV USB", currentBatVoltage);
+    } else {
+        snprintf(vStr, sizeof(vStr), "%.2fV", currentBatVoltage);
     }
-
-    // Line 2: Voltage in Size 2 text (increased text size)
-    canvas.setTextSize(2);
-    canvas.setTextColor(bCol, 0x10A2);
-    char vStr[16];
-    snprintf(vStr, sizeof(vStr), "%.2fV", currentBatVoltage);
     canvas.drawString(vStr, textX, by + 20);
 }
 
@@ -1633,7 +1641,7 @@ void handleButtonEvents() {
                 }
             } else if (currentMode == MODE_CYBER_HUD) {
                 int next = cyberHUD.cycleLayout();
-                const char* hudNames[] = { "CYBER HUD", "CLOCK", "MINIMAL" };
+                const char* hudNames[] = { "CYBER HUD", "BIG CLOCK", "MINIMAL DASH", "MINIMALISTIC" };
                 triggerTouchVisual(hudNames[next], 0x07FF, 1000, "HUD:LAYOUT");
                 if (bleConnected && pCharSet) {
                     pCharSet->setValue("HUD_LAY:" + std::to_string(next));
@@ -2243,42 +2251,91 @@ void loop() {
         lastActivityTime = millis();
     }
 
-    // USB Charging Connection & Auto Desk Dock Detection
-    static bool lastUsbState = false;
-    if (isUsbPower && !lastUsbState) {
-        Serial.println("[POWER] USB 5V Connected!");
-        if (autoDeskDockOnUsb && currentMode != MODE_STREAM_MEDIA) {
-            if (!preUsbModeSaved) {
-                preUsbMode = currentMode;
-                preUsbModeSaved = true;
-            }
-            currentMode = MODE_DESK_COMPANION;
-            deskPhase = DESK_DASAI;
-            deskPhaseStartTime = millis();
-            triggerTouchVisual("DESK DOCK ON", 0x07FF, 2000, "DOCK:ACTIVE");
-            if (bleConnected && pCharMode) {
-                pCharMode->setValue(std::string("6"));
-                pCharMode->notify();
-            }
-        }
-    } else if (!isUsbPower && lastUsbState) {
-        Serial.println("[POWER] USB Disconnected! Restoring battery power saving mode.");
-        if (preUsbModeSaved) {
-            currentMode = preUsbMode;
-            preUsbModeSaved = false;
-            tft.setBrightness(screenBrightness);
-            if (bleConnected && pCharMode) {
-                char mChar[2] = { (char)('0' + (int)currentMode), '\0' };
-                pCharMode->setValue(std::string(mChar));
-                pCharMode->notify();
-            }
-        }
-        lastActivityTime = millis();
-    }
-    lastUsbState = isUsbPower;
+    // USB Charging Connection & Auto Desk Dock Detection (15-Second Confirmation Hysteresis)
+    static bool confirmedDockState = false;       // Committed dock mode state
+    static bool candidateDockState = false;       // Candidate state waiting for 15s confirmation
+    static uint32_t candidateDockStartTime = 0;   // When candidate state was first observed
+    static bool bleAutoTurnedOnByDock = false;    // Tracks if Bluetooth was turned on automatically by Dock Mode
+    static uint32_t dockOffBleInactivityStartTime = 0; // Timer for 30s BLE inactivity turn-off
+    static bool dockOffTimerPending = false;      // True if waiting for 30s BLE inactivity
 
-    // Auto BLE power-down if no connection after 3 minutes (180s) on battery
-    if (!isUsbPower && bleActive && !isConnected && (millis() - bleStartTimeMs > 180000)) {
+    bool targetDockState = isUsbPower;
+
+    if (targetDockState != confirmedDockState) {
+        if (targetDockState != candidateDockState) {
+            candidateDockState = targetDockState;
+            candidateDockStartTime = millis();
+        } else if (millis() - candidateDockStartTime >= 15000) {
+            confirmedDockState = candidateDockState;
+
+            if (confirmedDockState) {
+                // USB POWER CONFIRMED ON for 15 seconds -> ENGAGE DESK DOCK
+                Serial.println("[POWER] USB 5V Confirmed Stable (15s)! Engaging Smart Desk Dock.");
+                if (autoDeskDockOnUsb && currentMode != MODE_STREAM_MEDIA) {
+                    if (!preUsbModeSaved) {
+                        preUsbMode = currentMode;
+                        preUsbModeSaved = true;
+                    }
+                    currentMode = MODE_DESK_COMPANION;
+                    deskPhase = DESK_DASAI;
+                    deskPhaseStartTime = millis();
+                    triggerTouchVisual("DESK DOCK ON", 0x07FF, 2000, "DOCK:ACTIVE");
+                    if (bleConnected && pCharMode) {
+                        pCharMode->setValue(std::string("6"));
+                        pCharMode->notify();
+                    }
+                }
+
+                // Bluetooth is ALWAYS on when Dock Mode is engaged
+                if (!bleActive) {
+                    startBLE();
+                    bleAutoTurnedOnByDock = true;
+                    Serial.println("[DOCK] Bluetooth automatically turned ON (Dock Mode active).");
+                }
+                dockOffTimerPending = false;
+
+            } else {
+                // USB DISCONNECTED CONFIRMED for 15 seconds -> DISENGAGE DESK DOCK
+                Serial.println("[POWER] USB Disconnect Confirmed Stable (15s)! Restoring battery power saving mode.");
+                if (preUsbModeSaved) {
+                    currentMode = preUsbMode;
+                    preUsbModeSaved = false;
+                    tft.setBrightness(screenBrightness);
+                    if (bleConnected && pCharMode) {
+                        char mChar[2] = { (char)('0' + (int)currentMode), '\0' };
+                        pCharMode->setValue(std::string(mChar));
+                        pCharMode->notify();
+                    }
+                }
+                triggerTouchVisual("DESK DOCK OFF", 0xF800, 2000, "DOCK:INACTIVE");
+                lastActivityTime = millis();
+
+                // Turn off Bluetooth 30 seconds after dock disconnect if inactive
+                if (bleAutoTurnedOnByDock && bleActive) {
+                    dockOffBleInactivityStartTime = millis();
+                    dockOffTimerPending = true;
+                    Serial.println("[DOCK] Desk Dock disengaged. Bluetooth will power off after 30s inactivity.");
+                }
+            }
+        }
+    } else {
+        candidateDockState = confirmedDockState;
+    }
+
+    // Auto BLE turn-off after 30s inactivity following dock disconnect
+    if (dockOffTimerPending && bleAutoTurnedOnByDock && bleActive) {
+        if (isConnected) {
+            dockOffBleInactivityStartTime = millis(); // Refresh while actively connected
+        } else if (millis() - dockOffBleInactivityStartTime >= 30000) {
+            stopBLE(false);
+            bleAutoTurnedOnByDock = false;
+            dockOffTimerPending = false;
+            Serial.println("[BLE] Auto-dock Bluetooth turned OFF after 30s inactivity on battery.");
+        }
+    }
+
+    // Auto BLE power-down if no connection after 3 minutes (180s) on battery (manual BLE)
+    if (!confirmedDockState && !isUsbPower && bleActive && !isConnected && !dockOffTimerPending && (millis() - bleStartTimeMs > 180000)) {
         stopBLE(false);
     }
 
@@ -2287,9 +2344,9 @@ void loop() {
         enterDeepSleep();
     }
 
-    // Battery Telemetry & Flash Log Update (Fast 2.5s when BLE connected, 20s when disconnected)
+    // Battery Telemetry & Flash Log Update (Smooth 1.5s sampling for instant dock responsiveness)
     static uint32_t lastBatCheck = 0;
-    uint32_t batInterval = isConnected ? 2500 : 20000;
+    uint32_t batInterval = 1500;
     if (millis() - lastBatCheck >= batInterval) {
         lastBatCheck = millis();
         updateBatteryTelemetry();
@@ -2443,7 +2500,7 @@ void loop() {
                 }
 
                 case DESK_FADE_IN_CLOCK: {
-                    cyberHUD.update();
+                    cyberHUD.renderMinimalisticClock();
                     float progress = (float)elapsed / (float)deskFadeDurationMs;
                     if (progress >= 1.0f) {
                         tft.setBrightness(screenBrightness);
@@ -2457,7 +2514,7 @@ void loop() {
                 }
 
                 case DESK_CLOCK:
-                    cyberHUD.update();
+                    cyberHUD.renderMinimalisticClock();
                     if (elapsed >= deskClockDurationMs) {
                         deskPhase = DESK_FADE_OUT_CLOCK;
                         deskPhaseStartTime = now;
@@ -2465,7 +2522,7 @@ void loop() {
                     break;
 
                 case DESK_FADE_OUT_CLOCK: {
-                    cyberHUD.update();
+                    cyberHUD.renderMinimalisticClock();
                     float progress = (float)elapsed / (float)deskFadeDurationMs;
                     if (progress >= 1.0f) {
                         tft.setBrightness(0);
