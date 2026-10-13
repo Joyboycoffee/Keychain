@@ -111,6 +111,14 @@ public:
     DasaiEmotion preShyEmotion     = DASAI_IDLE_LOOK;
     String       customShyText     = "I LOVE YOU :heart: :sparkles:";
 
+    // Single-Tap Temporary Reaction State
+    bool           isTapReactionActive  = false;
+    uint32_t       tapReactionStartTime = 0;
+    DasaiCycleMode preTapCycleMode      = CYCLE_AUTO_ALL;
+    String         preTapGifPath        = "/mochi/blank.gif";
+    int            preTapAnimIdx        = 0;
+    int            preTapShowcaseIdx    = 0;
+
 private:
     uint32_t masterCycleStart       = 0;
     uint32_t stateStartTime         = 0;
@@ -197,17 +205,44 @@ public:
     }
 
     void triggerTap() {
-        if (singleTapGifPath.length() > 0 && LittleFS.exists(singleTapGifPath)) {
-            playAuthenticGif(singleTapGifPath, false);
-        } else if (currentEmotion == DASAI_HAPPY_SQUINT) {
-            playAuthenticGif("/mochi/dancing.gif", false);
-            currentEmotion = DASAI_EXCITED_BOUNCE;
-        } else {
-            playAuthenticGif("/mochi/happy.gif", false);
-            currentEmotion = DASAI_HAPPY_SQUINT;
+        if (!isTapReactionActive) {
+            preTapCycleMode = cycleMode;
+            preTapAnimIdx = currentAnimIdx;
+            preTapShowcaseIdx = showcaseIdx;
+            preTapGifPath = (lastLoadedPath.length() > 0) ? lastLoadedPath : "/mochi/blank.gif";
         }
+        isTapReactionActive = true;
+        tapReactionStartTime = millis();
+
+        String gifToPlay = (singleTapGifPath.length() > 0 && LittleFS.exists(singleTapGifPath)) 
+                           ? singleTapGifPath 
+                           : "/mochi/happy.gif";
+        playAuthenticGif(gifToPlay, false);
         cycleMode = CYCLE_MANUAL_LOCK;
         stateStartTime = millis();
+        currentAnimStartTime = millis();
+        Serial.printf("[MOCHI] Single Tap -> Playing %s (will return to previous state)\n", gifToPlay.c_str());
+    }
+
+    void revertFromTap() {
+        if (!isTapReactionActive) return;
+        isTapReactionActive = false;
+        cycleMode = preTapCycleMode;
+        showcaseIdx = preTapShowcaseIdx;
+        currentAnimIdx = preTapAnimIdx;
+        currentAnimStartTime = millis();
+        stateStartTime = millis();
+
+        if (cycleMode == CYCLE_AUTO_ALL) {
+            // Resume Grand Showcase without cutting
+            const MochiAnimItem& item = MOCHI_ANIM_CATALOG[showcaseIdx];
+            bool isIdle = (showcaseIdx == 0 || strcmp(item.path, "/mochi/blank.gif") == 0);
+            playAuthenticGif(item.path, isIdle);
+        } else {
+            // Restore exact previous animation
+            playAuthenticGif(preTapGifPath, true);
+        }
+        Serial.printf("[MOCHI] Reverted from Single Tap -> cycleMode: %d, path: %s\n", (int)cycleMode, preTapGifPath.c_str());
     }
 
     void triggerTripleTapTurbo() {
@@ -307,6 +342,15 @@ public:
             isShyLoveActive = false;
             currentEmotion = preShyEmotion;
             loadCurrentEmotionGif(true);
+        }
+
+        // Auto revert from single-tap reaction when animation finishes
+        if (isTapReactionActive && !isShyLoveActive) {
+            uint32_t elapsed = now - tapReactionStartTime;
+            bool gifDone = gifPlayer.checkAndClearLoopFinished();
+            if ((gifDone && elapsed >= 1200) || (elapsed >= 3500)) {
+                revertFromTap();
+            }
         }
 
         // =====================================================================

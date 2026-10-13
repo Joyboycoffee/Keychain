@@ -103,6 +103,11 @@ MemeEmotion preHoldEmotion      = EMOTION_LUFFY;
 bool        isTemporaryLove     = false;
 uint32_t    loveStartTime       = 0;
 
+// Single-Tap Temporary Reaction State Across Modes
+bool       isSingleTapModeActive   = false;
+uint32_t   singleTapModeStartTime  = 0;
+SystemMode preSingleTapMode        = MODE_ROBOT_EYES;
+
 // On-Screen Touch Visualizer
 bool     touchVisualActive   = false;
 String   touchVisualText     = "TOUCH";
@@ -1315,10 +1320,12 @@ void stopBLE(bool notifyVisual) {
 // REAL-TIME BATTERY OVERLAY CARD (6-SECOND HOLD HUD WITH STATUS BARS)
 // =========================================================================
 void renderBatteryOverlay() {
-    int cardX = 18;
-    int cardY = 16;
-    int cardW = 204;
-    int cardH = 62;
+    updateBatteryTelemetry();
+
+    int cardX = 12;
+    int cardY = 14;
+    int cardW = 216;
+    int cardH = 74;
 
     // Obsidian card background
     canvas.fillRoundRect(cardX, cardY, cardW, cardH, 6, 0x10A2);
@@ -1332,20 +1339,23 @@ void renderBatteryOverlay() {
     canvas.setTextColor(bCol, 0x10A2);
     canvas.setTextSize(1);
     canvas.drawCenterString("BATTERY MONITOR", cardX + cardW / 2, cardY + 6);
+    canvas.drawFastHLine(cardX + 12, cardY + 18, cardW - 24, 0x2124);
 
-    // Large Battery Shell Icon (48 x 24 px)
+    // Large Battery Shell Icon (50 x 36 px) on left side
     int bx = cardX + 14;
-    int by = cardY + 24;
-    canvas.drawRoundRect(bx, by, 48, 24, 3, bCol);
-    canvas.drawRoundRect(bx + 1, by + 1, 46, 22, 2, 0x0000);
-    // Terminal tip (+)
-    canvas.fillRect(bx + 48, by + 6, 4, 12, bCol);
+    int by = cardY + 26;
+    int bShellW = 50;
+    int bShellH = 36;
+    canvas.drawRoundRect(bx, by, bShellW, bShellH, 4, bCol);
+    canvas.drawRoundRect(bx + 1, by + 1, bShellW - 2, bShellH - 2, 3, 0x0000);
+    // Terminal tip (+) on right of battery shell
+    canvas.fillRect(bx + bShellW, by + 10, 4, 16, bCol);
 
-    // 4 Large Segment Bars inside battery shell
+    // 4 Segment Bars inside battery shell
     int barW = 8;
-    int barH = 16;
-    int barY = by + 4;
-    int startBarX = bx + 4;
+    int barH = 24;
+    int barY = by + 6;
+    int startBarX = bx + 5;
     int barsFilled = 0;
     if (currentBatPercent >= 80) barsFilled = 4;
     else if (currentBatPercent >= 55) barsFilled = 3;
@@ -1354,7 +1364,7 @@ void renderBatteryOverlay() {
     else barsFilled = ((millis() / 300) % 2 == 0) ? 1 : 0; // Blink when critically low!
 
     for (int i = 0; i < 4; i++) {
-        int xPos = startBarX + i * (barW + 2);
+        int xPos = startBarX + i * (barW + 3);
         if (i < barsFilled) {
             canvas.fillRect(xPos, barY, barW, barH, bCol);
         } else {
@@ -1362,22 +1372,28 @@ void renderBatteryOverlay() {
         }
     }
 
-    // Right-side text: Percentage & Voltage
-    canvas.setTextColor(0xFFFF, 0x10A2);
-    canvas.setTextSize(2);
-    char pctStr[16];
-    if (isUsbPower) {
-        snprintf(pctStr, sizeof(pctStr), "%d%% USB", currentBatPercent);
-    } else {
-        snprintf(pctStr, sizeof(pctStr), "%d%%", currentBatPercent);
-    }
-    canvas.drawString(pctStr, bx + 60, by + 1);
+    // Right-side text: Percentage and Voltage in bold Size 2 text!
+    int textX = bx + bShellW + 16;
 
-    canvas.setTextColor(0xC618, 0x10A2);
-    canvas.setTextSize(1);
+    // Line 1: Percentage
+    canvas.setTextSize(2);
+    canvas.setTextColor(0xFFFF, 0x10A2);
+    char pctStr[16];
+    snprintf(pctStr, sizeof(pctStr), "%d%%", currentBatPercent);
+    canvas.drawString(pctStr, textX, by + 2);
+
+    if (isUsbPower) {
+        canvas.setTextSize(1);
+        canvas.setTextColor(0x07FF, 0x10A2);
+        canvas.drawString("USB", textX + canvas.textWidth(pctStr) + 6, by + 6);
+    }
+
+    // Line 2: Voltage in Size 2 text (increased text size)
+    canvas.setTextSize(2);
+    canvas.setTextColor(bCol, 0x10A2);
     char vStr[16];
-    snprintf(vStr, sizeof(vStr), "%.2f V", currentBatVoltage);
-    canvas.drawString(vStr, bx + 60, by + 16);
+    snprintf(vStr, sizeof(vStr), "%.2fV", currentBatVoltage);
+    canvas.drawString(vStr, textX, by + 20);
 }
 
 // =========================================================================
@@ -1578,21 +1594,19 @@ void handleButtonEvents() {
                 if (pCharSet) { pCharSet->setValue(std::string("TOUCH:REVERT")); pCharSet->notify(); }
                 triggerTouchVisual("DISMISSED", 0x07FF, 600, "TOUCH:REVERT");
             } else {
-                if (currentMode == MODE_CYBERPET) {
-                    memePet.triggerTap();
-                    triggerTouchVisual("POKE", 0x07FF, 600, "TOUCH:POKE");
-                } else if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
-                    dasaiMochi.triggerTap();
-                    const char* tapName = dasaiMochi.getSingleTapName();
-                    triggerTouchVisual(tapName, 0x07FF, 800, "TOUCH:POKE");
-                } else if (currentMode == MODE_CYBER_HUD) {
-                    triggerTouchVisual("TICK", 0x07E0, 600, "TOUCH:POKE");
-                } else if (currentMode == MODE_MATRIX_RAIN) {
-                    triggerTouchVisual("GLITCH", 0x07E0, 600, "TOUCH:POKE");
-                } else {
-                    triggerTouchVisual("TAP", 0x07FF, 600, "TOUCH:POKE");
+                if (!isSingleTapModeActive) {
+                    preSingleTapMode = currentMode;
                 }
-                Serial.println("[BUTTON] Single Tap Confirmed -> Interact");
+                isSingleTapModeActive = true;
+                singleTapModeStartTime = now;
+
+                // Temporarily switch to Robot Eyes so the user's custom action plays
+                currentMode = MODE_ROBOT_EYES;
+                isVideoPlaying = false;
+                dasaiMochi.triggerTap();
+                const char* tapName = dasaiMochi.getSingleTapName();
+                triggerTouchVisual(tapName, 0x07FF, 1000, "TOUCH:POKE");
+                Serial.printf("[BUTTON] Single Tap Confirmed -> Playing %s (Previous Mode: %d)\n", tapName, (int)preSingleTapMode);
             }
         }
         else if (taps == 2) {
@@ -2607,6 +2621,18 @@ void loop() {
     // Real-Time Battery HUD Overlay (Triggered on 6s hold or stays for 2.5s on release)
     if (batteryOverlayActive || (millis() < batteryOverlayEndTime)) {
         renderBatteryOverlay();
+    }
+
+    // Auto-revert single-tap temporary reaction back to previous mode / animation
+    if (isSingleTapModeActive) {
+        uint32_t elapsed = millis() - singleTapModeStartTime;
+        bool animDone = dasaiMochi.gifPlayer.checkAndClearLoopFinished();
+        if ((animDone && elapsed >= 1200) || (elapsed >= 3500) || !dasaiMochi.isTapReactionActive) {
+            isSingleTapModeActive = false;
+            dasaiMochi.revertFromTap();
+            currentMode = preSingleTapMode;
+            Serial.printf("[SYSTEM] Single Tap Complete -> Reverted to Mode %d\n", (int)preSingleTapMode);
+        }
     }
 
     // Push Double Buffer to Physical ST7789 Screen
