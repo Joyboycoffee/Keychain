@@ -1179,12 +1179,31 @@ void updateBatteryTelemetry() {
     // Calibrated divider multiplier loaded from NVS
     float vbat = (rawMv * batCalibMultiplier) / 1000.0f;
     
-    // USB Power Detection:
-    // If ADC is near zero OR calculated voltage exceeds max 1S LiPo limit (4.45V), device is powered via USB!
-    if (rawMv < 80.0f || vbat < 2.2f || vbat >= 4.45f) {
-        currentBatVoltage = (vbat >= 4.45f && vbat <= 5.5f) ? vbat : 5.0f;
-        currentBatPercent = 100;
+    // USB Power Detection from BOTH Ports:
+    // 1. ESP32-C3 Type-C port: rawMv on 100k+100k divider jumps to >= 2300 mV (vs <= 2100 mV on 1S LiPo)
+    // 2. TP4056 Type-C port: GPIO 21 is LOW when charging (Red LED), GPIO 20 is LOW when full (Blue LED)
+    bool isEspUsb     = (rawMv >= 2300.0f);
+    bool isTpCharging = (digitalRead(PIN_TP_RED) == LOW);
+    bool isTpFull     = (digitalRead(PIN_TP_BLUE) == LOW);
+    bool isTpUsb      = (isTpCharging || isTpFull);
+
+    if (isEspUsb || isTpUsb || rawMv < 80.0f || vbat < 2.2f || vbat >= 4.45f) {
         isUsbPower = true;
+        currentBatVoltage = isEspUsb ? 5.00f : vbat;
+        if (currentBatVoltage < 2.2f) currentBatVoltage = 5.00f;
+
+        if (isTpFull || isEspUsb) {
+            currentBatPercent = 100;
+        } else {
+            // Charging via TP4056: compute percentage from live battery voltage
+            if (vbat >= 4.18f) currentBatPercent = 100;
+            else if (vbat >= 4.05f) currentBatPercent = 88 + (int)((vbat - 4.05f) / 0.13f * 12.0f);
+            else if (vbat >= 3.88f) currentBatPercent = 68 + (int)((vbat - 3.88f) / 0.17f * 20.0f);
+            else if (vbat >= 3.75f) currentBatPercent = 45 + (int)((vbat - 3.75f) / 0.13f * 23.0f);
+            else if (vbat >= 3.60f) currentBatPercent = 20 + (int)((vbat - 3.60f) / 0.15f * 25.0f);
+            else if (vbat >= 3.40f) currentBatPercent = 5  + (int)((vbat - 3.40f) / 0.20f * 15.0f);
+            else currentBatPercent = 0;
+        }
     } else {
         currentBatVoltage = vbat;
         isUsbPower = false;
@@ -2051,6 +2070,10 @@ void setup() {
     gpio_pulldown_en((gpio_num_t)PIN_TOUCH);
     analogSetPinAttenuation(PIN_BAT_ADC, ADC_11db);
     pinMode(PIN_BAT_ADC, INPUT);
+
+    // TP4056 Charger Status Pins (Open-drain, pulled HIGH by ESP32 internal pullups)
+    pinMode(PIN_TP_BLUE, INPUT_PULLUP);
+    pinMode(PIN_TP_RED,  INPUT_PULLUP);
 
     // Launch background button task (priority 5, 333 Hz instant sampling for zero missed clicks)
     xTaskCreate(buttonTask, "btn_task", 2048, NULL, 5, NULL);

@@ -21,6 +21,10 @@
 // Battery Voltage Sensing (GPIO 0 - ADC1_CH0)
 #define PIN_BAT_ADC    0    // Center tap of 100k+100k voltage divider
 
+// TP4056 Charger Sensing Pins (Active LOW via Open-Drain)
+#define PIN_TP_BLUE    20   // Blue STDBY LED cathode (LOW = 100% Full / Standby)
+#define PIN_TP_RED     21   // Red CHRG LED cathode (LOW = Charging)
+
 // =========================================================================
 // BLE UNIVERSAL 128-BIT VENDOR UUIDs
 // =========================================================================

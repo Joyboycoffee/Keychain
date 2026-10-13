@@ -3,6 +3,7 @@
 #include "display_setup.h"
 #include "config.h"
 #include "emoji_renderer.h"
+#include "fredoka_font.h"
 
 class CyberHUD {
 public:
@@ -467,25 +468,51 @@ public:
     void renderMinimalisticClock() {
         tick();
 
-        // 1. Consistent Battery Badge in top-right corner
+        // 1. Pure pitch black background
+        canvas.fillScreen(TFT_BLACK);
+
+        // 2. Consistent Battery Badge in top-right corner
         if (showBattery) {
             drawBatteryBadge(196, 14);
         }
 
-        // 2. Big Time in HH:MM format only (no seconds) in rounded bold font
+        // 3. Format Time & AM/PM
         int dispH = is12HourFormat ? (hours % 12 == 0 ? 12 : hours % 12) : hours;
         char timeStr[16];
         snprintf(timeStr, sizeof(timeStr), "%02d:%02d", dispH, minutes);
+        const char* ampmStr = (hours >= 12) ? "PM" : "AM";
 
-        canvas.setFont(&fonts::DejaVu56);
+        canvas.setFont(&FredokaBold_48pt);
+        int timeW = canvas.textWidth(timeStr);
+        int ampmW = 0;
+        if (is12HourFormat) {
+            canvas.setFont(&FredokaBold_16pt);
+            ampmW = canvas.textWidth(ampmStr) + 8; // width + gap
+        }
+
+        int totalW = timeW + ampmW;
+        int startX = 120 - (totalW / 2);
+        int timeY = 118; // baseline for Fredoka 48pt
+
+        // Draw Big Time in Fredoka Bold (rounded corners)
+        canvas.setFont(&FredokaBold_48pt);
+        canvas.setTextDatum(textdatum_t::bottom_left);
+        canvas.setTextColor(0xFFFF, TFT_BLACK);
+        canvas.drawString(timeStr, startX, timeY);
+
+        // Draw AM / PM in Fredoka Bold (rounded corners)
+        if (is12HourFormat) {
+            canvas.setFont(&FredokaBold_16pt);
+            canvas.setTextDatum(textdatum_t::bottom_left);
+            canvas.setTextColor(0xFFFF, TFT_BLACK);
+            canvas.drawString(ampmStr, startX + timeW + 8, timeY - 4);
+        }
+
+        // 4. Current Date underneath: e.g. "Tuesday, 13th October" in Fredoka Bold
+        canvas.setFont(&FredokaBold_16pt);
         canvas.setTextDatum(textdatum_t::middle_center);
         canvas.setTextColor(0xFFFF, TFT_BLACK);
-        canvas.drawString(timeStr, 120, 104);
-
-        // 3. Current Date underneath in clean rounded font: e.g. "Tuesday, 13th October"
-        canvas.setFont(&fonts::FreeSansBold9pt7b);
-        canvas.setTextColor(0xFFFF, TFT_BLACK);
-        canvas.drawString(fullDateString.c_str(), 120, 154);
+        canvas.drawString(fullDateString.c_str(), 120, 162);
 
         // Restore default font & datum
         canvas.setFont(&fonts::Font0);
