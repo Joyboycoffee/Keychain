@@ -83,6 +83,7 @@ bool     bleActive           = false;
 bool     bleConnected        = false;
 uint32_t bleStartTimeMs      = 0;
 volatile bool shouldEnterDeepSleep = false;
+uint8_t  tpSenseMode         = 0; // 0 = Active HIGH (Pulldown, default), 1 = Active LOW (Pullup)
 
 // Hardware Button & Gesture Engine State (FreeRTOS Background Task)
 volatile uint8_t  btnEventTaps      = 0;     // 1, 2, 3, 4, 5, 7
@@ -178,6 +179,7 @@ void blinkDebugLed(int count, int delayMs = 150);
 void startBLE(bool notifyVisual = true);
 void stopBLE(bool notifyVisual = true);
 void enterDeepSleep();
+void configureTpPins();
 
 // =========================================================================
 // BLE CALLBACKS
@@ -884,6 +886,18 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
                 Serial.printf("[SETTINGS] Brightness: %d\n", br);
             }
         }
+        // 17. TP4056 Sense Logic: "TP_SENSE:<0/1>" (0=Active HIGH Pulldown, 1=Active LOW Pullup)
+        else if (cmd.startsWith("TP_SENSE:")) {
+            int m = cmd.substring(9).toInt();
+            tpSenseMode = (m == 1) ? 1 : 0;
+            prefs.putUChar("tp_sense", tpSenseMode);
+            configureTpPins();
+            Serial.printf("[SETTINGS] TP4056 Sense Mode updated: %s\n", tpSenseMode == 1 ? "Active LOW (Pullup)" : "Active HIGH (Pulldown)");
+            if (pCharSet) {
+                pCharSet->setValue("TP_SENSE:" + String(tpSenseMode));
+                pCharSet->notify();
+            }
+        }
         else {
             int br = cmd.toInt();
             if (br >= 10 && br <= 255) {
@@ -1173,6 +1187,25 @@ void saveBatteryDischargeLog() {
     lastSavedWasUsb = isUsbPower;
 }
 
+void configureTpPins() {
+    gpio_reset_pin((gpio_num_t)PIN_TP_BLUE);
+    gpio_reset_pin((gpio_num_t)PIN_TP_RED);
+    gpio_config_t io_conf = {};
+    io_conf.pin_bit_mask = (1ULL << PIN_TP_BLUE) | (1ULL << PIN_TP_RED);
+    io_conf.mode = GPIO_MODE_INPUT;
+    if (tpSenseMode == 1) {
+        // Active LOW mode: Internal Pullup (for direct open-drain cathodes)
+        io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
+        io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    } else {
+        // Active HIGH mode: Internal Pulldown (default for LED voltage detection)
+        io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
+        io_conf.pull_down_en = GPIO_PULLDOWN_ENABLE;
+    }
+    io_conf.intr_type = GPIO_INTR_DISABLE;
+    gpio_config(&io_conf);
+}
+
 void updateBatteryTelemetry() {
     // 32-sample oversampled average to eliminate noise and spikes
     uint32_t rawSum = 0;
@@ -1188,10 +1221,14 @@ void updateBatteryTelemetry() {
     
     // USB Power Detection from BOTH Ports:
     // 1. ESP32-C3 Type-C port: rawMv on 100k+100k divider jumps to >= 2300 mV (vs <= 2100 mV on 1S LiPo)
-    // 2. TP4056 Type-C port: GPIO 21 is LOW when charging (Red LED), GPIO 20 is LOW when full (Blue LED)
-    bool isEspUsb     = (rawMv >= 2300.0f);
-    bool isTpCharging = (digitalRead(PIN_TP_RED) == LOW);
-    bool isTpFull     = (digitalRead(PIN_TP_BLUE) == LOW);
+    // 2. TP4056 Type-C port: Read direct GPIO levels from hardware registers (Red GPIO 21, Blue GPIO 20)
+    bool isEspUsb = (rawMv >= 2300.0f);
+
+    int r21 = gpio_get_level((gpio_num_t)PIN_TP_RED);
+    int b20 = gpio_get_level((gpio_num_t)PIN_TP_BLUE);
+
+    bool isTpCharging = (tpSenseMode == 1) ? (r21 == 0) : (r21 == 1);
+    bool isTpFull     = (tpSenseMode == 1) ? (b20 == 0) : (b20 == 1);
     bool isTpUsb      = (isTpCharging || isTpFull);
 
     static bool lastTpChg = false;
@@ -1199,8 +1236,9 @@ void updateBatteryTelemetry() {
     if (isTpCharging != lastTpChg || isTpFull != lastTpFullLogged) {
         lastTpChg = isTpCharging;
         lastTpFullLogged = isTpFull;
-        Serial.printf("[TP4056] Status -> Red(CHRG 21)=%d, Blue(STDBY 20)=%d | %s\n",
-                      digitalRead(PIN_TP_RED), digitalRead(PIN_TP_BLUE),
+        Serial.printf("[TP4056] Status -> Red(21)=%d, Blue(20)=%d [Mode:%s] | %s\n",
+                      r21, b20,
+                      tpSenseMode == 1 ? "ACT_LOW" : "ACT_HIGH",
                       isTpUsb ? "DOCK CONNECTED" : "DOCK UNPLUGGED");
     }
 
@@ -1241,9 +1279,9 @@ void updateBatteryTelemetry() {
     cyberHUD.setBattery(currentBatVoltage, currentBatPercent, isUsbPower);
 
     if (bleConnected && pCharBattery) {
-        char bMsg[48];
-        snprintf(bMsg, sizeof(bMsg), "%.3f|%d|%d|%.1f|%.4f",
-                 currentBatVoltage, currentBatPercent, isUsbPower ? 1 : 0, rawMv, batCalibMultiplier);
+        char bMsg[64];
+        snprintf(bMsg, sizeof(bMsg), "%.3f|%d|%d|%.1f|%.4f|%d|%d|%d",
+                 currentBatVoltage, currentBatPercent, isUsbPower ? 1 : 0, rawMv, batCalibMultiplier, r21, b20, (int)tpSenseMode);
         pCharBattery->setValue(std::string(bMsg));
         pCharBattery->notify();
     }
@@ -1380,9 +1418,9 @@ void renderBatteryOverlay() {
     updateBatteryTelemetry();
 
     int cardX = 12;
-    int cardY = 14;
+    int cardY = 12;
     int cardW = 216;
-    int cardH = 74;
+    int cardH = 88;
 
     // Obsidian card background
     canvas.fillRoundRect(cardX, cardY, cardW, cardH, 6, 0x10A2);
@@ -1400,19 +1438,19 @@ void renderBatteryOverlay() {
     // Battery accent color based on percentage (Green, Yellow, Red)
     uint16_t batCol = (currentBatPercent <= 20) ? 0xF800 : (currentBatPercent <= 50 ? 0xFFE0 : 0x07E0);
 
-    // Large Battery Shell Icon (50 x 36 px) on left side colored by percentage
+    // Large Battery Shell Icon (50 x 32 px) on left side colored by percentage
     int bx = cardX + 14;
-    int by = cardY + 26;
+    int by = cardY + 24;
     int bShellW = 50;
-    int bShellH = 36;
+    int bShellH = 32;
     canvas.drawRoundRect(bx, by, bShellW, bShellH, 4, batCol);
     canvas.drawRoundRect(bx + 1, by + 1, bShellW - 2, bShellH - 2, 3, 0x0000);
     // Terminal tip (+) on right of battery shell
-    canvas.fillRect(bx + bShellW, by + 10, 4, 16, batCol);
+    canvas.fillRect(bx + bShellW, by + 8, 4, 16, batCol);
 
     // 4 Segment Bars inside battery shell colored by percentage
     int barW = 8;
-    int barH = 24;
+    int barH = 20;
     int barY = by + 6;
     int startBarX = bx + 5;
     int barsFilled = 0;
@@ -1439,7 +1477,7 @@ void renderBatteryOverlay() {
     canvas.setTextColor(0xFFFF, 0x10A2);
     char pctStr[16];
     snprintf(pctStr, sizeof(pctStr), "%d%%", currentBatPercent);
-    canvas.drawString(pctStr, textX, by + 2);
+    canvas.drawString(pctStr, textX, by);
 
     // Line 2: Voltage with USB right after the voltage (e.g. "5.00V USB" or "3.85V")
     char vStr[24];
@@ -1448,7 +1486,17 @@ void renderBatteryOverlay() {
     } else {
         snprintf(vStr, sizeof(vStr), "%.2fV", currentBatVoltage);
     }
-    canvas.drawString(vStr, textX, by + 20);
+    canvas.drawString(vStr, textX, by + 18);
+
+    // Line 3: Real-time TP4056 pin levels (visible on LCD)
+    canvas.setTextSize(1);
+    canvas.setTextColor(0x07FF, 0x10A2);
+    char tpDbg[48];
+    int r21 = gpio_get_level((gpio_num_t)PIN_TP_RED);
+    int b20 = gpio_get_level((gpio_num_t)PIN_TP_BLUE);
+    snprintf(tpDbg, sizeof(tpDbg), "TP4056: R21=%d B20=%d [%s]",
+             r21, b20, isUsbPower ? "DOCK ON" : "UNPLUGGED");
+    canvas.drawCenterString(tpDbg, cardX + cardW / 2, cardY + 70);
 }
 
 // =========================================================================
@@ -2098,12 +2146,8 @@ void setup() {
     analogSetPinAttenuation(PIN_BAT_ADC, ADC_11db);
     pinMode(PIN_BAT_ADC, INPUT);
 
-    // TP4056 Charger Status Pins (Open-drain, pulled HIGH by ESP32 internal pullups)
-    // CRITICAL: Reset GPIO 20 & 21 to detach them completely from UART0 hardware peripheral!
-    gpio_reset_pin((gpio_num_t)PIN_TP_BLUE);
-    gpio_reset_pin((gpio_num_t)PIN_TP_RED);
-    pinMode(PIN_TP_BLUE, INPUT_PULLUP);
-    pinMode(PIN_TP_RED,  INPUT_PULLUP);
+    // TP4056 Charger Status Pins
+    configureTpPins();
 
     // Launch background button task (priority 5, 333 Hz instant sampling for zero missed clicks)
     xTaskCreate(buttonTask, "btn_task", 2048, NULL, 5, NULL);
@@ -2117,6 +2161,8 @@ void setup() {
 
     // Load Persistent Preferences & Battery Run Logger Stats
     prefs.begin("digi_keychain", false);
+    tpSenseMode = prefs.getUChar("tp_sense", 0);
+    configureTpPins();
     defaultMode = (SystemMode)prefs.getUChar("def_mode", (uint8_t)MODE_CYBERPET);
     currentMode = defaultMode;
     memePet.defaultEmotion = (MemeEmotion)prefs.getUChar("def_emo", (uint8_t)EMOTION_LUFFY);

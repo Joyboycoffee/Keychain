@@ -1508,6 +1508,40 @@
             </div>
           </div>
 
+          <!-- SUB-SECTION: TP4056 DOCK SENSING DIAGNOSTICS -->
+          <div class="sub-section" style="margin-top:16px; border-top:1px solid rgba(255,255,255,0.08); padding-top:14px;">
+            <div class="sub-title" style="display:flex; justify-content:space-between; align-items:center;">
+              <span>TP4056 CHARGER DOCK DETECTION</span>
+              <span class="badge" id="tpDockStatus">DISCONNECTED</span>
+            </div>
+            <div style="font-size:0.70rem; color:var(--beige-muted); margin-bottom:10px; line-height:1.4;">
+              Live hardware pin levels for dual-port charging detection. Active HIGH mode uses internal pull-down resistors (default for LED pads). If soldered to active-low pins, switch to Active LOW.
+            </div>
+
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:8px; margin-bottom:12px;">
+              <div class="metric-tile" style="padding:8px 10px;">
+                <span class="metric-tile-label">RED LED (CHRG)</span>
+                <span class="metric-tile-val" id="tpRedVal" style="color:var(--accent-red); font-size:1.10rem;">--</span>
+                <span class="metric-tile-sub">GPIO 21 (Pin TX)</span>
+              </div>
+              <div class="metric-tile" style="padding:8px 10px;">
+                <span class="metric-tile-label">BLUE LED (STDBY)</span>
+                <span class="metric-tile-val" id="tpBlueVal" style="color:var(--accent-cyan); font-size:1.10rem;">--</span>
+                <span class="metric-tile-sub">GPIO 20 (Pin RX)</span>
+              </div>
+              <div class="metric-tile" style="padding:8px 10px;">
+                <span class="metric-tile-label">SENSE LOGIC</span>
+                <span class="metric-tile-val" id="tpModeVal" style="font-size:0.95rem;">ACT HIGH</span>
+                <span class="metric-tile-sub" id="tpModeSub">Internal Pulldown</span>
+              </div>
+            </div>
+
+            <div style="display:flex; gap:8px;">
+              <button class="btn-opt active" id="btnTpHigh" style="flex:1; padding:6px 10px; font-size:0.72rem;" onclick="setTpSenseMode(0)">ACTIVE HIGH (PULLDOWN)</button>
+              <button class="btn-opt" id="btnTpLow" style="flex:1; padding:6px 10px; font-size:0.72rem;" onclick="setTpSenseMode(1)">ACTIVE LOW (PULLUP)</button>
+            </div>
+          </div>
+
           <div class="sub-section">
             <div class="sub-title">PERSISTENT MEMORY SYNC</div>
             <div style="font-size:0.70rem; color:var(--beige-muted); line-height:1.4;">
@@ -1914,7 +1948,7 @@
     let latestBatMultiplier = 2.16;
     let latestBatVolt = 0;
 
-    function updateBatteryHUD(voltage, pct, isUsb, rawMv, multiplier) {
+    function updateBatteryHUD(voltage, pct, isUsb, rawMv, multiplier, r21, b20, tpMode) {
       const vElem = document.getElementById('hud-bat-voltage');
       const statElem = document.getElementById('hud-bat-status');
       const pctElem = document.getElementById('hud-bat-pct');
@@ -1971,6 +2005,50 @@
       if (crm) crm.innerText = `${latestRawMv.toFixed(1)} mV`;
       const cm = document.getElementById('calibMultiplier');
       if (cm) cm.innerText = latestBatMultiplier.toFixed(4);
+
+      // Update TP4056 Live Pin Status
+      if (r21 !== undefined) {
+        const rv = document.getElementById('tpRedVal');
+        if (rv) {
+          rv.innerText = (r21 === 1) ? "1 (HIGH)" : "0 (LOW)";
+          rv.style.color = (r21 === 1) ? "var(--accent-red)" : "var(--beige-muted)";
+        }
+      }
+      if (b20 !== undefined) {
+        const bv = document.getElementById('tpBlueVal');
+        if (bv) {
+          bv.innerText = (b20 === 1) ? "1 (HIGH)" : "0 (LOW)";
+          bv.style.color = (b20 === 1) ? "var(--accent-cyan)" : "var(--beige-muted)";
+        }
+      }
+      if (tpMode !== undefined) {
+        highlightTpModeUI(tpMode);
+      }
+      const tds = document.getElementById('tpDockStatus');
+      if (tds) {
+        tds.innerText = isUsb ? "DOCK ENGAGED" : "UNPLUGGED";
+        tds.className = isUsb ? "badge badge-ok" : "badge";
+      }
+    }
+
+    async function setTpSenseMode(mode) {
+      vibrate();
+      const cmd = `TP_SENSE:${mode}`;
+      await safeBleWrite(charSettings, new TextEncoder().encode(cmd), false);
+      highlightTpModeUI(mode);
+      setTouchBanner(mode === 1 ? "TP SENSE: ACT LOW" : "TP SENSE: ACT HIGH", "badge-ok", 1500);
+      log(`Set TP4056 sense mode: ${mode === 1 ? "Active LOW (Pullup)" : "Active HIGH (Pulldown)"}`);
+    }
+
+    function highlightTpModeUI(mode) {
+      const bh = document.getElementById('btnTpHigh');
+      const bl = document.getElementById('btnTpLow');
+      if (bh) bh.className = (mode === 0) ? "btn-opt active" : "btn-opt";
+      if (bl) bl.className = (mode === 1) ? "btn-opt active" : "btn-opt";
+      const tmv = document.getElementById('tpModeVal');
+      const tms = document.getElementById('tpModeSub');
+      if (tmv) tmv.innerText = (mode === 1) ? "ACT LOW" : "ACT HIGH";
+      if (tms) tms.innerText = (mode === 1) ? "Internal Pullup" : "Internal Pulldown";
     }
 
     function resetBatteryHUDToOffline() {
@@ -2128,7 +2206,10 @@
               const usb = parts[2] === '1';
               const rawMv = parts.length >= 4 ? parseFloat(parts[3]) : undefined;
               const mult = parts.length >= 5 ? parseFloat(parts[4]) : undefined;
-              updateBatteryHUD(v, pct, usb, rawMv, mult);
+              const r21 = parts.length >= 6 ? parseInt(parts[5]) : undefined;
+              const b20 = parts.length >= 7 ? parseInt(parts[6]) : undefined;
+              const tpMode = parts.length >= 8 ? parseInt(parts[7]) : undefined;
+              updateBatteryHUD(v, pct, usb, rawMv, mult, r21, b20, tpMode);
             }
           });
         }
@@ -2434,6 +2515,10 @@
         const idx = parseInt(parts[1]);
         if (!isNaN(idx)) highlightHudLayoutUI(idx);
         setTouchBanner("HUD LAYOUT UPDATED", "badge-ok", 1500);
+      } else if (msg.startsWith("TP_SENSE:")) {
+        const m = parseInt(msg.substring(9));
+        if (!isNaN(m)) highlightTpModeUI(m);
+        setTouchBanner(m === 1 ? "TP SENSE: ACT LOW" : "TP SENSE: ACT HIGH", "badge-ok", 1500);
       } else if (msg.startsWith("MATRIX:THEME") || msg.startsWith("MATRIX_THM:")) {
         const parts = msg.split(':');
         const idx = parseInt(parts[1]);
