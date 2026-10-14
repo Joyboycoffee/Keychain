@@ -65,6 +65,12 @@ bool               autoDeskDockOnUsb    = true;  // Automatically switch to Desk
 SystemMode         preUsbMode           = MODE_CYBERPET;
 bool               preUsbModeSaved      = false;
 
+// Desk Dock Animation Playlist Engine (Bitmask of 42 Mochi Animations)
+uint64_t           dockAnimMask         = 0x3FFFFFFFFFFULL; // 42 bits set = all 42 animations enabled by default
+bool               dockAnimShuffle      = false;            // false = Sequential, true = Random/Shuffle
+int                dockPlaylistSeqIdx   = 0;
+void advanceDeskCompanionAnimation();
+
 // Battery Telemetry & Discharge Run Logger
 float    currentBatVoltage   = 4.20f;
 float    currentBatRawMv     = 0.0f;
@@ -231,6 +237,7 @@ class ModeCallback : public NimBLECharacteristicCallbacks {
                 if (currentMode == MODE_DESK_COMPANION) {
                     deskPhase = DESK_DASAI;
                     deskPhaseStartTime = millis();
+                    advanceDeskCompanionAnimation();
                 }
                 if (currentMode != MODE_STREAM_MEDIA) {
                     isVideoPlaying = false;
@@ -679,6 +686,57 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
                 Serial.printf("[SETTINGS] Dock Timings: Dasai=%u ms, Clock=%u ms\n", (unsigned int)deskDasaiDurationMs, (unsigned int)deskClockDurationMs);
             }
         }
+        // 11d. Desk Dock Animation Playlist Mask: "DOCK_MASK:<hex>"
+        else if (cmd.startsWith("DOCK_MASK:")) {
+            String hexStr = cmd.substring(10);
+            hexStr.trim();
+            if (hexStr.startsWith("0x") || hexStr.startsWith("0X")) {
+                hexStr = hexStr.substring(2);
+            }
+            uint64_t mask = strtoull(hexStr.c_str(), NULL, 16);
+            if (mask == 0) mask = 0x3FFFFFFFFFFULL;
+            dockAnimMask = mask;
+            prefs.putULong64("dock_mask", dockAnimMask);
+            Serial.printf("[SETTINGS] Dock Animation Mask: 0x%llX\n", (unsigned long long)dockAnimMask);
+            if (pCharSet) {
+                char rsp[48];
+                snprintf(rsp, sizeof(rsp), "DOCK_MASK:0x%llX", (unsigned long long)dockAnimMask);
+                pCharSet->setValue(std::string(rsp));
+                pCharSet->notify();
+            }
+        }
+        // 11e. Desk Dock Shuffle Mode: "DOCK_SHUF:<0|1>"
+        else if (cmd.startsWith("DOCK_SHUF:")) {
+            int val = cmd.substring(10).toInt();
+            dockAnimShuffle = (val == 1);
+            prefs.putBool("dock_shuf", dockAnimShuffle);
+            Serial.printf("[SETTINGS] Dock Shuffle: %s\n", dockAnimShuffle ? "SHUFFLE" : "SEQUENTIAL");
+            if (pCharSet) {
+                pCharSet->setValue(dockAnimShuffle ? "DOCK_SHUF:1" : "DOCK_SHUF:0");
+                pCharSet->notify();
+            }
+        }
+        // 11f. Desk Dock Skip to Next Animation: "DOCK:NEXT"
+        else if (cmd == "DOCK:NEXT") {
+            advanceDeskCompanionAnimation();
+            const char* nextName = dasaiMochi.getCurrentAnimationName();
+            triggerTouchVisual(nextName, 0x07FF, 1200, "DOCK:NEXT");
+            if (pCharSet) {
+                pCharSet->setValue("DASAI_EMO:" + String(dasaiMochi.getCurrentAnimationPath()));
+                pCharSet->notify();
+            }
+            Serial.println("[SETTINGS] Desk Dock skipped to next animation via Web BLE.");
+        }
+        // 11g. Query Desk Dock Playlist: "DOCK_PLAYLIST:GET"
+        else if (cmd == "DOCK_PLAYLIST:GET") {
+            char rsp[64];
+            snprintf(rsp, sizeof(rsp), "DOCK_PLAYLIST:0x%llX:%d", (unsigned long long)dockAnimMask, dockAnimShuffle ? 1 : 0);
+            if (pCharSet) {
+                pCharSet->setValue(std::string(rsp));
+                pCharSet->notify();
+            }
+            Serial.printf("[SETTINGS] Sent Dock Playlist: %s\n", rsp);
+        }
         // 12. Matrix Theme: "MATRIX_THM:<0..3>"
         else if (cmd.startsWith("MATRIX_THM:")) {
             int thm = cmd.substring(11).toInt();
@@ -868,6 +926,11 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
                      batCalibMultiplier);
             if (pCharSet) {
                 pCharSet->setValue(std::string(cfgMsg));
+                pCharSet->notify();
+                delay(20);
+                char dRsp[64];
+                snprintf(dRsp, sizeof(dRsp), "DOCK_PLAYLIST:0x%llX:%d", (unsigned long long)dockAnimMask, dockAnimShuffle ? 1 : 0);
+                pCharSet->setValue(std::string(dRsp));
                 pCharSet->notify();
             }
             Serial.printf("[SETTINGS] Sent Full Config Dashboard: %s\n", cfgMsg);
@@ -1740,7 +1803,18 @@ void handleButtonEvents() {
         }
         else if (taps == 2) {
             // 2 TAPS: Cycle animations
-            if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
+            if (currentMode == MODE_DESK_COMPANION) {
+                advanceDeskCompanionAnimation();
+                const char* animName = dasaiMochi.getCurrentAnimationName();
+                prefs.putString("dasai_path", dasaiMochi.gifPlayer.currentGifPath);
+                prefs.putUChar("dasai_emo", (uint8_t)dasaiMochi.currentEmotion);
+                prefs.putUChar("dasai_style", (uint8_t)dasaiMochi.currentStyle);
+                triggerTouchVisual(animName, 0x07FF, 1000, "DOCK:ANIM");
+                if (bleConnected && pCharSet) {
+                    pCharSet->setValue("DASAI_EMO:" + String(dasaiMochi.getCurrentAnimationPath()));
+                    pCharSet->notify();
+                }
+            } else if (currentMode == MODE_ROBOT_EYES) {
                 const char* animName = dasaiMochi.cycleNextAnimation();
                 prefs.putString("dasai_path", dasaiMochi.gifPlayer.currentGifPath);
                 prefs.putUChar("dasai_emo", (uint8_t)dasaiMochi.currentEmotion);
@@ -1813,6 +1887,7 @@ void handleButtonEvents() {
             if (currentMode == MODE_DESK_COMPANION) {
                 deskPhase = DESK_DASAI;
                 deskPhaseStartTime = now;
+                advanceDeskCompanionAnimation();
             }
             isVideoPlaying = false;
             const char* modeNames[] = { "CYBERPET", "DASAI MOCHI", "CYBER HUD", "MATRIX RAIN", "TEXT SCROLL", "STREAM MEDIA", "DESK DOCK" };
@@ -1969,6 +2044,45 @@ void enterDeepSleep() {
 
     Serial.flush();
     esp_deep_sleep_start();
+}
+
+// =========================================================================
+// DESK COMPANION ANIMATION PLAYLIST ADVANCE ENGINE
+// =========================================================================
+void advanceDeskCompanionAnimation() {
+    int enabledIndices[MOCHI_ANIM_COUNT];
+    int enabledCount = 0;
+    for (int i = 0; i < MOCHI_ANIM_COUNT; i++) {
+        if ((dockAnimMask & (1ULL << i)) != 0) {
+            enabledIndices[enabledCount++] = i;
+        }
+    }
+
+    if (enabledCount == 0) {
+        // Fallback: If no animations selected, enable all 42
+        dockAnimMask = 0x3FFFFFFFFFFULL;
+        for (int i = 0; i < MOCHI_ANIM_COUNT; i++) enabledIndices[i] = i;
+        enabledCount = MOCHI_ANIM_COUNT;
+    }
+
+    int chosenIdx = 0;
+    if (dockAnimShuffle) {
+        int r = esp_random() % enabledCount;
+        if (enabledCount > 1 && enabledIndices[r] == dasaiMochi.currentAnimIdx) {
+            r = (r + 1) % enabledCount;
+        }
+        chosenIdx = enabledIndices[r];
+    } else {
+        dockPlaylistSeqIdx = (dockPlaylistSeqIdx + 1) % enabledCount;
+        chosenIdx = enabledIndices[dockPlaylistSeqIdx];
+    }
+
+    dasaiMochi.currentAnimIdx = chosenIdx;
+    dasaiMochi.currentEmotion = (DasaiEmotion)chosenIdx;
+    const MochiAnimItem& item = MOCHI_ANIM_CATALOG[chosenIdx];
+    dasaiMochi.playAuthenticGif(item.path, true);
+    Serial.printf("[DOCK] Cycled Animation -> #%d: %s (%s) [%d active in playlist, mode: %s]\n",
+                  chosenIdx + 1, item.name, item.path, enabledCount, dockAnimShuffle ? "SHUFFLE" : "SEQ");
 }
 
 // =========================================================================
@@ -2254,6 +2368,9 @@ void setup() {
     autoDeskDockOnUsb = prefs.getBool("dock_auto", true);
     deskDasaiDurationMs = prefs.getUInt("dock_dasai_ms", 12000);
     deskClockDurationMs = prefs.getUInt("dock_clk_ms", 7000);
+    dockAnimMask = prefs.getULong64("dock_mask", 0x3FFFFFFFFFFULL);
+    if (dockAnimMask == 0) dockAnimMask = 0x3FFFFFFFFFFULL;
+    dockAnimShuffle = prefs.getBool("dock_shuf", false);
     matrixRain.setTheme(prefs.getUChar("matrix_thm", 0));
     bootSplashType = (BootSplashType)prefs.getUChar("boot_type", (uint8_t)BOOT_SPEARHEAD_INTRO);
     bootDurationSec = prefs.getUChar("boot_dur", 2);
@@ -2441,6 +2558,7 @@ void loop() {
                     currentMode = MODE_DESK_COMPANION;
                     deskPhase = DESK_DASAI;
                     deskPhaseStartTime = millis();
+                    advanceDeskCompanionAnimation();
                     triggerTouchVisual("DESK DOCK ON", 0x07FF, 2000, "DOCK:ACTIVE");
                     if (bleConnected && pCharMode) {
                         pCharMode->setValue(std::string("6"));
@@ -2697,6 +2815,7 @@ void loop() {
                     float progress = (float)elapsed / (float)deskFadeDurationMs;
                     if (progress >= 1.0f) {
                         tft.setBrightness(0);
+                        advanceDeskCompanionAnimation();
                         deskPhase = DESK_FADE_IN_DASAI;
                         deskPhaseStartTime = now;
                     } else {
