@@ -2765,7 +2765,7 @@
         log("Not connected over BLE.");
         return;
       }
-      if (!confirm("Turn off Bluetooth on the ESP32 to save power?\n\n(To turn it back on, tap the Touch Sensor 4 times or hold for 3.5 seconds until the blue LED flashes)")) return;
+      if (!confirm("Turn off Bluetooth on the ESP32 to save power?\n\n(To turn it back on, press the button 4 times or hold for 3.5 seconds until the blue LED flashes)")) return;
       try {
         const data = new TextEncoder().encode("BLE:OFF");
         await charSettings.writeValue(data);
@@ -2783,12 +2783,12 @@
         log("Not connected over BLE.");
         return;
       }
-      if (!confirm("Put SPEARHEAD into Deep Sleep now?\n\n(Tap the Touch Sensor to wake it back up)")) return;
+      if (!confirm("Put SPEARHEAD into Deep Sleep now?\n\n(Press the button again to wake it back up)")) return;
       try {
         const data = new TextEncoder().encode("SYS:SLEEP");
         await charSettings.writeValue(data);
       } catch(e) {}
-      log("Deep Sleep initiated. Tap touch sensor to wake up.");
+      log("Deep Sleep initiated. Press the button again to wake up.");
       if (gattServer && gattServer.connected) {
         try { gattServer.disconnect(); } catch(e) {}
       }
