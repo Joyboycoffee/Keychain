@@ -1531,13 +1531,13 @@
               </div>
               <div class="metric-tile" style="padding:8px 10px;">
                 <span class="metric-tile-label">SENSE LOGIC</span>
-                <span class="metric-tile-val" id="tpModeVal" style="font-size:0.95rem;">ACT HIGH</span>
-                <span class="metric-tile-sub" id="tpModeSub">Internal Pulldown</span>
+                <span class="metric-tile-val" id="tpModeVal" style="font-size:0.95rem;">AUTO HIGH-Z</span>
+                <span class="metric-tile-sub" id="tpModeSub">Zero LED Glow (Recommended)</span>
               </div>
             </div>
 
             <div style="display:flex; gap:8px;">
-              <button class="btn-opt active" id="btnTpHigh" style="flex:1; padding:6px 10px; font-size:0.72rem;" onclick="setTpSenseMode(0)">ACTIVE HIGH (PULLDOWN)</button>
+              <button class="btn-opt active" id="btnTpHigh" style="flex:1; padding:6px 10px; font-size:0.72rem;" onclick="setTpSenseMode(0)">AUTO HIGH-Z (SAFE)</button>
               <button class="btn-opt" id="btnTpLow" style="flex:1; padding:6px 10px; font-size:0.72rem;" onclick="setTpSenseMode(1)">ACTIVE LOW (PULLUP)</button>
             </div>
           </div>
@@ -2036,8 +2036,8 @@
       const cmd = `TP_SENSE:${mode}`;
       await safeBleWrite(charSettings, new TextEncoder().encode(cmd), false);
       highlightTpModeUI(mode);
-      setTouchBanner(mode === 1 ? "TP SENSE: ACT LOW" : "TP SENSE: ACT HIGH", "badge-ok", 1500);
-      log(`Set TP4056 sense mode: ${mode === 1 ? "Active LOW (Pullup)" : "Active HIGH (Pulldown)"}`);
+      setTouchBanner(mode === 1 ? "TP SENSE: ACT LOW" : "TP SENSE: AUTO HIGH-Z", "badge-ok", 1500);
+      log(`Set TP4056 sense mode: ${mode === 1 ? "Active LOW (Pullup)" : "Auto High-Z (Safe / No Glow)"}`);
     }
 
     function highlightTpModeUI(mode) {
@@ -2047,8 +2047,8 @@
       if (bl) bl.className = (mode === 1) ? "btn-opt active" : "btn-opt";
       const tmv = document.getElementById('tpModeVal');
       const tms = document.getElementById('tpModeSub');
-      if (tmv) tmv.innerText = (mode === 1) ? "ACT LOW" : "ACT HIGH";
-      if (tms) tms.innerText = (mode === 1) ? "Internal Pullup" : "Internal Pulldown";
+      if (tmv) tmv.innerText = (mode === 1) ? "ACT LOW" : "AUTO HIGH-Z";
+      if (tms) tms.innerText = (mode === 1) ? "Internal Pullup" : "Zero LED Glow (Recommended)";
     }
 
     function resetBatteryHUDToOffline() {

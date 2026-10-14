@@ -5,6 +5,8 @@
 #include <LittleFS.h>
 #include "driver/gpio.h"
 #include "esp_sleep.h"
+#include "soc/soc.h"
+#include "soc/rtc_cntl_reg.h"
 #include "config.h"
 #include "display_setup.h"
 #include "spearhead_boot.h"
@@ -224,6 +226,7 @@ class ModeCallback : public NimBLECharacteristicCallbacks {
             int m = val[0] - '0';
             if (m >= 0 && m <= 6) {
                 currentMode = (SystemMode)m;
+                prefs.putUChar("cur_mode", (uint8_t)currentMode);
                 tft.setBrightness(screenBrightness); // Ensure brightness is restored
                 if (currentMode == MODE_DESK_COMPANION) {
                     deskPhase = DESK_DASAI;
@@ -237,7 +240,7 @@ class ModeCallback : public NimBLECharacteristicCallbacks {
                     dasaiFileOpened = false;
                 }
                 lastActivityTime = millis();
-                Serial.printf("[BLE] Switched Mode: %d\n", m);
+                Serial.printf("[BLE] Switched Mode: %d (Saved to NVS)\n", m);
             }
         }
     }
@@ -251,9 +254,11 @@ class PetCallback : public NimBLECharacteristicCallbacks {
             if (a >= 0 && a <= 6) {
                 memePet.setEmotion((MemeEmotion)a);
                 currentMode = MODE_CYBERPET;
+                prefs.putUChar("cur_emo", (uint8_t)a);
+                prefs.putUChar("cur_mode", (uint8_t)MODE_CYBERPET);
                 isVideoPlaying = false;
                 lastActivityTime = millis();
-                Serial.printf("[BLE] Switched Emotion: %d\n", a);
+                Serial.printf("[BLE] Switched Emotion: %d (Saved to NVS)\n", a);
             }
         }
     }
@@ -603,6 +608,7 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
             prefs.putUChar("dasai_style", (uint8_t)dasaiMochi.currentStyle);
             prefs.putUChar("robot_mood", (uint8_t)dasaiMochi.currentStyle);
             currentMode = MODE_ROBOT_EYES;
+            prefs.putUChar("cur_mode", (uint8_t)MODE_ROBOT_EYES);
             isVideoPlaying = false;
             if (pCharSet) {
                 pCharSet->setValue("DASAI_STYLE:" + std::to_string(dasaiMochi.currentStyle));
@@ -622,6 +628,9 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
                 dasaiMochi.playEmotionName(emoStr);
             }
             currentMode = MODE_ROBOT_EYES;
+            prefs.putUChar("cur_mode", (uint8_t)MODE_ROBOT_EYES);
+            prefs.putUChar("dasai_emo", (uint8_t)dasaiMochi.currentEmotion);
+            prefs.putString("dasai_path", dasaiMochi.gifPlayer.currentGifPath);
             isVideoPlaying = false;
             if (pCharSet) {
                 pCharSet->setValue("DASAI_EMO:" + std::string(emoStr.c_str()));
@@ -635,6 +644,8 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
             if (cycId >= 0 && cycId <= 4) {
                 dasaiMochi.setCycleMode((DasaiCycleMode)cycId);
                 currentMode = MODE_ROBOT_EYES;
+                prefs.putUChar("cur_mode", (uint8_t)MODE_ROBOT_EYES);
+                prefs.putUChar("dasai_cyc", (uint8_t)dasaiMochi.cycleMode);
                 isVideoPlaying = false;
                 if (pCharSet) {
                     pCharSet->setValue("DASAI_CYCLE:" + std::to_string(cycId));
@@ -1193,15 +1204,11 @@ void configureTpPins() {
     gpio_config_t io_conf = {};
     io_conf.pin_bit_mask = (1ULL << PIN_TP_BLUE) | (1ULL << PIN_TP_RED);
     io_conf.mode = GPIO_MODE_INPUT;
-    if (tpSenseMode == 1) {
-        // Active LOW mode: Internal Pullup (for direct open-drain cathodes)
-        io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
-        io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-    } else {
-        // Active HIGH mode: Internal Pulldown (default for LED voltage detection)
-        io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
-        io_conf.pull_down_en = GPIO_PULLDOWN_ENABLE;
-    }
+    // Pure High-Impedance / Floating Input (NO continuous pulldowns!)
+    // Disabling continuous pulldowns prevents sinking current from 5V through the Blue/Red LEDs.
+    // This completely eliminates the faint blue LED phantom glow and prevents 3.3V rail overvoltage / lockups.
+    io_conf.pull_up_en = (tpSenseMode == 1) ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
+    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
     io_conf.intr_type = GPIO_INTR_DISABLE;
     gpio_config(&io_conf);
 }
@@ -1221,15 +1228,34 @@ void updateBatteryTelemetry() {
     
     // USB Power Detection from BOTH Ports:
     // 1. ESP32-C3 Type-C port: rawMv on 100k+100k divider jumps to >= 2300 mV (vs <= 2100 mV on 1S LiPo)
-    // 2. TP4056 Type-C port: Read direct GPIO levels from hardware registers (Red GPIO 21, Blue GPIO 20)
     bool isEspUsb = (rawMv >= 2300.0f);
 
-    int r21 = gpio_get_level((gpio_num_t)PIN_TP_RED);
-    int b20 = gpio_get_level((gpio_num_t)PIN_TP_BLUE);
+    // 2. TP4056 Type-C port:
+    int r21 = 0;
+    int b20 = 0;
+    if (tpSenseMode == 0) {
+        // High-Z Mode: Briefly pulse pulldown for 20µs to clear floating pin capacitance on battery
+        // (20µs every 1.5s is completely invisible to human eyes, zero phantom glow on LEDs)
+        gpio_pulldown_en((gpio_num_t)PIN_TP_BLUE);
+        gpio_pulldown_en((gpio_num_t)PIN_TP_RED);
+        delayMicroseconds(20);
 
-    bool isTpCharging = (tpSenseMode == 1) ? (r21 == 0) : (r21 == 1);
-    bool isTpFull     = (tpSenseMode == 1) ? (b20 == 0) : (b20 == 1);
-    bool isTpUsb      = (isTpCharging || isTpFull);
+        r21 = gpio_get_level((gpio_num_t)PIN_TP_RED);
+        b20 = gpio_get_level((gpio_num_t)PIN_TP_BLUE);
+
+        gpio_pulldown_dis((gpio_num_t)PIN_TP_BLUE);
+        gpio_pulldown_dis((gpio_num_t)PIN_TP_RED);
+    } else {
+        r21 = gpio_get_level((gpio_num_t)PIN_TP_RED);
+        b20 = gpio_get_level((gpio_num_t)PIN_TP_BLUE);
+    }
+
+    // When charging: Red LED cathode is at GND (0), Blue LED cathode sits at ~2.2V (1)
+    // When full: Red LED cathode sits at ~3.2V (1), Blue LED cathode is at GND (0)
+    // When unplugged: Both pins are at 0V (no 5V rail)
+    bool isTpCharging = (tpSenseMode == 1) ? (r21 == 0) : (r21 == 0 && b20 == 1);
+    bool isTpFull     = (tpSenseMode == 1) ? (b20 == 0) : (r21 == 1 && b20 == 0);
+    bool isTpUsb      = (isTpCharging || isTpFull || (tpSenseMode == 0 && (r21 == 1 || b20 == 1)));
 
     static bool lastTpChg = false;
     static bool lastTpFullLogged = false;
@@ -1238,7 +1264,7 @@ void updateBatteryTelemetry() {
         lastTpFullLogged = isTpFull;
         Serial.printf("[TP4056] Status -> Red(21)=%d, Blue(20)=%d [Mode:%s] | %s\n",
                       r21, b20,
-                      tpSenseMode == 1 ? "ACT_LOW" : "ACT_HIGH",
+                      tpSenseMode == 1 ? "ACT_LOW" : "HIGH_Z",
                       isTpUsb ? "DOCK CONNECTED" : "DOCK UNPLUGGED");
     }
 
@@ -1716,6 +1742,9 @@ void handleButtonEvents() {
             // 2 TAPS: Cycle animations
             if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
                 const char* animName = dasaiMochi.cycleNextAnimation();
+                prefs.putString("dasai_path", dasaiMochi.gifPlayer.currentGifPath);
+                prefs.putUChar("dasai_emo", (uint8_t)dasaiMochi.currentEmotion);
+                prefs.putUChar("dasai_style", (uint8_t)dasaiMochi.currentStyle);
                 triggerTouchVisual(animName, 0x07FF, 1000, "DASAI:ANIM");
                 if (bleConnected && pCharSet) {
                     pCharSet->setValue("DASAI_EMO:" + String(dasaiMochi.getCurrentAnimationPath()));
@@ -1725,6 +1754,8 @@ void handleButtonEvents() {
                 int next = ((int)memePet.currentEmotion + 1) % 7;
                 memePet.setEmotion((MemeEmotion)next);
                 memePet.defaultEmotion = (MemeEmotion)next;
+                prefs.putUChar("cur_emo", (uint8_t)next);
+                prefs.putUChar("def_emo", (uint8_t)next);
                 const char* emoNames[] = { "LUFFY", "SHY", "GIGGLE", "BANANA", "CRY", "ANGRY", "BUNNY" };
                 triggerTouchVisual(emoNames[next], 0xFFE0, 1000, "TOUCH:DOUBLE");
                 if (bleConnected && pCharPet) {
@@ -1734,6 +1765,7 @@ void handleButtonEvents() {
                 }
             } else if (currentMode == MODE_CYBER_HUD) {
                 int next = cyberHUD.cycleLayout();
+                prefs.putUChar("hud_lay", (uint8_t)next);
                 const char* hudNames[] = { "CYBER HUD", "BIG CLOCK", "MINIMAL DASH", "MINIMALISTIC" };
                 triggerTouchVisual(hudNames[next], 0x07FF, 1000, "HUD:LAYOUT");
                 if (bleConnected && pCharSet) {
@@ -1742,6 +1774,7 @@ void handleButtonEvents() {
                 }
             } else if (currentMode == MODE_MATRIX_RAIN) {
                 int next = matrixRain.cycleTheme();
+                prefs.putUChar("matrix_thm", (uint8_t)next);
                 const char* thmNames[] = { "GREEN", "CYAN", "MAGENTA", "AMBER" };
                 const uint16_t thmCols[] = { 0x07E0, 0x07FF, 0xF81F, 0xFD20 };
                 triggerTouchVisual(thmNames[next], thmCols[next], 1000, "MATRIX:THEME");
@@ -1750,7 +1783,7 @@ void handleButtonEvents() {
                     pCharSet->notify();
                 }
             }
-            Serial.printf("[BUTTON] Double Tap Confirmed (2 Taps) -> Action Executed!\n");
+            Serial.printf("[BUTTON] Double Tap Confirmed (2 Taps) -> Action Executed & Saved!\n");
         }
         else if (taps == 3) {
             // 3 TAPS: Turbo Boost
@@ -1775,6 +1808,7 @@ void handleButtonEvents() {
         else if (taps >= 5 && taps < 7) {
             // 5 TAPS: SWITCH SYSTEM MODE
             currentMode = (SystemMode)(((int)currentMode + 1) % 7);
+            prefs.putUChar("cur_mode", (uint8_t)currentMode);
             tft.setBrightness(screenBrightness);
             if (currentMode == MODE_DESK_COMPANION) {
                 deskPhase = DESK_DASAI;
@@ -1789,6 +1823,7 @@ void handleButtonEvents() {
                 pCharMode->setValue(std::string(mChar));
                 pCharMode->notify();
             }
+            Serial.printf("[BUTTON] 5 Taps Confirmed -> Mode %d (%s) Saved to NVS\n", (int)currentMode, modeNames[(int)currentMode]);
         }
         else if (taps >= 7) {
             // 7 TAPS: DEVELOPER EASTER EGG
@@ -1850,12 +1885,17 @@ void handleButtonEvents() {
 void enterDeepSleep() {
     Serial.println("[POWER] Entering Deep Sleep (Ultra-Low Power Mode)...");
 
-    // Save time and telemetry to NVS so state is restored on next wakeup
+    // Save time, telemetry, and active mode/animation to NVS so exact state is restored on next wakeup
     prefs.putInt("saved_h", cyberHUD.hours);
     prefs.putInt("saved_m", cyberHUD.minutes);
     prefs.putInt("saved_s", cyberHUD.seconds);
     prefs.putString("saved_date", cyberHUD.dateString);
     prefs.putString("saved_fdate", cyberHUD.fullDateString);
+    prefs.putUChar("cur_mode", (uint8_t)currentMode);
+    prefs.putUChar("cur_emo", (uint8_t)memePet.currentEmotion);
+    prefs.putString("dasai_path", dasaiMochi.gifPlayer.currentGifPath);
+    prefs.putUChar("dasai_emo", (uint8_t)dasaiMochi.currentEmotion);
+    prefs.putUChar("dasai_style", (uint8_t)dasaiMochi.currentStyle);
     saveBatteryDischargeLog();
 
     if (bleActive || bleConnected) {
@@ -1911,13 +1951,18 @@ void enterDeepSleep() {
 
     gpio_deep_sleep_hold_en();
 
-    // Wait until button is completely released before sleeping so it doesn't immediately re-wake!
-    uint32_t waitRelease = millis();
-    while (digitalRead(PIN_TOUCH) == HIGH) {
-        delay(20);
-        if (millis() - waitRelease > 10000) break; // 10s failsafe
+    // Wait until touch sensor is stably LOW for at least 120ms before sleeping so it doesn't immediately re-wake
+    uint32_t stableLowStart = millis();
+    uint32_t waitTimeout = millis();
+    while (millis() - waitTimeout < 4000) {
+        if (digitalRead(PIN_TOUCH) == HIGH) {
+            stableLowStart = millis();
+        } else if (millis() - stableLowStart >= 120) {
+            break; // Cleanly LOW for 120ms!
+        }
+        delay(15);
     }
-    delay(100); // Settling debounce delay
+    delay(50); // Settling debounce delay
 
     detachInterrupt(digitalPinToInterrupt(PIN_TOUCH));
     esp_deep_sleep_enable_gpio_wakeup(1ULL << PIN_TOUCH, ESP_GPIO_WAKEUP_GPIO_HIGH);
@@ -2120,10 +2165,14 @@ void playBootSplash() {
 // INITIAL SETUP
 // =========================================================================
 void setup() {
+    // 0. Disable Brownout Detector reset (prevents instant reset on USB outer shield ground touch)
+    WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+
     esp_sleep_wakeup_cause_t wakeupReason = esp_sleep_get_wakeup_cause();
 
     Serial.begin(115200);
-    delay(100);
+    Serial.setTxTimeoutMs(0); // CRITICAL: Prevent USB CDC serial from blocking when USB is plugged in without a terminal
+    delay(50);
     Serial.println("\n=== SPEARHEAD ENGINE v5.0 STARTUP ===");
 
     // 1. Release Deep Sleep GPIO Holds & Ensure Backlight & LED start OFF
@@ -2164,9 +2213,9 @@ void setup() {
     tpSenseMode = prefs.getUChar("tp_sense", 0);
     configureTpPins();
     defaultMode = (SystemMode)prefs.getUChar("def_mode", (uint8_t)MODE_CYBERPET);
-    currentMode = defaultMode;
+    currentMode = (SystemMode)prefs.getUChar("cur_mode", (uint8_t)defaultMode);
     memePet.defaultEmotion = (MemeEmotion)prefs.getUChar("def_emo", (uint8_t)EMOTION_LUFFY);
-    memePet.currentEmotion = memePet.defaultEmotion;
+    memePet.currentEmotion = (MemeEmotion)prefs.getUChar("cur_emo", (uint8_t)memePet.defaultEmotion);
     cyberHUD.setLayout(prefs.getUChar("hud_lay", 0));
     cyberHUD.showSeconds = prefs.getBool("hud_sec", true);
     cyberHUD.showBattery = prefs.getBool("hud_bat", true);
@@ -2413,6 +2462,7 @@ void loop() {
                 if (preUsbModeSaved) {
                     currentMode = preUsbMode;
                     preUsbModeSaved = false;
+                    prefs.putUChar("cur_mode", (uint8_t)currentMode);
                     tft.setBrightness(screenBrightness);
                     if (bleConnected && pCharMode) {
                         char mChar[2] = { (char)('0' + (int)currentMode), '\0' };
@@ -2435,6 +2485,14 @@ void loop() {
         candidateDockState = confirmedDockState;
     }
 
+    // While in Dock Mode, guarantee Bluetooth is ALWAYS active and advertising (never powers down)
+    if ((confirmedDockState || currentMode == MODE_DESK_COMPANION) && !bleActive) {
+        startBLE(false);
+        bleAutoTurnedOnByDock = true;
+        dockOffTimerPending = false;
+        Serial.println("[DOCK] Bluetooth locked active for Dock Mode.");
+    }
+
     // Auto BLE turn-off after 30s inactivity following dock disconnect
     if (dockOffTimerPending && bleAutoTurnedOnByDock && bleActive) {
         if (isConnected) {
@@ -2447,8 +2505,8 @@ void loop() {
         }
     }
 
-    // Auto BLE power-down if no connection after 3 minutes (180s) on battery (manual BLE)
-    if (!confirmedDockState && !isUsbPower && bleActive && !isConnected && !dockOffTimerPending && (millis() - bleStartTimeMs > 180000)) {
+    // Auto BLE power-down if no connection after 3 minutes (180s) on battery (manual BLE, never in Dock Mode!)
+    if (!confirmedDockState && currentMode != MODE_DESK_COMPANION && !isUsbPower && bleActive && !isConnected && !dockOffTimerPending && (millis() - bleStartTimeMs > 180000)) {
         stopBLE(false);
     }
 
