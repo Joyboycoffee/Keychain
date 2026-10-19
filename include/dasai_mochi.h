@@ -5,8 +5,10 @@
 #include "config.h"
 #include "emoji_renderer.h"
 #include "dasai_gif_player.h"
+#include "robot_eyes.h"
 
 extern LGFX_Sprite canvas;
+extern RobotEyes robotEyes;
 
 // =========================================================================
 // DASAI MOCHI AUTHENTIC EMOTIONS (43 ORIGINAL GIF FILES)
@@ -361,9 +363,12 @@ public:
         }
 
         // =====================================================================
-        // RENDER AUTHENTIC GIF SCANLINES DIRECTLY TO FRAMEBUFFER
+        // RENDER AUTHENTIC GIF SCANLINES OR FALLBACK TO PROCEDURAL ROBOT EYES
         // =====================================================================
         gifPlayer.update();
+        if (!gifPlayer.isLoaded) {
+            robotEyes.update();
+        }
 
         // Render 2-Second Hold Secret Message Overlay if active
         if (isShyLoveActive) {

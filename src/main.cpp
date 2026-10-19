@@ -251,6 +251,7 @@ class ModeCallback : public NimBLECharacteristicCallbacks {
                     preUsbModeSaved = false;
                 }
                 currentMode = newMode;
+                canvas.fillScreen(TFT_BLACK);
                 prefs.putUChar("cur_mode", (uint8_t)currentMode);
                 tft.setBrightness(currentMode == MODE_DESK_COMPANION ? 255 : screenBrightness);
                 if (currentMode == MODE_DESK_COMPANION) {
@@ -1934,6 +1935,7 @@ void handleButtonEvents() {
                 preUsbModeSaved = false;
             }
             currentMode = nextMode;
+            canvas.fillScreen(TFT_BLACK);
             prefs.putUChar("cur_mode", (uint8_t)currentMode);
             tft.setBrightness(currentMode == MODE_DESK_COMPANION ? 255 : screenBrightness);
             if (currentMode == MODE_DESK_COMPANION) {
@@ -2179,6 +2181,7 @@ void playBootSplash() {
                 uint32_t holdMs = bootDurationSec * 1000;
                 if (holdMs < 2500) holdMs = 2500; // Minimum 2.5s hold duration for splash and preview
                 delay(holdMs);
+                canvas.fillScreen(TFT_BLACK);
                 return;
             }
             f.close();
@@ -2236,6 +2239,7 @@ void playBootSplash() {
             }
             if (fBuf) free(fBuf);
             tft.setBrightness(screenBrightness);
+            canvas.fillScreen(TFT_BLACK);
             f.close();
             return;
         }
@@ -2269,6 +2273,7 @@ void playBootSplash() {
         int filledSegments = (int)(pct * totalSegments);
         if (filledSegments > totalSegments) filledSegments = totalSegments;
         int pctInt = (int)(pct * 100.0f);
+        if (pctInt > 99) pctInt = 99;
 
         // 3. Sub-Header: OS Label & Dynamic Percentage
         canvas.setTextSize(1);
@@ -2330,7 +2335,38 @@ void playBootSplash() {
 
         delay(25);
     }
+
+    // 7. Final 100% Complete Frame: All segments glowing with READY 100%
+    canvas.fillScreen(0x0000);
+    canvas.drawJpg(EMO_SPEARHEAD_BOOT_JPG, EMO_SPEARHEAD_BOOT_LEN, 0, 0);
+
+    canvas.setTextSize(1);
+    canvas.setTextColor(0x9CF3, 0x0000); // Slate titanium
+    canvas.drawString("SPEARHEAD // OS v5.0", 22, 181);
+
+    canvas.setTextColor(0x07E0, 0x0000); // Emerald green accent
+    canvas.drawRightString("READY 100%", 218, 181);
+
+    canvas.drawRoundRect(barX - 2, barY - 2, barW + 4, barH + 4, 3, 0x39E7);
+    canvas.drawRoundRect(barX - 1, barY - 1, barW + 2, barH + 2, 2, 0x18C3);
+    canvas.fillRect(barX, barY, barW, barH, 0x0821);
+
+    for (int i = 0; i < totalSegments; i++) {
+        int sx = barX + 4 + i * segSpacing;
+        int sy = barY + 3;
+        canvas.fillTriangle(sx + segSlant, sy, sx + segSlant + segW, sy, sx + segW, sy + segH, 0x07E0);
+        canvas.fillTriangle(sx + segSlant, sy, sx + segW, sy + segH, sx, sy + segH, 0x07E0);
+    }
+
+    canvas.drawFastHLine(barX - 6, barY + barH / 2, 3, 0x07E0);
+    canvas.drawFastHLine(barX + barW + 3, barY + barH / 2, 3, 0x07E0);
+
+    canvas.pushSprite(0, 0);
     tft.setBrightness(screenBrightness);
+    delay(120);
+
+    // Clean wipe canvas so boot splash graphics never linger into active mode
+    canvas.fillScreen(TFT_BLACK);
 }
 
 // =========================================================================
@@ -2377,7 +2413,8 @@ void setup() {
     if (!LittleFS.begin(true)) {
         Serial.println("[LITTLEFS] Mount Failed!");
     } else {
-        Serial.println("[LITTLEFS] Mounted successfully.");
+        bool hasMochi = LittleFS.exists("/mochi/blank.gif") || LittleFS.exists("/blank.gif");
+        Serial.printf("[LITTLEFS] Mounted successfully. Mochi GIFs: %s\n", hasMochi ? "FOUND" : "NOT FOUND (Falling back to vector eyes)");
     }
 
     // Load Persistent Preferences & Battery Run Logger Stats
@@ -2425,13 +2462,6 @@ void setup() {
     robotEyes.setStyle(dasaiMochi.currentStyle);
     dasaiMochi.cycleMode = (DasaiCycleMode)prefs.getUChar("dasai_cyc", (uint8_t)CYCLE_AUTO_ALL);
     dasaiMochi.currentEmotion = (DasaiEmotion)prefs.getUChar("dasai_emo", (uint8_t)DASAI_IDLE_LOOK);
-    String savedGif = prefs.getString("dasai_path", "/mochi/blank.gif");
-    bool savedLoop = prefs.getBool("dasai_loop", true);
-    if (savedGif.length() > 0 && LittleFS.exists(savedGif)) {
-        dasaiMochi.gifPlayer.playGif(savedGif, savedLoop, 1);
-    } else {
-        dasaiMochi.loadCurrentEmotionGif(true);
-    }
     String savedTapGif = prefs.getString("tap_gif", "/mochi/happy.gif");
     dasaiMochi.setSingleTapGif(savedTapGif);
     autoDeskDockOnUsb = prefs.getBool("dock_auto", true);
@@ -2547,6 +2577,20 @@ void setup() {
         playBootSplash();
     } else {
         Serial.printf("[BOOT] Woke from Deep Sleep (%d). Pre-rendering active mode...\n", (int)wakeupReason);
+    }
+
+    // CRITICAL: Clean wipe canvas to pure black so boot splash NEVER lingers into active mode
+    canvas.fillScreen(TFT_BLACK);
+
+    // Initial load for Dasai Mochi (now that canvas sprite is created and clean)
+    if (currentMode == MODE_ROBOT_EYES || currentMode == MODE_DESK_COMPANION) {
+        String savedGif = prefs.getString("dasai_path", "/mochi/blank.gif");
+        bool savedLoop = prefs.getBool("dasai_loop", true);
+        if (savedGif.length() > 0 && LittleFS.exists(savedGif)) {
+            dasaiMochi.gifPlayer.playGif(savedGif, savedLoop, 1);
+        } else {
+            dasaiMochi.loadCurrentEmotionGif(true);
+        }
     }
 
     // Always pre-render active mode first frame into canvas so screen is instantly live
