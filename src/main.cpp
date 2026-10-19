@@ -988,10 +988,10 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
             Serial.println("[SETTINGS] Web requested immediate deep sleep -> Scheduling deep sleep in main loop.");
             shouldEnterDeepSleep = true;
         }
-        // 16. Brightness Value: "BR:<10..255>" or "10".."255"
+        // 16. Brightness Value: "BR:<80..255>"
         else if (cmd.startsWith("BR:")) {
             int br = cmd.substring(3).toInt();
-            if (br >= 10 && br <= 255) {
+            if (br >= 80 && br <= 255) {
                 if (currentMode == MODE_DESK_COMPANION) {
                     preDockBrightness = br;
                     preDockBrightnessSaved = true;
@@ -1014,21 +1014,6 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
             if (pCharSet) {
                 pCharSet->setValue("TP_SENSE:" + String(tpSenseMode));
                 pCharSet->notify();
-            }
-        }
-        else {
-            int br = cmd.toInt();
-            if (br >= 10 && br <= 255) {
-                if (currentMode == MODE_DESK_COMPANION) {
-                    preDockBrightness = br;
-                    preDockBrightnessSaved = true;
-                    prefs.putUChar("br", br);
-                } else {
-                    screenBrightness = br;
-                    tft.setBrightness(screenBrightness);
-                    prefs.putUChar("br", screenBrightness);
-                }
-                Serial.printf("[SETTINGS] Brightness: %d (In Dock: %d)\n", br, currentMode == MODE_DESK_COMPANION ? 1 : 0);
             }
         }
     }
@@ -2028,7 +2013,7 @@ void enterDeepSleep() {
     Serial.println("[POWER] Entering Deep Sleep (Ultra-Low Power Mode)...");
 
     // Capture latest time from hardware RTC before entering sleep
-    if (rtcTimeValid) {
+    if (cyberHUD.isRtcValid()) {
         cyberHUD.updateTimeFromRtc();
     }
     rtcSleepStartUs = esp_rtc_get_time_us();
@@ -2352,7 +2337,7 @@ void playBootSplash() {
 // INITIAL SETUP
 // =========================================================================
 void setup() {
-    // 0. Disable Brownout Detector reset (prevents instant reset on USB outer shield ground touch)
+    // 0. Disable Brownout Detector reset (prevents false trips during current surges)
     WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
 
     esp_sleep_wakeup_cause_t wakeupReason = esp_sleep_get_wakeup_cause();
@@ -2411,7 +2396,7 @@ void setup() {
     cyberHUD.showCustomText = prefs.getBool("hud_text", true);
     cyberHUD.setCustomText(prefs.getString("hud_msg", "SPEARHEAD // SYS_ONLINE"));
     cyberHUD.setTimeFormat(prefs.getUChar("time_fmt", 12) == 12);
-    if (rtcTimeValid) {
+    if (cyberHUD.isRtcValid()) {
         cyberHUD.updateTimeFromRtc();
         uint64_t nowRtcUs = esp_rtc_get_time_us();
         uint32_t sleptSec = 0;
@@ -2458,8 +2443,9 @@ void setup() {
     matrixRain.setTheme(prefs.getUChar("matrix_thm", 0));
     bootSplashType = (BootSplashType)prefs.getUChar("boot_type", (uint8_t)BOOT_SPEARHEAD_INTRO);
     bootDurationSec = prefs.getUChar("boot_dur", 2);
-    screenBrightness = prefs.getUChar("br", 240);
-    if (screenBrightness < 10) screenBrightness = 240;
+    screenBrightness = prefs.getUChar("br", 220);
+    if (screenBrightness < 80) screenBrightness = 220; // Guard against dim 26 or 0
+    prefs.putUChar("br", screenBrightness);
     preDockBrightness = screenBrightness;
     screenRotation = prefs.getUChar("rot", 3);
     if (screenRotation > 3) screenRotation = 3;
@@ -2556,40 +2542,45 @@ void setup() {
     bleConnected = false;
     Serial.println("[BLE] BLE Initialized in Standby (OFF). CPU @ 160MHz. Quad-tap or hold 10s to activate BLE.");
 
-    // 4. Cold Boot Splash vs Deep Sleep Wakeup (with smooth 0.7s fade-in)
+    // 4. Cold Boot Splash vs Deep Sleep Wakeup
     if (wakeupReason == ESP_SLEEP_WAKEUP_UNDEFINED) {
         playBootSplash();
     } else {
-        Serial.printf("[BOOT] Woke from Deep Sleep (%d). Pre-rendering active mode and fading in smoothly (0.7s)...\n", (int)wakeupReason);
-        // Pre-render active mode first frame into canvas
-        switch (currentMode) {
-            case MODE_CYBERPET:        memePet.update(); break;
-            case MODE_ROBOT_EYES:      dasaiMochi.update(); break;
-            case MODE_CYBER_HUD:       cyberHUD.update(); break;
-            case MODE_MATRIX_RAIN:     matrixRain.update(); break;
-            case MODE_DESK_COMPANION:  dasaiMochi.update(); break;
-            case MODE_TEXT_SCROLL: {
-                canvas.fillScreen(TFT_BLACK);
-                canvas.drawRoundRect(2, 2, 236, 236, 8, 0xF77D);
-                canvas.drawRoundRect(4, 4, 232, 232, 6, 0x18E3);
-                canvas.drawFastHLine(14, 34, 212, 0x2104);
-                canvas.drawFastHLine(14, 206, 212, 0x2104);
-                canvas.setTextColor(0xF77D, TFT_BLACK);
-                canvas.setTextSize(1);
-                canvas.drawCenterString("MARQUEE BROADCAST", 120, 16);
-                int fontHeight = 8 * msgSize;
-                int textY = (240 - fontHeight) / 2;
-                if (msgSize == 1) textY = 116;
-                EmojiRenderer::renderTextWithEmojis(&canvas, customMessage, scrollX, textY, msgSize, 0xF77D, 0x0000);
-                canvas.setTextColor(0xFD00, TFT_BLACK);
-                canvas.setTextSize(1);
-                canvas.drawCenterString("DIGI KEYCHAIN // HUD", 120, 214);
-                break;
-            }
-            default: break;
+        Serial.printf("[BOOT] Woke from Deep Sleep (%d). Pre-rendering active mode...\n", (int)wakeupReason);
+    }
+
+    // Always pre-render active mode first frame into canvas so screen is instantly live
+    switch (currentMode) {
+        case MODE_CYBERPET:        memePet.update(); break;
+        case MODE_ROBOT_EYES:      dasaiMochi.update(); break;
+        case MODE_CYBER_HUD:       cyberHUD.update(); break;
+        case MODE_MATRIX_RAIN:     matrixRain.update(); break;
+        case MODE_DESK_COMPANION:  dasaiMochi.update(); break;
+        case MODE_TEXT_SCROLL: {
+            canvas.fillScreen(TFT_BLACK);
+            canvas.drawRoundRect(2, 2, 236, 236, 8, 0xF77D);
+            canvas.drawRoundRect(4, 4, 232, 232, 6, 0x18E3);
+            canvas.drawFastHLine(14, 34, 212, 0x2104);
+            canvas.drawFastHLine(14, 206, 212, 0x2104);
+            canvas.setTextColor(0xF77D, TFT_BLACK);
+            canvas.setTextSize(1);
+            canvas.drawCenterString("MARQUEE BROADCAST", 120, 16);
+            int fontHeight = 8 * msgSize;
+            int textY = (240 - fontHeight) / 2;
+            if (msgSize == 1) textY = 116;
+            EmojiRenderer::renderTextWithEmojis(&canvas, customMessage, scrollX, textY, msgSize, 0xF77D, 0x0000);
+            canvas.setTextColor(0xFD00, TFT_BLACK);
+            canvas.setTextSize(1);
+            canvas.drawCenterString("DIGI KEYCHAIN // HUD", 120, 214);
+            break;
         }
-        canvas.pushSprite(0, 0);
+        default: break;
+    }
+    canvas.pushSprite(0, 0);
+    if (wakeupReason != ESP_SLEEP_WAKEUP_UNDEFINED) {
         fadeInBrightness(currentMode == MODE_DESK_COMPANION ? 255 : screenBrightness, 700);
+    } else {
+        tft.setBrightness(currentMode == MODE_DESK_COMPANION ? 255 : screenBrightness);
     }
 
     lastActivityTime = millis();

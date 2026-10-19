@@ -11,11 +11,13 @@
 
 extern "C" uint64_t esp_rtc_get_time_us(void);
 
-// RTC slow memory variables that survive deep sleep across all sleep/wake cycles!
-RTC_DATA_ATTR static uint64_t rtcBaseEpochSec = 0;   // Local epoch in seconds at sync
-RTC_DATA_ATTR static uint64_t rtcBaseRtcUs    = 0;   // esp_rtc_get_time_us() at sync
-RTC_DATA_ATTR static uint64_t rtcSleepStartUs = 0;   // Timestamp when deep sleep began
-RTC_DATA_ATTR static bool     rtcTimeValid    = false;// True once synced from phone/web
+#define RTC_TIME_MAGIC 0x54494D45ULL // "TIME"
+
+// RTC slow RAM variables that survive deep sleep across all sleep/wake cycles without flash overhead!
+RTC_NOINIT_ATTR static uint64_t rtcMagic;
+RTC_NOINIT_ATTR static uint64_t rtcBaseEpochSec;
+RTC_NOINIT_ATTR static uint64_t rtcBaseRtcUs;
+RTC_NOINIT_ATTR static uint64_t rtcSleepStartUs;
 
 class CyberHUD {
 public:
@@ -75,6 +77,10 @@ public:
         fullDateString = String(fullBuf);
     }
 
+    bool isRtcValid() {
+        return (rtcMagic == RTC_TIME_MAGIC);
+    }
+
     void syncRealTime(int h, int m, int s, int64_t localEpoch, const String& dStr, const String& fdStr) {
         hours = h;
         minutes = m;
@@ -85,7 +91,6 @@ public:
         if (localEpoch > 100000) {
             rtcBaseEpochSec = (uint64_t)localEpoch;
         } else {
-            // Construct epoch assuming base year 2026 if no epoch was provided
             struct tm t = {0};
             t.tm_year = 2026 - 1900;
             t.tm_mon  = 9; // October (0-indexed)
@@ -98,14 +103,14 @@ public:
         }
 
         rtcBaseRtcUs = esp_rtc_get_time_us();
-        rtcTimeValid = true;
+        rtcMagic = RTC_TIME_MAGIC;
         lastTick = millis();
         Serial.printf("[RTC] Synced real time to Hardware RTC: %02d:%02d:%02d (Epoch: %llu, RTC_US: %llu)\n", 
                       h, m, s, rtcBaseEpochSec, rtcBaseRtcUs);
     }
 
     void updateTimeFromRtc() {
-        if (!rtcTimeValid) return;
+        if (rtcMagic != RTC_TIME_MAGIC) return;
 
         uint64_t nowRtcUs = esp_rtc_get_time_us();
         if (nowRtcUs < rtcBaseRtcUs) return;
@@ -186,7 +191,7 @@ public:
     void tick() {
         if (millis() - lastTick >= 1000) {
             lastTick = millis();
-            if (rtcTimeValid) {
+            if (rtcMagic == RTC_TIME_MAGIC) {
                 updateTimeFromRtc();
             } else {
                 seconds++;
