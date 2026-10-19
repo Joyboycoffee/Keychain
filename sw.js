@@ -1,5 +1,5 @@
 // Spearhead Service Worker
-const CACHE_NAME = 'spearhead-v5.2.0';
+const CACHE_NAME = 'spearhead-v5.2.1';
 const ASSETS = [
   './',
   './index.html',

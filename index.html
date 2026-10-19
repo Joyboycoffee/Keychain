@@ -963,6 +963,7 @@
       </div>
       
       <div class="header-actions">
+        <button class="view-btn" onclick="forceAppUpdate()" style="display:inline-flex; align-items:center; gap:4px; border-color:var(--border-accent); color:var(--amber); font-weight:800;" title="Purge browser cache and force load newest version">🔄 RELOAD</button>
         <a href="installer.html" class="view-btn" style="text-decoration:none; display:inline-flex; align-items:center; gap:4px; border-color:var(--border-accent); color:var(--accent); font-weight:800;" title="1-Click Web USB Firmware Flasher">⚡ FLASHER</a>
         <div class="view-mode-selector">
           <button class="view-btn active" id="btn-mode-auto" onclick="setViewMode('auto')">AUTO</button>
@@ -3875,9 +3876,44 @@
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js')
-          .then((reg) => console.log('[PWA] Service Worker active:', reg.scope))
+          .then((reg) => {
+            console.log('[PWA] Service Worker active:', reg.scope);
+            reg.update();
+            reg.onupdatefound = () => {
+              const newWorker = reg.installing;
+              if (newWorker) {
+                newWorker.onstatechange = () => {
+                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    console.log('[PWA] New version ready! Reloading...');
+                    window.location.reload();
+                  }
+                };
+              }
+            };
+          })
           .catch((err) => console.warn('[PWA] Service Worker registration failed:', err));
       });
+    }
+
+    async function forceAppUpdate() {
+      vibrate(20);
+      try {
+        if ('serviceWorker' in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          for (let reg of registrations) {
+            await reg.unregister();
+          }
+        }
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          for (let key of keys) {
+            await caches.delete(key);
+          }
+        }
+      } catch (e) {
+        console.error('Update purge error:', e);
+      }
+      window.location.href = window.location.origin + window.location.pathname + '?v=' + Date.now();
     }
 
     window.addEventListener('beforeinstallprompt', (e) => {
