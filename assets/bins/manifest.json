@@ -1,0 +1,13 @@
+{
+  "name": "SPEARHEAD Tactical Digi Keychain (Factory Merged 4MB)",
+  "version": "2.1.0",
+  "new_install_prompt_erase": false,
+  "builds": [
+    {
+      "chipFamily": "ESP32-C3",
+      "parts": [
+        { "path": "spearhead_merged_factory_4mb.bin", "offset": 0 }
+      ]
+    }
+  ]
+}

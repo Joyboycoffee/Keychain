@@ -5,3 +5,6 @@
 *.elf
 *.o
 
+# Track release binaries in assets/bins
+!assets/bins/*.bin
+

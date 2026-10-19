@@ -963,6 +963,7 @@
       </div>
       
       <div class="header-actions">
+        <a href="installer.html" class="view-btn" style="text-decoration:none; display:inline-flex; align-items:center; gap:4px; border-color:var(--border-accent); color:var(--accent); font-weight:800;" title="1-Click Web USB Firmware Flasher">⚡ FLASHER</a>
         <div class="view-mode-selector">
           <button class="view-btn active" id="btn-mode-auto" onclick="setViewMode('auto')">AUTO</button>
           <button class="view-btn" id="btn-mode-mobile" onclick="setViewMode('mobile')">PHONE</button>
@@ -3476,11 +3477,25 @@
       const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
       const dateStr = `${days[now.getDay()]} ${now.getDate()} ${months[now.getMonth()]}`;
 
+      const fullDays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+      const fullMonths = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+      const dNum = now.getDate();
+      function getOrdinalSuffix(d) {
+        if (d > 3 && d < 21) return 'th';
+        switch (d % 10) {
+          case 1: return 'st';
+          case 2: return 'nd';
+          case 3: return 'rd';
+          default: return 'th';
+        }
+      }
+      const fullDateStr = `${fullDays[now.getDay()]}, ${dNum}${getOrdinalSuffix(dNum)} ${fullMonths[now.getMonth()]}`;
+
       let temp = 24.5;
-      const payload = `${h}:${m}:${s}|${temp}|${dateStr}`;
+      const payload = `${h}:${m}:${s}|${temp}|${dateStr}|${fullDateStr}`;
       const data = new TextEncoder().encode(payload);
       await safeBleWrite(charTime, data, false);
-      log(`Time & Date synced: ${h}:${m}:${s} (${dateStr})`);
+      log(`Time & Date synced: ${h}:${m}:${s} (${fullDateStr})`);
     }
 
     // -------------------------------------------------------------

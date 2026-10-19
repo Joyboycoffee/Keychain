@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Spearhead | Web Flasher & Firmware Installer</title>
+  <meta name="description" content="1-Click Web USB / Serial Firmware Installer for SPEARHEAD ESP32-C3 Digi Keychain">
+  <meta name="theme-color" content="#090a0c">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="shortcut icon" href="favicon.ico">
+
+  <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+
+  <style>
+    :root {
+      --bg: #090a0c;
+      --surface: #111317;
+      --surface-raised: #171920;
+      --surface-hover: #1f222b;
+      --border: #22252d;
+      --border-accent: #3a3f4d;
+
+      --beige-light: #f5f0e6;
+      --beige-main: #e2d7c5;
+      --beige-muted: #9e9382;
+      --beige-dim: #5c554a;
+
+      --accent: #d8c7ad;
+      --accent-glow: rgba(216, 199, 173, 0.15);
+
+      --green: #a2c892;
+      --green-bg: rgba(162, 200, 146, 0.12);
+      --red: #df735d;
+      --cyan: #82b1ff;
+      --amber: #e2b46a;
+
+      --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, Menlo, Monaco, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: var(--font-mono);
+      -webkit-tap-highlight-color: transparent;
+      border-radius: 0px !important;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--beige-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 14px 60px 14px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 760px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .header-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .brand-title {
+      font-size: 1.15rem;
+      font-weight: 900;
+      letter-spacing: 2px;
+      color: var(--beige-light);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-transform: uppercase;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      font-size: 0.60rem;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      color: var(--beige-dim);
+      text-transform: uppercase;
+    }
+    .badge-ok {
+      background: var(--green-bg);
+      border-color: var(--green);
+      color: var(--green);
+    }
+    .badge-cyan {
+      background: rgba(130, 177, 255, 0.12);
+      border-color: var(--cyan);
+      color: var(--cyan);
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .card-title {
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--beige-light);
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .flasher-box {
+      background: var(--surface-raised);
+      border: 1px dashed var(--accent);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      text-align: center;
+    }
+
+    esp-web-install-button {
+      --esp-tools-button-border-radius: 0px;
+      --esp-tools-button-color: #090a0c;
+      --esp-tools-button-text-color: #090a0c;
+    }
+
+    esp-web-install-button button {
+      background: var(--accent) !important;
+      color: #090a0c !important;
+      border: 1px solid var(--accent) !important;
+      font-family: var(--font-mono) !important;
+      font-weight: 900 !important;
+      font-size: 0.82rem !important;
+      letter-spacing: 1.2px !important;
+      padding: 12px 28px !important;
+      cursor: pointer !important;
+      text-transform: uppercase !important;
+      box-shadow: 0 0 15px var(--accent-glow) !important;
+    }
+
+    .step-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      font-size: 0.74rem;
+      color: var(--beige-muted);
+    }
+
+    .step-item {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .step-num {
+      background: var(--key-border);
+      color: var(--beige-light);
+      font-weight: 800;
+      padding: 2px 7px;
+      font-size: 0.65rem;
+      flex-shrink: 0;
+    }
+
+    .file-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 10px;
+    }
+
+    .file-card {
+      background: var(--surface-raised);
+      border: 1px solid var(--border);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .file-name {
+      font-size: 0.74rem;
+      font-weight: 800;
+      color: var(--beige-light);
+      word-break: break-all;
+    }
+    .file-meta {
+      font-size: 0.62rem;
+      color: var(--beige-dim);
+    }
+
+    .btn-dl {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      background: var(--surface-hover);
+      border: 1px solid var(--border-accent);
+      color: var(--beige-main);
+      padding: 6px 12px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-decoration: none;
+      margin-top: 4px;
+      transition: all 0.15s ease;
+    }
+    .btn-dl:hover {
+      background: var(--accent);
+      color: var(--bg);
+      border-color: var(--accent);
+    }
+    .btn-dl-primary {
+      background: var(--accent);
+      color: var(--bg);
+      border-color: var(--accent);
+      font-weight: 800;
+    }
+    .btn-dl-primary:hover {
+      background: #e8dccb;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 10px;
+    }
+    .nav-link {
+      color: var(--accent);
+      font-size: 0.72rem;
+      text-decoration: none;
+      padding: 6px 14px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .nav-link:hover {
+      border-color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+
+    <!-- HEADER CARD -->
+    <div class="header-card">
+      <div class="brand-title">
+        <span>SPEARHEAD // WEB FLASHER</span>
+        <span class="badge badge-ok">v2.1 READY</span>
+      </div>
+      <div style="font-size:0.75rem; color:var(--beige-muted);">
+        1-Click USB Firmware Flasher & Binary Installer for the ESP32-C3 SuperMini Tactical Digi Keychain. Flash directly from Chrome/Edge on Desktop or Android phones via USB-C OTG cable!
+      </div>
+    </div>
+
+    <!-- 1-CLICK WEB INSTALLER BOX -->
+    <div class="card">
+      <div class="card-title">
+        <span>⚡ DIRECT BROWSER FLASHING (WEBUSB / SERIAL)</span>
+        <span class="badge badge-cyan">NO APP NEEDED</span>
+      </div>
+
+      <div class="flasher-box">
+        <div style="font-size:0.80rem; font-weight:700; color:var(--beige-light);">
+          CONNECT ESP32-C3 VIA USB-C & CLICK INSTALL
+        </div>
+        <div style="font-size:0.70rem; color:var(--beige-muted); max-width:480px;">
+          Plug your ESP32-C3 keychain into your computer or Android phone. Click the button below, select the USB Serial JTAG / COM port, and the browser will automatically write all bootloader, partition, app firmware, and LittleFS GIF files!
+        </div>
+
+        <!-- ESP WEB TOOLS INSTALL BUTTON -->
+        <esp-web-install-button manifest="assets/bins/manifest.json">
+          <button slot="activate">⚡ CONNECT & INSTALL FIRMWARE</button>
+          <span slot="unsupported">⚠️ Web Serial is not supported on this browser. Please open on Chrome, Edge, or Opera on Windows, Mac, Linux, or Android!</span>
+        </esp-web-install-button>
+      </div>
+
+      <div class="step-list">
+        <div class="step-item">
+          <span class="step-num">01</span>
+          <div><b>Connect USB Cable:</b> Connect the ESP32-C3 SuperMini port to your PC or Android phone using a data-capable USB-C cable (or USB-C to USB-C / OTG adapter).</div>
+        </div>
+        <div class="step-item">
+          <span class="step-num">02</span>
+          <div><b>Select COM Port:</b> Tap <i>"Connect & Install Firmware"</i> above and pick <b>USB JTAG/serial debug unit</b> (or <b>ESP32-C3</b>) from the browser prompt.</div>
+        </div>
+        <div class="step-item">
+          <span class="step-num">03</span>
+          <div><b>Complete:</b> The web flasher will erase and program all 4MB of flash memory. Once done, unplug or reboot and your Spearhead keychain is fully loaded!</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DIRECT BINARY DOWNLOADS -->
+    <div class="card">
+      <div class="card-title">
+        <span>📦 DIRECT BINARY DOWNLOADS FOR MOBILE & DESKTOP APPS</span>
+        <span class="badge">OFFLINE FLASHING</span>
+      </div>
+
+      <div style="font-size:0.72rem; color:var(--beige-muted);">
+        If you prefer flashing via Android flasher apps (like <b>Serial USB Terminal</b>, <b>ESP32 Loader</b>, or <b>DapLink</b>) or desktop tools (<b>PlatformIO</b>, <b>esptool.py</b>, <b>ESP Flash Download Tool</b>), download the pre-compiled binaries below:
+      </div>
+
+      <div class="file-grid">
+        <!-- 4MB ALL-IN-ONE MERGED FACTORY BIN -->
+        <div class="file-card" style="border-color:var(--accent);">
+          <div class="file-name">⭐ spearhead_merged_factory_4mb.bin</div>
+          <div class="file-meta"><b>Target Offset:</b> <code>0x00000000</code> (4.0 MB)</div>
+          <div class="file-meta"><b>Best for Mobile:</b> Single 1-file factory image including bootloader, partitions, app firmware & LittleFS GIFs.</div>
+          <a class="btn-dl btn-dl-primary" href="assets/bins/spearhead_merged_factory_4mb.bin" download>⬇️ DOWNLOAD FULL FACTORY (4MB)</a>
+        </div>
+
+        <!-- APP FIRMWARE BIN -->
+        <div class="file-card">
+          <div class="file-name">firmware.bin</div>
+          <div class="file-meta"><b>Target Offset:</b> <code>0x00010000</code> (~908 KB)</div>
+          <div class="file-meta">App firmware partition. Updates firmware without erasing GIFs in LittleFS.</div>
+          <a class="btn-dl" href="assets/bins/firmware.bin" download>⬇️ DOWNLOAD FIRMWARE.BIN</a>
+        </div>
+
+        <!-- LITTLEFS BIN -->
+        <div class="file-card">
+          <div class="file-name">littlefs.bin</div>
+          <div class="file-meta"><b>Target Offset:</b> <code>0x00170000</code> (2.56 MB)</div>
+          <div class="file-meta">Filesystem partition containing all 42 authentic Dasai Mochi GIF animations.</div>
+          <a class="btn-dl" href="assets/bins/littlefs.bin" download>⬇️ DOWNLOAD LITTLEFS.BIN</a>
+        </div>
+
+        <!-- BOOTLOADER BIN -->
+        <div class="file-card">
+          <div class="file-name">bootloader.bin</div>
+          <div class="file-meta"><b>Target Offset:</b> <code>0x00000000</code> (13 KB)</div>
+          <div class="file-meta">ESP32-C3 2nd stage bootloader.</div>
+          <a class="btn-dl" href="assets/bins/bootloader.bin" download>⬇️ DOWNLOAD BOOTLOADER.BIN</a>
+        </div>
+
+        <!-- PARTITIONS BIN -->
+        <div class="file-card">
+          <div class="file-name">partitions.bin</div>
+          <div class="file-meta"><b>Target Offset:</b> <code>0x00008000</code> (3 KB)</div>
+          <div class="file-meta">Custom 4MB partition table configuration.</div>
+          <a class="btn-dl" href="assets/bins/partitions.bin" download>⬇️ DOWNLOAD PARTITIONS.BIN</a>
+        </div>
+
+        <!-- BOOT_APP0 BIN -->
+        <div class="file-card">
+          <div class="file-name">boot_app0.bin</div>
+          <div class="file-meta"><b>Target Offset:</b> <code>0x0000e000</code> (8 KB)</div>
+          <div class="file-meta">OTA boot selector data partition.</div>
+          <a class="btn-dl" href="assets/bins/boot_app0.bin" download>⬇️ DOWNLOAD BOOT_APP0.BIN</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- FLASHING FROM ANDROID INSTRUCTIONS -->
+    <div class="card">
+      <div class="card-title">
+        <span>📱 HOW TO FLASH DIRECTLY FROM ANDROID MOBILE</span>
+      </div>
+      <div class="step-list">
+        <div class="step-item">
+          <span class="step-num">A</span>
+          <div>
+            <b>Method 1 (Easiest - Chrome Browser):</b><br>
+            Connect ESP32-C3 to your Android phone with a USB-C to USB-C cable. Open this page in <b>Google Chrome</b> on Android, tap <b>"Connect & Install Firmware"</b>, grant USB permission when prompted, and let it flash!
+          </div>
+        </div>
+        <div class="step-item">
+          <span class="step-num">B</span>
+          <div>
+            <b>Method 2 (Using Android App like Serial USB Terminal or ESP32 Loader):</b><br>
+            1. Download <code>spearhead_merged_factory_4mb.bin</code> to your phone's Downloads folder.<br>
+            2. Connect ESP32-C3 via OTG cable.<br>
+            3. In the flasher app, select baud rate <code>460800</code> or <code>115200</code>.<br>
+            4. Choose file <code>spearhead_merged_factory_4mb.bin</code> at address <code>0x00000000</code>.<br>
+            5. Tap Flash / Program!
+          </div>
+        </div>
+        <div class="step-item">
+          <span class="step-num">C</span>
+          <div>
+            <b>Method 3 (Desktop esptool.py command):</b><br>
+            <code>python -m esptool --chip esp32c3 --port COMx write_flash 0x0 assets/bins/spearhead_merged_factory_4mb.bin</code>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NAVIGATION LINKS -->
+    <div class="nav-links">
+      <a class="nav-link" href="index.html">📡 OPEN BLUETOOTH CONTROL DECK</a>
+      <a class="nav-link" href="https://github.com/Joyboycoffee/Keychain" target="_blank">⭐ GITHUB REPOSITORY</a>
+    </div>
+
+  </div>
+
+</body>
+</html>
