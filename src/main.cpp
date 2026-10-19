@@ -376,12 +376,21 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
                 Serial.printf("[SETTINGS] Rotation set: %d\n", r);
             }
         }
-        // 2. Sleep Timeout Command: "SLEEP:0" (0 = Never, 30 = 30s)
-        else if (cmd.startsWith("SLEEP:")) {
-            int sec = cmd.substring(6).toInt();
+        // 2. Sleep Timeout Command: "SLEEP_SEC:15" or "SLEEP:15" (0 = Never, 15 = 15s)
+        else if (cmd.startsWith("SLEEP_SEC:") || cmd.startsWith("SLEEP:")) {
+            int sec = 0;
+            if (cmd.startsWith("SLEEP_SEC:")) {
+                sec = cmd.substring(10).toInt();
+            } else {
+                sec = cmd.substring(6).toInt();
+            }
             sleepTimeoutMs = (sec <= 0) ? 0 : (sec * 1000);
             prefs.putUInt("sleep", sleepTimeoutMs);
-            Serial.printf("[SETTINGS] Sleep timer set: %u ms\n", (unsigned int)sleepTimeoutMs);
+            Serial.printf("[SETTINGS] Sleep timer set: %u ms (%d sec)\n", (unsigned int)sleepTimeoutMs, sec);
+            if (pCharSet) {
+                pCharSet->setValue("SLEEP:" + String(sec));
+                pCharSet->notify();
+            }
         }
         // 3. Set Current As Default: "DEF:SET"
         else if (cmd.startsWith("DEF:SET")) {
@@ -1362,7 +1371,7 @@ void updateBatteryTelemetry() {
                       isTpUsb ? "DOCK CONNECTED" : "DOCK UNPLUGGED");
     }
 
-    if (isEspUsb || isTpUsb || rawMv < 80.0f || vbat < 2.2f || vbat >= 4.45f) {
+    if (isEspUsb || isTpUsb || rawMv < 80.0f || vbat < 2.2f) {
         isUsbPower = true;
         currentBatVoltage = isEspUsb ? 5.00f : vbat;
         if (currentBatVoltage < 2.2f) currentBatVoltage = 5.00f;
@@ -2427,7 +2436,7 @@ void setup() {
     preDockBrightness = screenBrightness;
     screenRotation = prefs.getUChar("rot", 3);
     if (screenRotation > 3) screenRotation = 3;
-    sleepTimeoutMs = prefs.getUInt("sleep", 0); // 0 = Never sleep by default
+    sleepTimeoutMs = prefs.getUInt("sleep", 15000); // Default to 15s (15000ms)
     customMessage = prefs.getString("msg", "SPEARHEAD // SYSTEM ONLINE");
     easterEggMessage = prefs.getString("egg_msg", "YOU FOUND THE SECRET");
     easterEggCount = prefs.getUInt("egg_cnt", 0);
@@ -2650,7 +2659,7 @@ void loop() {
                 lastActivityTime = millis();
 
                 // Turn off Bluetooth 30 seconds after dock disconnect if inactive
-                if (bleAutoTurnedOnByDock && bleActive) {
+                if (bleActive) {
                     dockOffBleInactivityStartTime = millis();
                     dockOffTimerPending = true;
                     Serial.println("[DOCK] Desk Dock disengaged. Bluetooth will power off after 30s inactivity.");
@@ -2661,8 +2670,8 @@ void loop() {
         candidateDockState = confirmedDockState;
     }
 
-    // While in Dock Mode, guarantee Bluetooth is ALWAYS active and advertising (never powers down)
-    if ((confirmedDockState || currentMode == MODE_DESK_COMPANION) && !bleActive) {
+    // While in USB Dock Mode, guarantee Bluetooth is ALWAYS active and advertising (never powers down)
+    if (confirmedDockState && !bleActive) {
         startBLE(false);
         bleAutoTurnedOnByDock = true;
         dockOffTimerPending = false;
@@ -2670,7 +2679,7 @@ void loop() {
     }
 
     // Auto BLE turn-off after 30s inactivity following dock disconnect
-    if (dockOffTimerPending && bleAutoTurnedOnByDock && bleActive) {
+    if (dockOffTimerPending && bleActive) {
         if (isConnected) {
             dockOffBleInactivityStartTime = millis(); // Refresh while actively connected
         } else if (millis() - dockOffBleInactivityStartTime >= 30000) {
