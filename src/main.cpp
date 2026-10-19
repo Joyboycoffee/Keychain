@@ -64,6 +64,8 @@ uint32_t           deskFadeDurationMs   = 400;   // 400ms smooth cross-fade
 bool               autoDeskDockOnUsb    = true;  // Automatically switch to Desk Dock on USB 5V charge
 SystemMode         preUsbMode           = MODE_CYBERPET;
 bool               preUsbModeSaved      = false;
+uint8_t            preDockBrightness    = 240;
+bool               preDockBrightnessSaved = false;
 
 // Desk Dock Animation Playlist Engine (Bitmask of 42 Mochi Animations)
 uint64_t           dockAnimMask         = 0x3FFFFFFFFFFULL; // 42 bits set = all 42 animations enabled by default
@@ -231,9 +233,26 @@ class ModeCallback : public NimBLECharacteristicCallbacks {
         if (val.length() > 0) {
             int m = val[0] - '0';
             if (m >= 0 && m <= 6) {
-                currentMode = (SystemMode)m;
+                SystemMode newMode = (SystemMode)m;
+                if (newMode == MODE_DESK_COMPANION && currentMode != MODE_DESK_COMPANION) {
+                    if (!preUsbModeSaved) {
+                        preUsbMode = currentMode;
+                        preUsbModeSaved = true;
+                    }
+                    if (!preDockBrightnessSaved) {
+                        preDockBrightness = screenBrightness;
+                        preDockBrightnessSaved = true;
+                    }
+                } else if (currentMode == MODE_DESK_COMPANION && newMode != MODE_DESK_COMPANION) {
+                    if (preDockBrightnessSaved) {
+                        screenBrightness = preDockBrightness;
+                        preDockBrightnessSaved = false;
+                    }
+                    preUsbModeSaved = false;
+                }
+                currentMode = newMode;
                 prefs.putUChar("cur_mode", (uint8_t)currentMode);
-                tft.setBrightness(screenBrightness); // Ensure brightness is restored
+                tft.setBrightness(currentMode == MODE_DESK_COMPANION ? 255 : screenBrightness);
                 if (currentMode == MODE_DESK_COMPANION) {
                     deskPhase = DESK_DASAI;
                     deskPhaseStartTime = millis();
@@ -247,7 +266,7 @@ class ModeCallback : public NimBLECharacteristicCallbacks {
                     dasaiFileOpened = false;
                 }
                 lastActivityTime = millis();
-                Serial.printf("[BLE] Switched Mode: %d (Saved to NVS)\n", m);
+                Serial.printf("[BLE] Switched Mode: %d (Saved to NVS, Brightness: %d)\n", m, currentMode == MODE_DESK_COMPANION ? 255 : screenBrightness);
             }
         }
     }
@@ -954,10 +973,16 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
         else if (cmd.startsWith("BR:")) {
             int br = cmd.substring(3).toInt();
             if (br >= 10 && br <= 255) {
-                screenBrightness = br;
-                tft.setBrightness(screenBrightness);
-                prefs.putUChar("br", screenBrightness);
-                Serial.printf("[SETTINGS] Brightness: %d\n", br);
+                if (currentMode == MODE_DESK_COMPANION) {
+                    preDockBrightness = br;
+                    preDockBrightnessSaved = true;
+                    prefs.putUChar("br", br);
+                } else {
+                    screenBrightness = br;
+                    tft.setBrightness(screenBrightness);
+                    prefs.putUChar("br", screenBrightness);
+                }
+                Serial.printf("[SETTINGS] Brightness: %d (In Dock: %d)\n", br, currentMode == MODE_DESK_COMPANION ? 1 : 0);
             }
         }
         // 17. TP4056 Sense Logic: "TP_SENSE:<0/1>" (0=Active HIGH Pulldown, 1=Active LOW Pullup)
@@ -975,10 +1000,16 @@ class SettingsCallback : public NimBLECharacteristicCallbacks {
         else {
             int br = cmd.toInt();
             if (br >= 10 && br <= 255) {
-                screenBrightness = br;
-                tft.setBrightness(screenBrightness);
-                prefs.putUChar("br", screenBrightness);
-                Serial.printf("[SETTINGS] Brightness: %d\n", br);
+                if (currentMode == MODE_DESK_COMPANION) {
+                    preDockBrightness = br;
+                    preDockBrightnessSaved = true;
+                    prefs.putUChar("br", br);
+                } else {
+                    screenBrightness = br;
+                    tft.setBrightness(screenBrightness);
+                    prefs.putUChar("br", screenBrightness);
+                }
+                Serial.printf("[SETTINGS] Brightness: %d (In Dock: %d)\n", br, currentMode == MODE_DESK_COMPANION ? 1 : 0);
             }
         }
     }
@@ -1423,7 +1454,7 @@ void fadeInBrightness(uint8_t targetBr, uint32_t durationMs) {
 }
 
 void fadeOutBrightness(uint32_t durationMs) {
-    uint8_t curBr = screenBrightness;
+    uint8_t curBr = (currentMode == MODE_DESK_COMPANION) ? 255 : screenBrightness;
     if (curBr == 0) return;
     int steps = 45;
     uint32_t stepDelay = durationMs / steps;
@@ -1881,9 +1912,26 @@ void handleButtonEvents() {
         }
         else if (taps >= 5 && taps < 7) {
             // 5 TAPS: SWITCH SYSTEM MODE
-            currentMode = (SystemMode)(((int)currentMode + 1) % 7);
+            SystemMode nextMode = (SystemMode)(((int)currentMode + 1) % 7);
+            if (nextMode == MODE_DESK_COMPANION && currentMode != MODE_DESK_COMPANION) {
+                if (!preUsbModeSaved) {
+                    preUsbMode = currentMode;
+                    preUsbModeSaved = true;
+                }
+                if (!preDockBrightnessSaved) {
+                    preDockBrightness = screenBrightness;
+                    preDockBrightnessSaved = true;
+                }
+            } else if (currentMode == MODE_DESK_COMPANION && nextMode != MODE_DESK_COMPANION) {
+                if (preDockBrightnessSaved) {
+                    screenBrightness = preDockBrightness;
+                    preDockBrightnessSaved = false;
+                }
+                preUsbModeSaved = false;
+            }
+            currentMode = nextMode;
             prefs.putUChar("cur_mode", (uint8_t)currentMode);
-            tft.setBrightness(screenBrightness);
+            tft.setBrightness(currentMode == MODE_DESK_COMPANION ? 255 : screenBrightness);
             if (currentMode == MODE_DESK_COMPANION) {
                 deskPhase = DESK_DASAI;
                 deskPhaseStartTime = now;
@@ -2376,6 +2424,7 @@ void setup() {
     bootDurationSec = prefs.getUChar("boot_dur", 2);
     screenBrightness = prefs.getUChar("br", 240);
     if (screenBrightness < 10) screenBrightness = 240;
+    preDockBrightness = screenBrightness;
     screenRotation = prefs.getUChar("rot", 3);
     if (screenRotation > 3) screenRotation = 3;
     sleepTimeoutMs = prefs.getUInt("sleep", 0); // 0 = Never sleep by default
@@ -2504,7 +2553,7 @@ void setup() {
             default: break;
         }
         canvas.pushSprite(0, 0);
-        fadeInBrightness(screenBrightness, 700);
+        fadeInBrightness(currentMode == MODE_DESK_COMPANION ? 255 : screenBrightness, 700);
     }
 
     lastActivityTime = millis();
@@ -2555,7 +2604,12 @@ void loop() {
                         preUsbMode = currentMode;
                         preUsbModeSaved = true;
                     }
+                    if (!preDockBrightnessSaved) {
+                        preDockBrightness = screenBrightness;
+                        preDockBrightnessSaved = true;
+                    }
                     currentMode = MODE_DESK_COMPANION;
+                    tft.setBrightness(255);
                     deskPhase = DESK_DASAI;
                     deskPhaseStartTime = millis();
                     advanceDeskCompanionAnimation();
@@ -2581,13 +2635,17 @@ void loop() {
                     currentMode = preUsbMode;
                     preUsbModeSaved = false;
                     prefs.putUChar("cur_mode", (uint8_t)currentMode);
-                    tft.setBrightness(screenBrightness);
                     if (bleConnected && pCharMode) {
                         char mChar[2] = { (char)('0' + (int)currentMode), '\0' };
                         pCharMode->setValue(std::string(mChar));
                         pCharMode->notify();
                     }
                 }
+                if (preDockBrightnessSaved) {
+                    screenBrightness = preDockBrightness;
+                    preDockBrightnessSaved = false;
+                }
+                tft.setBrightness(screenBrightness);
                 triggerTouchVisual("DESK DOCK OFF", 0xF800, 2000, "DOCK:INACTIVE");
                 lastActivityTime = millis();
 
@@ -2783,7 +2841,7 @@ void loop() {
                         deskPhaseStartTime = now;
                     } else {
                         float ease = (1.0f - progress) * (1.0f - progress);
-                        tft.setBrightness((uint8_t)(ease * screenBrightness));
+                        tft.setBrightness((uint8_t)(ease * 255));
                     }
                     break;
                 }
@@ -2792,12 +2850,12 @@ void loop() {
                     cyberHUD.renderMinimalisticClock();
                     float progress = (float)elapsed / (float)deskFadeDurationMs;
                     if (progress >= 1.0f) {
-                        tft.setBrightness(screenBrightness);
+                        tft.setBrightness(255);
                         deskPhase = DESK_CLOCK;
                         deskPhaseStartTime = now;
                     } else {
                         float ease = sin(progress * 1.5707963f);
-                        tft.setBrightness((uint8_t)(ease * screenBrightness));
+                        tft.setBrightness((uint8_t)(ease * 255));
                     }
                     break;
                 }
@@ -2820,7 +2878,7 @@ void loop() {
                         deskPhaseStartTime = now;
                     } else {
                         float ease = (1.0f - progress) * (1.0f - progress);
-                        tft.setBrightness((uint8_t)(ease * screenBrightness));
+                        tft.setBrightness((uint8_t)(ease * 255));
                     }
                     break;
                 }
@@ -2829,12 +2887,12 @@ void loop() {
                     dasaiMochi.update();
                     float progress = (float)elapsed / (float)deskFadeDurationMs;
                     if (progress >= 1.0f) {
-                        tft.setBrightness(screenBrightness);
+                        tft.setBrightness(255);
                         deskPhase = DESK_DASAI;
                         deskPhaseStartTime = now;
                     } else {
                         float ease = sin(progress * 1.5707963f);
-                        tft.setBrightness((uint8_t)(ease * screenBrightness));
+                        tft.setBrightness((uint8_t)(ease * 255));
                     }
                     break;
                 }
