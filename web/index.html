@@ -876,6 +876,30 @@
     .modal-close:hover {
       color: var(--beige-light);
     }
+    /* MODAL TABS */
+    .modal-tab-btn {
+      flex: 1;
+      padding: 10px 8px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--beige-muted);
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+    .modal-tab-btn.active {
+      color: var(--cyan);
+      border-bottom-color: var(--cyan);
+      background: rgba(0, 240, 255, 0.08);
+    }
+    .modal-tab-btn:hover {
+      color: var(--beige-light);
+    }
     .modal-body {
       display: flex;
       flex-direction: column;
@@ -955,9 +979,9 @@
 
   <div class="app-container">
 
-    <!-- HEADER (TAP SPEARHEAD BOX 3 TIMES FOR CREATOR ABOUT MODAL) -->
+    <!-- HEADER (CLICK SPEARHEAD LOGO FOR BLUETOOTH GUIDE, UPLOAD MEDIA & ARCHITECTURE) -->
     <header class="header">
-      <div class="brand" onclick="handleLogoTap()" title="Spearhead System Architecture (Tap 3x to view system specs)">
+      <div class="brand" onclick="openAboutModal()" title="Spearhead Control & System Guide (Bluetooth Manual, Media Upload, Architecture)">
         <div class="brand-logo-box">SPEARHEAD</div>
         <span class="brand-badge">ESP32-C3 // OS v5.2</span>
       </div>
@@ -1823,61 +1847,185 @@
   </div>
 
   <!-- ========================================================= -->
-  <!-- HIDDEN 3-TAP ABOUT MODAL (GOURAV KUMAR & SPEARHEAD ARCHITECTURE) -->
+  <!-- SPEARHEAD SYSTEM & GUIDE MODAL (TABS: KEYCHAIN MANUAL, UPLOAD MEDIA, ARCHITECTURE) -->
   <!-- ========================================================= -->
   <div id="aboutModal" class="modal-backdrop" onclick="closeAboutModal(event)">
-    <div class="modal-card" onclick="event.stopPropagation()">
-      <div class="modal-header">
+    <div class="modal-card" style="max-width:560px; padding:0; overflow:hidden;" onclick="event.stopPropagation()">
+      <div class="modal-header" style="padding:16px 20px 12px 20px; border-bottom:1px solid var(--border);">
         <div class="modal-title">
           <div class="brand-logo-box" style="padding:2px 6px; font-size:0.72rem;">SPEARHEAD</div>
-          <span>SYSTEM ARCHITECTURE</span>
+          <span>CONTROL & SYSTEM GUIDE</span>
         </div>
         <button class="modal-close" onclick="closeAboutModal()">&times;</button>
       </div>
-      <div class="modal-body">
-        
-        <div class="about-section">
-          <div class="about-sec-title">ARCHITECT & LEAD ENGINEER</div>
-          <div style="font-size:0.95rem; font-weight:800; color:var(--beige-light);">Gourav Kumar</div>
-          <div style="font-size:0.72rem; color:var(--beige-muted);">Embedded Firmware, BLE Communication & Hardware UI Development</div>
-        </div>
 
-        <div class="about-section">
-          <div class="about-sec-title">HARDWARE ARCHITECTURE</div>
-          <div style="font-size:0.74rem; color:var(--beige-muted); display:flex; flex-direction:column; gap:4px;">
-            <div>• <b>Microcontroller:</b> ESP32-C3 RISC-V 32-bit Single-Core @ 160MHz</div>
-            <div>• <b>Display Panel:</b> 1.3" 240×240 IPS TFT (ST7789 via LovyanGFX High-Speed SPI @ 40MHz)</div>
-            <div>• <b>Input Engine:</b> GPIO 4 Capacitive Touch / Tactile Button ISR with Edge Debounce</div>
-            <div>• <b>Power Subsystem:</b> 1S LiPo with 16-Sample Calibrated ADC & Multimeter Flash Storage</div>
-            <div>• <b>Dock Sensing:</b> Dual-Port USB-C VBUS & TP4056 High-Z Dynamic LED Pin Sampling</div>
-            <div>• <b>Wireless:</b> Bluetooth Low Energy 5.0 (NimBLE Sequential GATT Engine)</div>
+      <!-- MODAL TAB HEADER -->
+      <div style="display:flex; border-bottom:1px solid var(--border); background:rgba(0,0,0,0.35);">
+        <button class="modal-tab-btn active" id="modalTabBtnGuide" onclick="switchModalTab('guide')">📖 KEYCHAIN MANUAL</button>
+        <button class="modal-tab-btn" id="modalTabBtnUpload" onclick="switchModalTab('upload')">⚡ UPLOAD MEDIA</button>
+        <button class="modal-tab-btn" id="modalTabBtnSystem" onclick="switchModalTab('system')">⚙️ ARCHITECTURE</button>
+      </div>
+
+      <div class="modal-body" style="padding:16px 20px; max-height:68vh; overflow-y:auto;">
+        
+        <!-- PANE 1: KEYCHAIN MANUAL & BLUETOOTH GUIDE -->
+        <div id="modalPaneGuide" class="modal-pane active">
+          <div class="about-section">
+            <div class="about-sec-title">HOW TO WAKE UP & TURN ON THE KEYCHAIN</div>
+            
+            <div style="display:flex; flex-direction:column; gap:12px; margin-top:8px;">
+              
+              <!-- WAKE UP & BASIC POWER -->
+              <div style="background:#131518; border:1px solid #282b33; border-radius:8px; padding:12px;">
+                <div style="font-size:0.75rem; font-weight:800; color:var(--emerald); margin-bottom:5px; display:flex; align-items:center; gap:6px;">
+                  <span style="background:var(--emerald); color:#000; font-size:0.65rem; padding:1px 6px; border-radius:4px; font-weight:900;">POWER / WAKE</span>
+                  TURNING ON / WAKING FROM SLEEP
+                </div>
+                <div style="font-size:0.72rem; color:var(--beige-light); line-height:1.5;">
+                  • <b>Waking Up:</b> If the screen is dark / in deep sleep, simply <b>press the physical button once</b> to wake the keychain up immediately.<br>
+                  • <b>Desk Dock Auto-On:</b> Plugging the keychain into USB-C or charging dock automatically wakes the system and enters Desk Dock mode with Bluetooth enabled!
+                </div>
+              </div>
+
+              <!-- HOW TO TURN ON BLUETOOTH -->
+              <div style="background:#131518; border:1px solid #282b33; border-radius:8px; padding:12px;">
+                <div style="font-size:0.75rem; font-weight:800; color:var(--cyan); margin-bottom:5px; display:flex; align-items:center; gap:6px;">
+                  <span style="background:var(--cyan); color:#000; font-size:0.65rem; padding:1px 6px; border-radius:4px; font-weight:900;">OPTION 1</span>
+                  PRESS & HOLD (10 TO 14 SECONDS)
+                </div>
+                <div style="font-size:0.72rem; color:var(--beige-light); line-height:1.5;">
+                  1. Press and hold down the physical tactile button on the keychain.<br>
+                  2. At <b>6 seconds</b>, the screen displays the large Battery HUD.<br>
+                  3. Keep holding until <b>10 seconds</b> when the screen displays <b>"RELEASE FOR BLE"</b>.<br>
+                  4. Release the button between <b>10 and 14 seconds</b> to activate Bluetooth! The blue LED blinks once to confirm.
+                </div>
+                <div style="font-size:0.66rem; color:var(--beige-muted); margin-top:6px;">
+                  <i>(If held past 14 seconds, the device will safely power off into deep sleep).</i>
+                </div>
+              </div>
+
+              <!-- OPTION 2 -->
+              <div style="background:#131518; border:1px solid #282b33; border-radius:8px; padding:12px;">
+                <div style="font-size:0.75rem; font-weight:800; color:var(--accent); margin-bottom:5px; display:flex; align-items:center; gap:6px;">
+                  <span style="background:var(--accent); color:#000; font-size:0.65rem; padding:1px 6px; border-radius:4px; font-weight:900;">OPTION 2</span>
+                  QUICK 4-CLICK SHORTCUT
+                </div>
+                <div style="font-size:0.72rem; color:var(--beige-light); line-height:1.5;">
+                  Rapidly click/press the physical push button <b>4 times</b> in a row to toggle the Bluetooth radio ON or OFF immediately without waiting!
+                </div>
+              </div>
+
+              <!-- COMPLETE BUTTON REFERENCE MANUAL -->
+              <div style="background:#131518; border:1px solid #282b33; border-radius:8px; padding:12px;">
+                <div style="font-size:0.75rem; font-weight:800; color:var(--amber); margin-bottom:8px;">
+                  BUTTON CONTROLS CHEAT SHEET
+                </div>
+                <div style="font-size:0.70rem; color:var(--beige-muted); display:flex; flex-direction:column; gap:5px; line-height:1.4;">
+                  <div>• <b>1 Click:</b> Next animation / Cycle face / Wake up from sleep</div>
+                  <div>• <b>2 Clicks:</b> Switch clock layout (CyberHUD / Minimalistic One)</div>
+                  <div>• <b>3 Clicks:</b> Invert screen colors / Display mode</div>
+                  <div>• <b>4 Clicks:</b> Toggle Bluetooth ON / OFF instantly</div>
+                  <div>• <b>Hold 2–5s:</b> Show Custom Text Marquee Message</div>
+                  <div>• <b>Hold 6–9s:</b> Show Battery HUD & Live Voltage Telemetry</div>
+                  <div>• <b>Hold 10–14s:</b> Toggle Bluetooth (release when screen says "RELEASE FOR BLE")</div>
+                  <div>• <b>Hold >14s:</b> Safe Power Off into Ultra-Low Power Deep Sleep</div>
+                </div>
+              </div>
+
+              <!-- CONNECT ACTION BUTTON -->
+              <button class="btn-primary" style="width:100%; padding:12px; font-weight:800; font-size:0.78rem;" onclick="connectBLE(); closeAboutModal();">
+                PAIR / CONNECT BLUETOOTH NOW
+              </button>
+
+            </div>
           </div>
         </div>
 
-        <div class="about-section">
-          <div class="about-sec-title">VERSION RELEASE HISTORY</div>
-          <div style="font-size:0.72rem; color:var(--beige-muted); display:flex; flex-direction:column; gap:6px;">
-            <div>
-              <b style="color:var(--accent);">v5.2 (Smart Desk Dock & Web Flasher):</b>
-              <br>42-animation customizable playlist selector (Top 12, Top 20, All 42, Kawaii, Action, Chill), sequential vs. shuffle order, Minimalistic One clock, 1-click in-browser Web USB firmware flasher, direct mobile flashing support.
+        <!-- PANE 2: UPLOAD MEDIA (LITTLEFS) -->
+        <div id="modalPaneUpload" class="modal-pane" style="display:none;">
+          <div class="about-section">
+            <div class="about-sec-title">UPLOAD MEDIA & STREAM TO ESP32 (LITTLEFS)</div>
+            <div style="font-size:0.72rem; color:var(--beige-muted); margin-bottom:12px; line-height:1.45;">
+              Upload custom boot animations, logos, or stream live media directly into the ESP32 SPI Flash memory.
             </div>
-            <div>
-              <b style="color:var(--beige-light);">v5.1 (Power & Calibration Update):</b>
-              <br>Multimeter battery voltage calibration tool with NVS flash persistence, dual-port TP4056 + Type-C charging sensing with High-Z pin sampling, auto dock Bluetooth management, and brownout suppression.
+
+            <div style="display:flex; flex-direction:column; gap:10px;">
+              <div style="background:#131518; border:1px solid #282b33; border-radius:8px; padding:12px; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <div style="font-size:0.75rem; font-weight:800; color:var(--beige-light);">BOOT SPLASH / LOGO</div>
+                  <div style="font-size:0.68rem; color:var(--beige-muted);">Custom GIF or JPEG boot screen</div>
+                </div>
+                <button class="btn-secondary" style="padding:6px 12px; font-size:0.70rem;" onclick="switchTab('tabBoot'); closeAboutModal();">
+                  OPEN BOOT TAB
+                </button>
+              </div>
+
+              <div style="background:#131518; border:1px solid #282b33; border-radius:8px; padding:12px; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <div style="font-size:0.75rem; font-weight:800; color:var(--beige-light);">LIVE VIDEO & IMAGE STREAM</div>
+                  <div style="font-size:0.68rem; color:var(--beige-muted);">Stream frames directly to ST7789 display</div>
+                </div>
+                <button class="btn-secondary" style="padding:6px 12px; font-size:0.70rem;" onclick="switchTab('tabStream'); closeAboutModal();">
+                  OPEN STREAM TAB
+                </button>
+              </div>
+
+              <div style="background:#131518; border:1px solid #282b33; border-radius:8px; padding:12px;">
+                <div style="font-size:0.74rem; font-weight:800; color:var(--beige-light); margin-bottom:6px;">QUICK FILE UPLOADER</div>
+                <input type="file" id="modalMediaFileInput" accept="image/*,.gif,.jpg,.jpeg,.bmp" style="font-size:0.70rem; color:var(--beige-muted); width:100%; margin-bottom:8px;">
+                <button class="btn-primary" style="width:100%; padding:8px; font-size:0.72rem;" onclick="handleQuickUploadModal()">
+                  UPLOAD TO ESP32 FLASH
+                </button>
+              </div>
             </div>
-            <div>
-              <b style="color:var(--beige-light);">v5.0 (Spearhead Release):</b>
-              <br>Full Spearhead rebrand, custom bootloader with animated slanted progress telemetry, 3-tap engineer modal, dedicated 2s-hold secret message hub, zero-bloom matte dark professional UI.
+          </div>
+        </div>
+
+        <!-- PANE 3: SYSTEM ARCHITECTURE -->
+        <div id="modalPaneSystem" class="modal-pane" style="display:none;">
+          <div class="about-section">
+            <div class="about-sec-title">ARCHITECT & LEAD ENGINEER</div>
+            <div style="font-size:0.95rem; font-weight:800; color:var(--beige-light);">Gourav Kumar</div>
+            <div style="font-size:0.72rem; color:var(--beige-muted);">Embedded Firmware, BLE Communication & Hardware UI Development</div>
+          </div>
+
+          <div class="about-section">
+            <div class="about-sec-title">HARDWARE ARCHITECTURE</div>
+            <div style="font-size:0.74rem; color:var(--beige-muted); display:flex; flex-direction:column; gap:4px;">
+              <div>• <b>Microcontroller:</b> ESP32-C3 RISC-V 32-bit Single-Core @ 160MHz</div>
+              <div>• <b>Display Panel:</b> 1.3" 240×240 IPS TFT (ST7789 via LovyanGFX High-Speed SPI @ 40MHz)</div>
+              <div>• <b>Input Engine:</b> Tactile Push Button FreeRTOS 333Hz ISR Engine with Edge Debounce</div>
+              <div>• <b>Power Subsystem:</b> 1S LiPo with 16-Sample Calibrated ADC & Multimeter Flash Storage</div>
+              <div>• <b>Dock Sensing:</b> Dual-Port USB-C VBUS & TP4056 High-Z Dynamic LED Pin Sampling (GPIO 20/21)</div>
+              <div>• <b>Wireless:</b> Bluetooth Low Energy 5.0 (NimBLE Sequential GATT Engine)</div>
             </div>
-            <div>
-              <b style="color:var(--beige-dim);">v4.3 - v1.0:</b>
-              <br>Procedural robot eyes, 42 authentic Dasai Mochi GIFs, LittleFS media streaming, CyberHUD clock layouts, digital matrix rain, and BLE sequential GATT engine.
+          </div>
+
+          <div class="about-section">
+            <div class="about-sec-title">VERSION RELEASE HISTORY</div>
+            <div style="font-size:0.72rem; color:var(--beige-muted); display:flex; flex-direction:column; gap:6px;">
+              <div>
+                <b style="color:var(--accent);">v5.2 (Smart Desk Dock & Web Flasher):</b>
+                <br>42-animation customizable playlist selector (Top 12, Top 20, All 42, Kawaii, Action, Chill), sequential vs. shuffle order, Minimalistic One clock, 1-click in-browser Web USB firmware flasher, direct mobile flashing support.
+              </div>
+              <div>
+                <b style="color:var(--beige-light);">v5.1 (Power & Calibration Update):</b>
+                <br>Multimeter battery voltage calibration tool with NVS flash persistence, dual-port TP4056 + Type-C charging sensing with High-Z pin sampling, auto dock Bluetooth management, and brownout suppression.
+              </div>
+              <div>
+                <b style="color:var(--beige-light);">v5.0 (Spearhead Release):</b>
+                <br>Full Spearhead rebrand, tactile button FreeRTOS ISR, 10-14s BLE hold & 4-click shortcut, enlarged 5s Battery HUD, custom 1-click animation selection, zero-bloom matte dark professional UI.
+              </div>
+              <div>
+                <b style="color:var(--beige-dim);">v4.3 - v1.0:</b>
+                <br>Procedural robot eyes, 42 authentic Dasai Mochi GIFs, LittleFS media streaming, CyberHUD clock layouts, digital matrix rain, and BLE sequential GATT engine.
+              </div>
             </div>
           </div>
         </div>
 
       </div>
-      <div class="modal-footer">
+      <div class="modal-footer" style="padding:12px 20px; border-top:1px solid var(--border);">
         <button class="btn-primary" style="width:100%;" onclick="closeAboutModal()">CLOSE WINDOW</button>
       </div>
     </div>
@@ -1931,21 +2079,10 @@
     }
 
     // -------------------------------------------------------------
-    // 3-TAP HEADER LOGO TRIGGER FOR HIDDEN ABOUT MODAL
+    // HEADER LOGO TRIGGER FOR SPEARHEAD GUIDE & SYSTEM MODAL
     // -------------------------------------------------------------
-    let logoTapCount = 0;
-    let logoTapTimer = null;
-
     function handleLogoTap() {
-      vibrate(15);
-      logoTapCount++;
-      if (logoTapTimer) clearTimeout(logoTapTimer);
-      logoTapTimer = setTimeout(() => { logoTapCount = 0; }, 1200);
-
-      if (logoTapCount >= 3) {
-        logoTapCount = 0;
-        openAboutModal();
-      }
+      openAboutModal();
     }
 
     function openAboutModal() {
@@ -1958,6 +2095,31 @@
       if (e && e.target && e.target !== e.currentTarget && !e.target.classList.contains('modal-close')) return;
       const modal = document.getElementById('aboutModal');
       if (modal) modal.classList.remove('active');
+    }
+
+    function switchModalTab(tabId) {
+      vibrate(10);
+      const tabs = ['guide', 'upload', 'system'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`modalTabBtn${t.charAt(0).toUpperCase() + t.slice(1)}`);
+        const pane = document.getElementById(`modalPane${t.charAt(0).toUpperCase() + t.slice(1)}`);
+        if (btn) btn.classList.toggle('active', t === tabId);
+        if (pane) {
+          pane.style.display = (t === tabId) ? 'block' : 'none';
+          pane.classList.toggle('active', t === tabId);
+        }
+      });
+    }
+
+    function handleQuickUploadModal() {
+      const input = document.getElementById('modalMediaFileInput');
+      if (!input || !input.files || input.files.length === 0) {
+        alert("Please select a photo, GIF, or boot image first.");
+        return;
+      }
+      closeAboutModal();
+      switchTab('tabBoot');
+      uploadBootImage({ target: input });
     }
 
     // -------------------------------------------------------------
