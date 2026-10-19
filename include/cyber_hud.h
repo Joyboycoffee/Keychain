@@ -5,6 +5,18 @@
 #include "emoji_renderer.h"
 #include "fredoka_font.h"
 
+#include <esp_attr.h>
+#include <time.h>
+#include <sys/time.h>
+
+extern "C" uint64_t esp_rtc_get_time_us(void);
+
+// RTC slow memory variables that survive deep sleep across all sleep/wake cycles!
+RTC_DATA_ATTR static uint64_t rtcBaseEpochSec = 0;   // Local epoch in seconds at sync
+RTC_DATA_ATTR static uint64_t rtcBaseRtcUs    = 0;   // esp_rtc_get_time_us() at sync
+RTC_DATA_ATTR static uint64_t rtcSleepStartUs = 0;   // Timestamp when deep sleep began
+RTC_DATA_ATTR static bool     rtcTimeValid    = false;// True once synced from phone/web
+
 class CyberHUD {
 public:
     int currentLayout = 0; // 0 = Full HUD with Eyes, 1 = Big Clock & Date, 2 = Minimalist Dashboard, 3 = Minimalistic One
@@ -33,6 +45,87 @@ public:
     float batteryVoltage = 4.12f;
     int batteryPercent = 95;
     bool isUsbPowered = false;
+
+    static const char* getOrdinal(int d) {
+        if (d > 3 && d < 21) return "th";
+        switch (d % 10) {
+            case 1: return "st";
+            case 2: return "nd";
+            case 3: return "rd";
+            default: return "th";
+        }
+    }
+
+    void refreshDateStrings(const struct tm& ti) {
+        static const char* daysShort[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
+        static const char* monthsShort[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+        static const char* daysLong[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+        static const char* monthsLong[] = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"};
+
+        int wday = (ti.tm_wday >= 0 && ti.tm_wday < 7) ? ti.tm_wday : 0;
+        int mon  = (ti.tm_mon >= 0 && ti.tm_mon < 12) ? ti.tm_mon : 0;
+        int mday = (ti.tm_mday >= 1 && ti.tm_mday <= 31) ? ti.tm_mday : 1;
+
+        char buf[32];
+        snprintf(buf, sizeof(buf), "%s %d %s", daysShort[wday], mday, monthsShort[mon]);
+        dateString = String(buf);
+
+        char fullBuf[64];
+        snprintf(fullBuf, sizeof(fullBuf), "%s, %d%s %s", daysLong[wday], mday, getOrdinal(mday), monthsLong[mon]);
+        fullDateString = String(fullBuf);
+    }
+
+    void syncRealTime(int h, int m, int s, int64_t localEpoch, const String& dStr, const String& fdStr) {
+        hours = h;
+        minutes = m;
+        seconds = s;
+        if (dStr.length() > 0) dateString = dStr;
+        if (fdStr.length() > 0) fullDateString = fdStr;
+
+        if (localEpoch > 100000) {
+            rtcBaseEpochSec = (uint64_t)localEpoch;
+        } else {
+            // Construct epoch assuming base year 2026 if no epoch was provided
+            struct tm t = {0};
+            t.tm_year = 2026 - 1900;
+            t.tm_mon  = 9; // October (0-indexed)
+            t.tm_mday = 19;
+            t.tm_hour = h;
+            t.tm_min  = m;
+            t.tm_sec  = s;
+            time_t calculated = mktime(&t);
+            rtcBaseEpochSec = (calculated > 0) ? (uint64_t)calculated : (h * 3600 + m * 60 + s);
+        }
+
+        rtcBaseRtcUs = esp_rtc_get_time_us();
+        rtcTimeValid = true;
+        lastTick = millis();
+        Serial.printf("[RTC] Synced real time to Hardware RTC: %02d:%02d:%02d (Epoch: %llu, RTC_US: %llu)\n", 
+                      h, m, s, rtcBaseEpochSec, rtcBaseRtcUs);
+    }
+
+    void updateTimeFromRtc() {
+        if (!rtcTimeValid) return;
+
+        uint64_t nowRtcUs = esp_rtc_get_time_us();
+        if (nowRtcUs < rtcBaseRtcUs) return;
+
+        uint64_t elapsedSec = (nowRtcUs - rtcBaseRtcUs) / 1000000ULL;
+        time_t curEpoch = (time_t)(rtcBaseEpochSec + elapsedSec);
+
+        struct tm ti;
+        gmtime_r(&curEpoch, &ti);
+
+        static int lastKnownMday = -1;
+        if (lastKnownMday != -1 && ti.tm_mday != lastKnownMday) {
+            refreshDateStrings(ti);
+        }
+        lastKnownMday = ti.tm_mday;
+
+        hours = ti.tm_hour;
+        minutes = ti.tm_min;
+        seconds = ti.tm_sec;
+    }
 
     void setTime(int h, int m, int s) {
         hours = h; minutes = m; seconds = s;
@@ -91,15 +184,19 @@ public:
     }
 
     void tick() {
-        if (millis() - lastTick > 1000) {
+        if (millis() - lastTick >= 1000) {
             lastTick = millis();
-            seconds++;
-            if (seconds >= 60) {
-                seconds = 0;
-                minutes++;
-                if (minutes >= 60) {
-                    minutes = 0;
-                    hours = (hours + 1) % 24;
+            if (rtcTimeValid) {
+                updateTimeFromRtc();
+            } else {
+                seconds++;
+                if (seconds >= 60) {
+                    seconds = 0;
+                    minutes++;
+                    if (minutes >= 60) {
+                        minutes = 0;
+                        hours = (hours + 1) % 24;
+                    }
                 }
             }
         }

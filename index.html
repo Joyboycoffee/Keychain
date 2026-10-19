@@ -3653,10 +3653,11 @@
       const fullDateStr = `${fullDays[now.getDay()]}, ${dNum}${getOrdinalSuffix(dNum)} ${fullMonths[now.getMonth()]}`;
 
       let temp = 24.5;
-      const payload = `${h}:${m}:${s}|${temp}|${dateStr}|${fullDateStr}`;
+      const localEpoch = Math.floor((now.getTime() - now.getTimezoneOffset() * 60000) / 1000);
+      const payload = `${h}:${m}:${s}|${temp}|${dateStr}|${fullDateStr}|${localEpoch}`;
       const data = new TextEncoder().encode(payload);
       await safeBleWrite(charTime, data, false);
-      log(`Time & Date synced: ${h}:${m}:${s} (${fullDateStr})`);
+      log(`Time & Date synced: ${h}:${m}:${s} (${fullDateStr}) [Epoch: ${localEpoch}]`);
     }
 
     // -------------------------------------------------------------

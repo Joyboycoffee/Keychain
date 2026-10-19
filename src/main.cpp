@@ -320,40 +320,50 @@ class TimeCallback : public NimBLECharacteristicCallbacks {
             int h = atoi(val.substr(0, 2).c_str());
             int m = atoi(val.substr(3, 2).c_str());
             int s = atoi(val.substr(6, 2).c_str());
-            cyberHUD.setTime(h, m, s);
-            prefs.putInt("saved_h", h);
-            prefs.putInt("saved_m", m);
-            prefs.putInt("saved_s", s);
             
+            float temp = 24.5f;
+            String dateStr = "";
+            String fullDateStr = "";
+            int64_t localEpoch = 0;
+
             size_t barIdx = val.find('|');
             if (barIdx != std::string::npos) {
                 std::string rest = val.substr(barIdx + 1);
                 size_t secondBar = rest.find('|');
                 if (secondBar != std::string::npos) {
-                    float temp = atof(rest.substr(0, secondBar).c_str());
+                    temp = atof(rest.substr(0, secondBar).c_str());
                     std::string dateAndFull = rest.substr(secondBar + 1);
                     size_t thirdBar = dateAndFull.find('|');
                     if (thirdBar != std::string::npos) {
-                        String dateStr = String(dateAndFull.substr(0, thirdBar).c_str());
-                        String fullDateStr = String(dateAndFull.substr(thirdBar + 1).c_str());
-                        cyberHUD.setWeather(temp, "SYNCED");
-                        cyberHUD.setDate(dateStr);
-                        cyberHUD.setFullDate(fullDateStr);
-                        prefs.putString("saved_date", dateStr);
-                        prefs.putString("saved_fdate", fullDateStr);
+                        dateStr = String(dateAndFull.substr(0, thirdBar).c_str());
+                        std::string fourthRest = dateAndFull.substr(thirdBar + 1);
+                        size_t fourthBar = fourthRest.find('|');
+                        if (fourthBar != std::string::npos) {
+                            fullDateStr = String(fourthRest.substr(0, fourthBar).c_str());
+                            localEpoch = atoll(fourthRest.substr(fourthBar + 1).c_str());
+                        } else {
+                            fullDateStr = String(fourthRest.c_str());
+                        }
                     } else {
-                        String dateStr = String(dateAndFull.c_str());
-                        cyberHUD.setWeather(temp, "SYNCED");
-                        cyberHUD.setDate(dateStr);
-                        prefs.putString("saved_date", dateStr);
+                        dateStr = String(dateAndFull.c_str());
                     }
                 } else {
-                    float temp = atof(rest.c_str());
-                    cyberHUD.setWeather(temp, "SYNCED");
+                    temp = atof(rest.c_str());
                 }
             }
+
+            cyberHUD.syncRealTime(h, m, s, localEpoch, dateStr, fullDateStr);
+            cyberHUD.setWeather(temp, "SYNCED");
+
+            prefs.putInt("saved_h", h);
+            prefs.putInt("saved_m", m);
+            prefs.putInt("saved_s", s);
+            if (dateStr.length() > 0) prefs.putString("saved_date", dateStr);
+            if (fullDateStr.length() > 0) prefs.putString("saved_fdate", fullDateStr);
+
             lastActivityTime = millis();
-            Serial.printf("[BLE] Time Synced & Saved to NVS: %02d:%02d:%02d\n", h, m, s);
+            Serial.printf("[BLE] Time Synced to Hardware RTC: %02d:%02d:%02d | Date: %s | Epoch: %lld\n",
+                          h, m, s, dateStr.c_str(), (long long)localEpoch);
         }
     }
 };
@@ -2017,6 +2027,12 @@ void handleButtonEvents() {
 void enterDeepSleep() {
     Serial.println("[POWER] Entering Deep Sleep (Ultra-Low Power Mode)...");
 
+    // Capture latest time from hardware RTC before entering sleep
+    if (rtcTimeValid) {
+        cyberHUD.updateTimeFromRtc();
+    }
+    rtcSleepStartUs = esp_rtc_get_time_us();
+
     // Save time, telemetry, and active mode/animation to NVS so exact state is restored on next wakeup
     prefs.putInt("saved_h", cyberHUD.hours);
     prefs.putInt("saved_m", cyberHUD.minutes);
@@ -2395,14 +2411,25 @@ void setup() {
     cyberHUD.showCustomText = prefs.getBool("hud_text", true);
     cyberHUD.setCustomText(prefs.getString("hud_msg", "SPEARHEAD // SYS_ONLINE"));
     cyberHUD.setTimeFormat(prefs.getUChar("time_fmt", 12) == 12);
-    int savedH = prefs.getInt("saved_h", -1);
-    if (savedH >= 0) {
-        int savedM = prefs.getInt("saved_m", 0);
-        int savedS = prefs.getInt("saved_s", 0);
-        cyberHUD.setTime(savedH, savedM, savedS);
-        cyberHUD.setDate(prefs.getString("saved_date", "SUN 13 SEP 2026"));
-        cyberHUD.setFullDate(prefs.getString("saved_fdate", "Tuesday, 13th October"));
-        Serial.printf("[NVS] Restored last synced time: %02d:%02d:%02d\n", savedH, savedM, savedS);
+    if (rtcTimeValid) {
+        cyberHUD.updateTimeFromRtc();
+        uint64_t nowRtcUs = esp_rtc_get_time_us();
+        uint32_t sleptSec = 0;
+        if (rtcSleepStartUs > 0 && nowRtcUs >= rtcSleepStartUs) {
+            sleptSec = (uint32_t)((nowRtcUs - rtcSleepStartUs) / 1000000ULL);
+        }
+        Serial.printf("[RTC] Woke from deep sleep! Slept for %u sec (%u min %u sec). RTC Current Time: %02d:%02d:%02d (%s)\n",
+                      sleptSec, sleptSec / 60, sleptSec % 60, cyberHUD.hours, cyberHUD.minutes, cyberHUD.seconds, cyberHUD.fullDateString.c_str());
+    } else {
+        int savedH = prefs.getInt("saved_h", -1);
+        if (savedH >= 0) {
+            int savedM = prefs.getInt("saved_m", 0);
+            int savedS = prefs.getInt("saved_s", 0);
+            cyberHUD.setTime(savedH, savedM, savedS);
+            cyberHUD.setDate(prefs.getString("saved_date", "SUN 13 SEP 2026"));
+            cyberHUD.setFullDate(prefs.getString("saved_fdate", "Tuesday, 13th October"));
+            Serial.printf("[NVS] Cold boot: Restored last saved time: %02d:%02d:%02d\n", savedH, savedM, savedS);
+        }
     }
     String shyMsg = prefs.getString("hud_shy", "I LOVE YOU");
     cyberHUD.setShyText(shyMsg);
