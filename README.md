@@ -45,6 +45,26 @@ If you prefer using an Android flashing app (such as *Serial USB Terminal*, *ESP
 4. Select `spearhead_merged_factory_4mb.bin` at target offset **`0x00000000`** (`0x0`).
 5. Tap **Flash**!
 
+### Method 3: Desktop Flasher Studio & Python Auto-Command (PC / Mac / Linux)
+A dedicated auto-detecting desktop GUI and CLI tool is included directly in the repository:
+- **Desktop Application (GUI)**:
+  - Double-click **`flash_keychain.bat`** (or the **`Spearhead Flasher`** desktop shortcut) to open the tactical flasher studio.
+  - Automatically scans all connected COM ports and highlights your connected ESP32-C3.
+  - Features real-time progress bar, live terminal console, baud rate selector, and an *Auto-Flash on Connect* toggle.
+- **Instant Automatic CLI Flash**:
+  - Run **`flash_auto.bat`** or in terminal:
+    ```bash
+    python flash_tool.py --auto
+    ```
+    Scans all connected ports, automatically picks the ESP32-C3, flashes the full factory firmware + Mochi GIF filesystem, and resets the board automatically with zero manual prompts!
+- **Advanced CLI Commands**:
+  ```bash
+  python flash_tool.py --list          # Scan & list candidate ESP serial ports
+  python flash_tool.py --port COM7     # Flash specific COM port
+  python flash_tool.py --type app      # Fast 4-second app firmware update only (0x10000)
+  python flash_tool.py --type fs       # LittleFS GIF assets only (0x170000)
+  ```
+
 ---
 
 ## 📦 Pre-Compiled Binary Assets
