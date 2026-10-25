@@ -1013,10 +1013,15 @@
             <span class="text-accent">2.4GHz</span>
           </div>
         </div>
-        <button id="btnConnect" class="btn-primary" onclick="connectBLE()" style="padding:8px 14px; font-weight:800;" title="Connect Keychain over Bluetooth">
-          <svg viewBox="0 0 24 24"><path d="M6.5 6.5l11 11L12 23V1l5.5 5.5-11 11"/></svg>
-          CONNECT KEYCHAIN
-        </button>
+        <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-end;">
+          <button id="btnConnect" class="btn-primary" onclick="connectBLE()" style="padding:8px 14px; font-weight:800;" title="Connect Keychain over Bluetooth">
+            <svg viewBox="0 0 24 24"><path d="M6.5 6.5l11 11L12 23V1l5.5 5.5-11 11"/></svg>
+            CONNECT KEYCHAIN
+          </button>
+          <button id="btnConnectPC" class="btn-secondary" onclick="toggleAndConnectPCMode()" style="padding:3px 8px; font-size:0.62rem; font-weight:700; letter-spacing:0.5px; border:1px solid var(--border-accent); background:rgba(0,0,0,0.5); color:var(--cyan); border-radius:3px; cursor:pointer;" title="If device does not show up on Windows PC, use this to scan all nearby Bluetooth devices">
+            🔍 PC MODE (SHOW ALL)
+          </button>
+        </div>
       </div>
 
       <!-- POD 2: POWER MATRIX -->
@@ -2396,7 +2401,29 @@
     // -------------------------------------------------------------
     // BLE CONNECTION ENGINE
     // -------------------------------------------------------------
-    async function connectBLE() {
+    function toggleAndConnectPCMode() {
+      localStorage.setItem('spearhead_pc_mode', 'true');
+      updatePCModeBadge();
+      connectBLE(true);
+    }
+
+    function updatePCModeBadge() {
+      const isPC = localStorage.getItem('spearhead_pc_mode') === 'true';
+      const btn = document.getElementById('btnConnectPC');
+      if (btn) {
+        if (isPC) {
+          btn.innerHTML = '⚡ PC MODE: ON (ALL DEVICES)';
+          btn.style.color = 'var(--green)';
+          btn.style.borderColor = 'var(--green)';
+        } else {
+          btn.innerHTML = '🔍 PC MODE (SHOW ALL)';
+          btn.style.color = 'var(--cyan)';
+          btn.style.borderColor = 'var(--border-accent)';
+        }
+      }
+    }
+
+    async function connectBLE(forceAllDevices = false) {
       vibrate();
       if (!navigator.bluetooth) {
         alert("Web Bluetooth is not supported in this browser context!\n\n1. Make sure you are accessing via HTTPS (or localhost).\n2. Use Google Chrome, Microsoft Edge, or Samsung Internet.\n3. On iOS (iPhone/iPad), use the Bluefy Bluetooth browser.");
@@ -2405,22 +2432,40 @@
       }
 
       try {
-        log("Scanning for SPEARHEAD BLE device...");
         const sb = document.getElementById('statusBadge');
         if (sb) {
           sb.innerText = "CONNECTING...";
           sb.className = "badge badge-warn";
         }
+
+        const isPCMode = (forceAllDevices === true) || (localStorage.getItem('spearhead_pc_mode') === 'true');
         
-        bleDevice = await navigator.bluetooth.requestDevice({
-          filters: [
-            { name: 'SPEARHEAD' },
-            { namePrefix: 'SPEAR' },
-            { name: 'DIGI_KEYCHAIN' },
-            { namePrefix: 'DIGI' }
-          ],
-          optionalServices: [ SERVICE_UUID ]
-        });
+        let requestOptions;
+        if (isPCMode) {
+          log("[BLE] Scanning in PC Mode (Showing all nearby Bluetooth devices)...");
+          requestOptions = {
+            acceptAllDevices: true,
+            optionalServices: [ SERVICE_UUID ]
+          };
+        } else {
+          log("Scanning for SPEARHEAD BLE device...");
+          requestOptions = {
+            filters: [
+              { services: [ SERVICE_UUID ] },
+              { name: 'SPEARHEAD' },
+              { namePrefix: 'SPEAR' },
+              { namePrefix: 'spear' },
+              { name: 'DIGI_KEYCHAIN' },
+              { namePrefix: 'DIGI' },
+              { namePrefix: 'digi' },
+              { namePrefix: 'ESP' },
+              { namePrefix: 'esp' }
+            ],
+            optionalServices: [ SERVICE_UUID ]
+          };
+        }
+        
+        bleDevice = await navigator.bluetooth.requestDevice(requestOptions);
 
         log(`Connecting to: ${bleDevice.name || 'SPEARHEAD'}...`);
         bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
@@ -2515,6 +2560,14 @@
           sb.className = "badge badge-alert";
         }
         resetBatteryHUDToOffline();
+
+        if (err.name === 'NotFoundError' && !forceAllDevices && localStorage.getItem('spearhead_pc_mode') !== 'true') {
+          setTimeout(() => {
+            if (confirm("SPEARHEAD Keychain not showing up in the Windows scan list?\n\nWindows Bluetooth often drops name filters unless 'PC Mode (Show All Devices)' is used.\n\nWould you like to scan again in PC Mode?")) {
+              toggleAndConnectPCMode();
+            }
+          }, 350);
+        }
       }
     }
 
@@ -4038,6 +4091,7 @@
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
+      if (typeof updatePCModeBadge === 'function') updatePCModeBadge();
         navigator.serviceWorker.register('./sw.js')
           .then((reg) => {
             console.log('[PWA] Service Worker active:', reg.scope);

@@ -2562,7 +2562,17 @@ void setup() {
     // Configure Advertising: Device Name in Primary Ad, 128-bit Service in Scan Response
     NimBLEAdvertising* pAdv = NimBLEDevice::getAdvertising();
     pAdv->setScanResponse(true);
-    pAdv->addServiceUUID(SERVICE_UUID);
+
+    NimBLEAdvertisementData advData;
+    advData.setFlags(0x06); // General Discoverable + BR/EDR Not Supported
+    advData.setName("SPEARHEAD"); // Explicitly in primary ad so Windows passive scanning ALWAYS sees "SPEARHEAD"
+    pAdv->setAdvertisementData(advData);
+
+    NimBLEAdvertisementData scanData;
+    scanData.setCompleteServices(NimBLEUUID(SERVICE_UUID));
+    scanData.setName("SPEARHEAD");
+    pAdv->setScanResponseData(scanData);
+
     pAdv->setMinInterval(160); // 100ms interval for balanced discovery and low power
     pAdv->setMaxInterval(320); // 200ms interval
 
