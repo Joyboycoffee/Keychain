@@ -2421,6 +2421,7 @@ void setup() {
     prefs.begin("digi_keychain", false);
     tpSenseMode = prefs.getUChar("tp_sense", 0);
     configureTpPins();
+    updateBatteryTelemetry();
     defaultMode = (SystemMode)prefs.getUChar("def_mode", (uint8_t)MODE_CYBERPET);
     currentMode = (SystemMode)prefs.getUChar("cur_mode", (uint8_t)defaultMode);
     memePet.defaultEmotion = (MemeEmotion)prefs.getUChar("def_emo", (uint8_t)EMOTION_LUFFY);
@@ -2559,28 +2560,17 @@ void setup() {
 
     pService->start();
 
-    // Configure Advertising: Device Name in Primary Ad, 128-bit Service in Scan Response
+    // Configure Advertising
     NimBLEAdvertising* pAdv = NimBLEDevice::getAdvertising();
     pAdv->setScanResponse(true);
-
-    NimBLEAdvertisementData advData;
-    advData.setFlags(0x06); // General Discoverable + BR/EDR Not Supported
-    advData.setName("SPEARHEAD"); // Explicitly in primary ad so Windows passive scanning ALWAYS sees "SPEARHEAD"
-    pAdv->setAdvertisementData(advData);
-
-    NimBLEAdvertisementData scanData;
-    scanData.setCompleteServices(NimBLEUUID(SERVICE_UUID));
-    scanData.setName("SPEARHEAD");
-    pAdv->setScanResponseData(scanData);
-
+    pAdv->addServiceUUID(SERVICE_UUID);
     pAdv->setMinInterval(160); // 100ms interval for balanced discovery and low power
     pAdv->setMaxInterval(320); // 200ms interval
 
-    // Initial Startup: Keep BLE in Standby (OFF) to run cool, eliminate battery drain,
-    // and prevent accidental Bluetooth popups on wake! Activate via 4 taps or 4.0s hold.
-    bleActive = false;
-    bleConnected = false;
-    Serial.println("[BLE] BLE Initialized in Standby (OFF). CPU @ 160MHz. Quad-tap or hold 10s to activate BLE.");
+    // Initial Startup: Automatically start BLE advertising for 30s pairing window!
+    startBLE(false);
+    bleStartTimeMs = millis();
+    Serial.println("[BLE] BLE Advertising Active on Boot (30s window). Ready for Phone & PC connection!");
 
     // 4. Cold Boot Splash vs Deep Sleep Wakeup
     if (wakeupReason == ESP_SLEEP_WAKEUP_UNDEFINED) {
@@ -2674,7 +2664,7 @@ void loop() {
         if (targetDockState != candidateDockState) {
             candidateDockState = targetDockState;
             candidateDockStartTime = millis();
-        } else if (millis() - candidateDockStartTime >= 10000) {
+        } else if (millis() - candidateDockStartTime >= (candidateDockState ? 1500 : 3000)) {
             confirmedDockState = candidateDockState;
 
             if (confirmedDockState) {
@@ -2762,9 +2752,10 @@ void loop() {
         }
     }
 
-    // Auto BLE power-down if no connection after 3 minutes (180s) on battery (manual BLE, never in Dock Mode!)
-    if (!confirmedDockState && currentMode != MODE_DESK_COMPANION && !isUsbPower && bleActive && !isConnected && !dockOffTimerPending && (millis() - bleStartTimeMs > 180000)) {
+    // Auto BLE power-down if no connection after 30 seconds on battery
+    if (!confirmedDockState && currentMode != MODE_DESK_COMPANION && !isUsbPower && bleActive && !isConnected && !dockOffTimerPending && (millis() - bleStartTimeMs > 30000)) {
         stopBLE(false);
+        Serial.println("[BLE] 30s Inactivity Window Expired on Battery -> BLE Radio Powered OFF.");
     }
 
     // Auto Sleep Check (ONLY on battery, BLE is OFF, disconnected, and user idle)
