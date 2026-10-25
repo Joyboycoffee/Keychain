@@ -199,42 +199,45 @@ class ServerCallbacks : public NimBLEServerCallbacks {
         bleConnected = true;
         lastActivityTime = millis();
         updateBatteryTelemetry();
-        Serial.printf("\n[BLE] Client Connected! Total Active: %d | Free Heap: %u bytes\n",
-                      pServer->getConnectedCount(), (unsigned int)ESP.getFreeHeap());
-        if (bleActive && pServer->getConnectedCount() < NIMBLE_MAX_CONNECTIONS) {
-            NimBLEDevice::startAdvertising();
-        }
+        // Stop advertising while connected so 100% RF radio core is dedicated to GATT transfer (zero lag/packet drops!)
+        NimBLEDevice::getAdvertising()->stop();
+        Serial.printf("\n[BLE] Client Connected! Radio locked to high-speed GATT. Free Heap: %u bytes\n", (unsigned int)ESP.getFreeHeap());
     }
     void onConnect(NimBLEServer* pServer, ble_gap_conn_desc* desc) override {
         bleConnected = true;
         lastActivityTime = millis();
         updateBatteryTelemetry();
+        // Request blazing fast connection interval (15ms-30ms) for instant service discovery and telemetry
+        pServer->updateConnParams(desc->conn_handle, 12, 24, 0, 400);
+        // Stop advertising while connected so 100% RF radio core is dedicated to GATT transfer (zero lag/packet drops!)
+        NimBLEDevice::getAdvertising()->stop();
         char peerStr[24] = {0};
         snprintf(peerStr, sizeof(peerStr), "%02X:%02X:%02X:%02X:%02X:%02X",
                  desc->peer_id_addr.val[5], desc->peer_id_addr.val[4], desc->peer_id_addr.val[3],
                  desc->peer_id_addr.val[2], desc->peer_id_addr.val[1], desc->peer_id_addr.val[0]);
-        Serial.printf("\n[BLE] Client Connected (desc)! Peer: %s | Total: %d | Free Heap: %u bytes\n",
-                      peerStr, pServer->getConnectedCount(), (unsigned int)ESP.getFreeHeap());
-        if (bleActive && pServer->getConnectedCount() < NIMBLE_MAX_CONNECTIONS) {
-            NimBLEDevice::startAdvertising();
-        }
+        Serial.printf("\n[BLE] Client Connected (desc)! Peer: %s | Fast ConnParams Set | Free Heap: %u bytes\n",
+                      peerStr, (unsigned int)ESP.getFreeHeap());
     }
     void onDisconnect(NimBLEServer* pServer) override {
-        bleConnected = false;
+        bleConnected = (pServer->getConnectedCount() > 0);
         lastActivityTime = millis();
-        Serial.printf("\n[BLE] Client Disconnected. Free Heap: %u bytes\n", (unsigned int)ESP.getFreeHeap());
-        if (bleActive) {
+        Serial.printf("\n[BLE] Client Disconnected. Remaining Active: %d | Free Heap: %u bytes\n",
+                      pServer->getConnectedCount(), (unsigned int)ESP.getFreeHeap());
+        if (!bleConnected && bleActive) {
             bleStartTimeMs = millis(); // Refresh pairing window so user can refresh web page and reconnect!
             NimBLEDevice::startAdvertising();
+            Serial.println("[BLE] All clients disconnected -> Resumed advertising for 30s window.");
         }
     }
     void onDisconnect(NimBLEServer* pServer, ble_gap_conn_desc* desc) override {
-        bleConnected = false;
+        bleConnected = (pServer->getConnectedCount() > 0);
         lastActivityTime = millis();
-        Serial.printf("\n[BLE] Client Disconnected (desc). Free Heap: %u bytes\n", (unsigned int)ESP.getFreeHeap());
-        if (bleActive) {
+        Serial.printf("\n[BLE] Client Disconnected (desc). Remaining Active: %d | Free Heap: %u bytes\n",
+                      pServer->getConnectedCount(), (unsigned int)ESP.getFreeHeap());
+        if (!bleConnected && bleActive) {
             bleStartTimeMs = millis();
             NimBLEDevice::startAdvertising();
+            Serial.println("[BLE] All clients disconnected -> Resumed advertising for 30s window.");
         }
     }
 };
@@ -1534,14 +1537,19 @@ void startBLE(bool notifyVisual) {
 }
 
 void stopBLE(bool notifyVisual) {
+    // If a client is actively connected, NEVER shut down BLE radio or sever the connection!
+    NimBLEServer* pServer = NimBLEDevice::getServer();
+    if (pServer != nullptr && pServer->getConnectedCount() > 0) {
+        bleConnected = true;
+        lastActivityTime = millis();
+        return;
+    }
+
     if (!bleActive && !bleConnected) return;
     bleActive = false;
+    bleConnected = false;
     NimBLEAdvertising* pAdv = NimBLEDevice::getAdvertising();
     if (pAdv) pAdv->stop();
-    if (bleConnected) {
-        NimBLEDevice::getServer()->disconnect(0);
-        bleConnected = false;
-    }
     blinkBleLedOff(); // Blink twice fast when Bluetooth turns OFF
     lastActivityTime = millis(); // Refresh activity timer so device does not instantly sleep upon deactivating BLE
     if (notifyVisual) triggerTouchVisual("BLE OFF", 0x8410, 1500, "BLE:OFFLINE");
@@ -2540,8 +2548,8 @@ void setup() {
 
     // 3. Initialize NimBLE Bluetooth
     Serial.println("[BLE] Initializing NimBLE stack...");
-    NimBLEDevice::init("SPEARHEAD");
-    NimBLEDevice::setPower(ESP_PWR_LVL_P3); // Energy efficient +3dBm (plenty for pocket/keychain, saves massive RF battery!)
+    NimBLEDevice::init("SPEAR");
+    NimBLEDevice::setPower(ESP_PWR_LVL_P9); // Strong +9dBm RF output for instant discovery through cases & RF noise
     NimBLEDevice::setSecurityAuth(false, false, false);
     NimBLEDevice::setMTU(512);
 
