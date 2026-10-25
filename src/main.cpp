@@ -195,33 +195,18 @@ void configureTpPins();
 // BLE CALLBACKS
 // =========================================================================
 class ServerCallbacks : public NimBLEServerCallbacks {
-    void onConnect(NimBLEServer* pServer) override {
-        bleConnected = true;
-        lastActivityTime = millis();
-        updateBatteryTelemetry();
-        Serial.printf("\n[BLE] Client Connected! Free Heap: %u bytes\n", (unsigned int)ESP.getFreeHeap());
-    }
     void onConnect(NimBLEServer* pServer, ble_gap_conn_desc* desc) override {
         bleConnected = true;
         lastActivityTime = millis();
         updateBatteryTelemetry();
-        Serial.printf("\n[BLE] Client Connected (desc)! Free Heap: %u bytes\n", (unsigned int)ESP.getFreeHeap());
-    }
-    void onDisconnect(NimBLEServer* pServer) override {
-        bleConnected = (pServer->getConnectedCount() > 0);
-        lastActivityTime = millis();
-        Serial.printf("\n[BLE] Client Disconnected. Remaining Active: %d | Free Heap: %u bytes\n",
-                      pServer->getConnectedCount(), (unsigned int)ESP.getFreeHeap());
-        if (!bleConnected && bleActive) {
-            bleStartTimeMs = millis();
-            NimBLEDevice::startAdvertising();
-            Serial.println("[BLE] All clients disconnected -> Resumed advertising for 60s window.");
-        }
+        Serial.printf("\n[BLE] Client Connected from %s! Free Heap: %u bytes\n",
+                      NimBLEAddress(desc->peer_id_addr).toString().c_str(),
+                      (unsigned int)ESP.getFreeHeap());
     }
     void onDisconnect(NimBLEServer* pServer, ble_gap_conn_desc* desc) override {
         bleConnected = (pServer->getConnectedCount() > 0);
         lastActivityTime = millis();
-        Serial.printf("\n[BLE] Client Disconnected (desc). Remaining Active: %d | Free Heap: %u bytes\n",
+        Serial.printf("\n[BLE] Client Disconnected. Remaining Active: %d | Free Heap: %u bytes\n",
                       pServer->getConnectedCount(), (unsigned int)ESP.getFreeHeap());
         if (!bleConnected && bleActive) {
             bleStartTimeMs = millis();
@@ -1518,7 +1503,10 @@ void startBLE(bool notifyVisual) {
     bleActive = true;
     blinkBleLedOn(); // Blink once shortly when Bluetooth turns ON
     NimBLEAdvertising* pAdv = NimBLEDevice::getAdvertising();
-    if (pAdv) pAdv->start();
+    if (pAdv) {
+        bool ok = pAdv->start();
+        Serial.printf("[BLE] Advertising start result: %s | Device Address: %s\n", ok ? "SUCCESS" : "FAILED", NimBLEDevice::getAddress().toString().c_str());
+    }
     bleStartTimeMs = millis();
     lastActivityTime = millis();
     if (notifyVisual) triggerTouchVisual("BLE ON", 0x07FF, 2000, "BLE:ONLINE");
@@ -2399,6 +2387,16 @@ void setup() {
     delay(50);
     Serial.println("\n=== SPEARHEAD ENGINE v5.0 STARTUP ===");
 
+    // 0b. Set unique locally administered Base MAC address to break ghost OS pairings
+    uint8_t baseMac[6];
+    if (esp_read_mac(baseMac, ESP_MAC_WIFI_STA) == ESP_OK) {
+        baseMac[0] = (baseMac[0] | 0x02) & 0xFE; // Locally Administered Address (LAA), Unicast
+        baseMac[5] ^= 0x5A;                      // Dissociate from factory ghost pairings in Windows/Phones
+        esp_base_mac_addr_set(baseMac);
+        Serial.printf("[BLE] Base MAC set to: %02X:%02X:%02X:%02X:%02X:%02X\n",
+                      baseMac[0], baseMac[1], baseMac[2], baseMac[3], baseMac[4], baseMac[5]);
+    }
+
     // 1. Release Deep Sleep GPIO Holds & Ensure Backlight & LED start OFF
     gpio_hold_dis((gpio_num_t)PIN_TFT_BL);
     gpio_hold_dis((gpio_num_t)PIN_TFT_SCL);
@@ -2545,7 +2543,6 @@ void setup() {
     // 3. Initialize NimBLE Bluetooth
     Serial.println("[BLE] Initializing NimBLE stack...");
     NimBLEDevice::init("SPEAR");
-    NimBLEDevice::setOwnAddrType(BLE_OWN_ADDR_RANDOM);
     NimBLEDevice::setPower(ESP_PWR_LVL_P9); // Strong +9dBm RF output for instant discovery through cases & RF noise
     NimBLEDevice::setSecurityAuth(false, false, false);
     NimBLEDevice::setMTU(512);
@@ -2582,8 +2579,8 @@ void setup() {
     NimBLEAdvertising* pAdv = NimBLEDevice::getAdvertising();
     pAdv->setScanResponse(true);
     pAdv->addServiceUUID(SERVICE_UUID);
-    pAdv->setMinInterval(160); // 100ms interval for balanced discovery and low power
-    pAdv->setMaxInterval(320); // 200ms interval
+    pAdv->setMinInterval(32);  // 20ms interval for instant, high-visibility discovery
+    pAdv->setMaxInterval(64);  // 40ms interval
 
     // Initial Startup: Automatically start BLE advertising for 30s pairing window!
     startBLE(false);

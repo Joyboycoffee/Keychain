@@ -2428,7 +2428,7 @@
             optionalServices: [ SERVICE_UUID ]
           });
         } catch (filterErr) {
-          if (filterErr.name === 'NotFoundError') {
+          if (filterErr.name === 'NotFoundError' && !filterErr.message.toLowerCase().includes('cancel')) {
             log("[BLE] Filter search cancelled or unlisted; showing all nearby devices...");
             bleDevice = await navigator.bluetooth.requestDevice({
               acceptAllDevices: true,
