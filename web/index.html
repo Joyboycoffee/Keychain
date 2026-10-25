@@ -2412,28 +2412,54 @@
           sb.className = "badge badge-warn";
         }
 
-        bleDevice = await navigator.bluetooth.requestDevice({
-          filters: [
-            { name: 'SPEARHEAD' },
-            { namePrefix: 'SPEAR' },
-            { namePrefix: 'spear' },
-            { name: 'DIGI_KEYCHAIN' },
-            { namePrefix: 'DIGI' },
-            { namePrefix: 'digi' },
-            { namePrefix: 'ESP' },
-            { namePrefix: 'esp' },
-            { services: [ SERVICE_UUID ] }
-          ],
-          optionalServices: [ SERVICE_UUID ]
-        });
+        let bleDevice;
+        try {
+          bleDevice = await navigator.bluetooth.requestDevice({
+            filters: [
+              { name: 'SPEARHEAD' },
+              { namePrefix: 'SPEAR' },
+              { namePrefix: 'spear' },
+              { name: 'SPEAR' },
+              { name: 'DIGI_KEYCHAIN' },
+              { namePrefix: 'DIGI' },
+              { namePrefix: 'ESP' },
+              { services: [ SERVICE_UUID ] }
+            ],
+            optionalServices: [ SERVICE_UUID ]
+          });
+        } catch (filterErr) {
+          if (filterErr.name === 'NotFoundError') {
+            log("[BLE] Filter search cancelled or unlisted; showing all nearby devices...");
+            bleDevice = await navigator.bluetooth.requestDevice({
+              acceptAllDevices: true,
+              optionalServices: [ SERVICE_UUID ]
+            });
+          } else {
+            throw filterErr;
+          }
+        }
 
         log(`Connecting to: ${bleDevice.name || 'SPEARHEAD'}...`);
         bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
         
         gattServer = await bleDevice.gatt.connect();
-        log("GATT connected! Getting primary service...");
+        log("GATT connected! Settling connection...");
         
-        const service = await gattServer.getPrimaryService(SERVICE_UUID);
+        // Brief 350ms settle time so Android/Windows finishes MTU exchange and GATT discovery
+        await new Promise(r => setTimeout(r, 350));
+        log("Getting primary service...");
+
+        let service;
+        try {
+          service = await gattServer.getPrimaryService(SERVICE_UUID);
+        } catch (svcErr) {
+          log(`Direct lookup: ${svcErr.message}. Querying all primary services...`);
+          const services = await gattServer.getPrimaryServices();
+          service = services.find(s => s.uuid.toLowerCase() === SERVICE_UUID.toLowerCase());
+          if (!service) {
+            throw new Error(`Service ${SERVICE_UUID} not found. Available: ${services.map(s => s.uuid).join(', ')}`);
+          }
+        }
         log("Primary service found! Initializing characteristics...");
 
         charMode     = await service.getCharacteristic(CHAR_MODE_UUID).catch(()=>null);
