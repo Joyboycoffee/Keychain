@@ -1752,6 +1752,13 @@ void buttonTask(void* pvParameters) {
 void handleButtonEvents() {
     uint32_t now = millis();
 
+    // If BLE radio timed out, any button interaction automatically reactivates advertising!
+    if (!bleActive && !bleConnected) {
+        startBLE(false);
+        bleStartTimeMs = now;
+        Serial.println("[BLE] User button interaction -> BLE advertising re-activated for 60s pairing window!");
+    }
+
     // 1. Deep Sleep / Power Off (Held >= 14 seconds)
     if (btnEventSleep) {
         btnEventSleep = false;
@@ -2590,7 +2597,7 @@ void setup() {
     // Initial Startup: Automatically start BLE advertising for 30s pairing window!
     startBLE(false);
     bleStartTimeMs = millis();
-    Serial.println("[BLE] BLE Advertising Active on Boot (30s window). Ready for Phone & PC connection!");
+    Serial.println("[BLE] BLE Advertising Active on Boot (60s window). Ready for Phone & PC connection!");
 
     // 4. Cold Boot Splash vs Deep Sleep Wakeup
     if (wakeupReason == ESP_SLEEP_WAKEUP_UNDEFINED) {
@@ -2764,7 +2771,7 @@ void loop() {
     if (dockOffTimerPending && bleActive) {
         if (isConnected) {
             dockOffBleInactivityStartTime = millis(); // Refresh while actively connected
-        } else if (millis() - dockOffBleInactivityStartTime >= 30000) {
+        } else if (millis() - dockOffBleInactivityStartTime >= 60000) {
             stopBLE(false);
             bleAutoTurnedOnByDock = false;
             dockOffTimerPending = false;
@@ -2773,7 +2780,7 @@ void loop() {
     }
 
     // Auto BLE power-down if no connection after 30 seconds on battery
-    if (!confirmedDockState && currentMode != MODE_DESK_COMPANION && !isUsbPower && bleActive && !isConnected && !dockOffTimerPending && (millis() - bleStartTimeMs > 30000)) {
+    if (!confirmedDockState && currentMode != MODE_DESK_COMPANION && !isUsbPower && bleActive && !isConnected && !dockOffTimerPending && (millis() - bleStartTimeMs > 60000)) {
         stopBLE(false);
         Serial.println("[BLE] 30s Inactivity Window Expired on Battery -> BLE Radio Powered OFF.");
     }
