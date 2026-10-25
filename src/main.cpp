@@ -199,13 +199,25 @@ class ServerCallbacks : public NimBLEServerCallbacks {
         bleConnected = true;
         lastActivityTime = millis();
         updateBatteryTelemetry();
-        Serial.printf("\n[BLE] Client Connected! Free Heap: %u bytes\n", (unsigned int)ESP.getFreeHeap());
+        Serial.printf("\n[BLE] Client Connected! Total Active: %d | Free Heap: %u bytes\n",
+                      pServer->getConnectedCount(), (unsigned int)ESP.getFreeHeap());
+        if (bleActive && pServer->getConnectedCount() < NIMBLE_MAX_CONNECTIONS) {
+            NimBLEDevice::startAdvertising();
+        }
     }
     void onConnect(NimBLEServer* pServer, ble_gap_conn_desc* desc) override {
         bleConnected = true;
         lastActivityTime = millis();
         updateBatteryTelemetry();
-        Serial.printf("\n[BLE] Client Connected (desc)! Free Heap: %u bytes\n", (unsigned int)ESP.getFreeHeap());
+        char peerStr[24] = {0};
+        snprintf(peerStr, sizeof(peerStr), "%02X:%02X:%02X:%02X:%02X:%02X",
+                 desc->peer_id_addr.val[5], desc->peer_id_addr.val[4], desc->peer_id_addr.val[3],
+                 desc->peer_id_addr.val[2], desc->peer_id_addr.val[1], desc->peer_id_addr.val[0]);
+        Serial.printf("\n[BLE] Client Connected (desc)! Peer: %s | Total: %d | Free Heap: %u bytes\n",
+                      peerStr, pServer->getConnectedCount(), (unsigned int)ESP.getFreeHeap());
+        if (bleActive && pServer->getConnectedCount() < NIMBLE_MAX_CONNECTIONS) {
+            NimBLEDevice::startAdvertising();
+        }
     }
     void onDisconnect(NimBLEServer* pServer) override {
         bleConnected = false;
