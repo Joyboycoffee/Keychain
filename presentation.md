@@ -50,13 +50,13 @@ style: |
   }
 ---
 
-# ⚡ ESP32-C3 Cyber Keychain
+# ESP32-C3 Cyber Keychain
 ## The Complete Engineering & Coding Textbook
 ### From Basic Electronics to Advanced Embedded C++ & BLE
 
 ---
 
-# 📚 Table of Contents
+# Table of Contents
 
 1. **Electronics 101**: Digital vs Analog, PWM & The Classic LED Blink
 2. **C++ for Embedded Systems**: Headers, Macros, Types, Classes & DMA
@@ -77,12 +77,12 @@ style: |
 ---
 
 <!-- _class: lead -->
-# 🔌 Module 1: Electronics & Microcontrollers 101
+# Module 1: Electronics & Microcontrollers 101
 ### Digital vs Analog Pins, PWM & The Classic LED Blink
 
 ---
 
-# 💡 1. What is a Microcontroller (ESP32-C3)?
+# 1. What is a Microcontroller (ESP32-C3)?
 
 A microcontroller is a complete computer on a single chip containing:
 - **Processor Core (CPU)**: Executes code instructions one by one.
@@ -92,7 +92,7 @@ A microcontroller is a complete computer on a single chip containing:
 
 ---
 
-# ⚡ 2. Digital Pins: 0 or 1 (Nothing in Between)
+# 2. Digital Pins: 0 or 1 (Nothing in Between)
 
 Digital pins only understand two electrical states:
 
@@ -106,7 +106,7 @@ Digital pins only understand two electrical states:
 
 ---
 
-# 📈 3. Analog Pins: Reading Continuous Voltages
+# 3. Analog Pins: Reading Continuous Voltages
 
 * Digital pins only see ON/OFF. But real-world signals (like battery voltage) change smoothly from $0\text{V}$ to $3.3\text{V}$.
 * **ADC (Analog to Digital Converter)**: Converts a continuous voltage into a number between $0$ and $4095$ (on a 12-bit ADC).
@@ -117,7 +117,7 @@ Digital pins only understand two electrical states:
 
 ---
 
-# 🌊 4. PWM (Pulse Width Modulation): Faking Analog
+# 4. PWM (Pulse Width Modulation): Faking Analog
 
 Microcontrollers cannot output $1.5\text{V}$ natively. So how do we dim a screen backlight from $0\%$ to $100\%$?
 * **The PWM Secret**: We switch the pin `HIGH` and `LOW` thousands of times per second ($44,100\text{ Hz}$).
@@ -132,7 +132,7 @@ PWM 75%:  [------]__[------]__[------]__ (Bright)
 
 ---
 
-# 🚨 5. The Classic "Blink an LED" Explained Line-by-Line
+# 5. The Classic "Blink an LED" Explained Line-by-Line
 
 ```cpp
 #define LED_PIN 2 // Connect LED to GPIO 2
@@ -156,12 +156,12 @@ void loop() {
 ---
 
 <!-- _class: lead -->
-# 💻 Module 2: Embedded C++ Programming
+# Module 2: Embedded C++ Programming
 ### Headers, Macros, Types, Classes & DMA
 
 ---
 
-# 🏗️ 1. Headers & Preprocessor Directives
+# 1. Headers & Preprocessor Directives
 
 ```cpp
 #pragma once      // Tells the compiler: "Only include this file once" (prevents duplicate errors)
@@ -175,7 +175,7 @@ void loop() {
 
 ---
 
-# 🔢 2. Fixed-Width Integer Types
+# 2. Fixed-Width Integer Types
 
 In embedded systems, saving memory is critical. Standard `int` can be different sizes on different chips, so we use **fixed-width types**:
 
@@ -189,7 +189,7 @@ In embedded systems, saving memory is critical. Standard `int` can be different 
 
 ---
 
-# 📦 3. Classes and Object-Oriented Programming (OOP)
+# 3. Classes and Object-Oriented Programming (OOP)
 
 A **Class** is a cookie cutter; an **Object** is the actual cookie.
 
@@ -214,7 +214,7 @@ myEyes.update();  // Call its function!
 
 ---
 
-# 🚀 4. Direct Memory Access (DMA) & Double Buffering
+# 4. Direct Memory Access (DMA) & Double Buffering
 
 * **The Problem (Screen Tearing)**: If you draw directly to the LCD screen, human eyes see horizontal tearing lines because the screen is drawing while you are clearing pixels.
 * **The Solution (Double Buffering with a Sprite)**:
@@ -225,19 +225,19 @@ myEyes.update();  // Call its function!
 ---
 
 <!-- _class: lead -->
-# 📡 Module 3: Bluetooth Low Energy (BLE)
+# Module 3: Bluetooth Low Energy (BLE)
 ### GATT Architecture, Services & Characteristics
 
 ---
 
-# 📶 1. Classic Bluetooth vs Bluetooth Low Energy (BLE)
+# 1. Classic Bluetooth vs Bluetooth Low Energy (BLE)
 
 * **Classic Bluetooth (e.g. Headphones)**: Constantly streaming audio at 50–100mA. Drains small batteries in 2 hours.
 * **BLE (Bluetooth Low Energy)**: Designed for small bursts of data. Sleeps in microamps and wakes up in milliseconds when your phone pushes a command.
 
 ---
 
-# 🌳 2. The GATT Profile Architecture
+# 2. The GATT Profile Architecture
 
 BLE structures communication like a tree:
 
@@ -258,12 +258,12 @@ BLE structures communication like a tree:
 ---
 
 <!-- _class: lead -->
-# 🔍 Module 4: Codebase Line-by-Line Breakdown
+# Module 4: Codebase Line-by-Line Breakdown
 ### Every File, Every Function Explained
 
 ---
 
-# 📜 File 1: `config.h`
+# File 1: `config.h`
 
 ```cpp
 #pragma once
@@ -291,7 +291,7 @@ enum SystemMode {
 
 ---
 
-# 🎨 File 2: `display_setup.h`
+# File 2: `display_setup.h`
 
 Configures the **`LovyanGFX`** hardware driver:
 
@@ -310,7 +310,7 @@ _bus_instance.config(cfg);
 
 ---
 
-# 👀 File 3: `robot_eyes.h` — Procedural Animation
+# File 3: `robot_eyes.h` - Procedural Animation
 
 ```cpp
 // 1. Natural Gaze Tracking
@@ -334,7 +334,7 @@ canvas.fillRoundRect(rightEyeX - (eyeWidth/2), eyeY, eyeWidth, currentH, eyeRadi
 
 ---
 
-# 🐱 File 4: `pet_engine.h` — Mood State Machine
+# File 4: `pet_engine.h` - Mood State Machine
 
 ```cpp
 // Draw Cute CyberCat with Breathing Animation
@@ -359,7 +359,7 @@ void drawCyberCat(int cx, int cy) {
 
 ---
 
-# ⏱️ File 5: `cyber_hud.h` — Sci-Fi Telemetry
+# File 5: `cyber_hud.h` - Sci-Fi Telemetry
 
 ```cpp
 // 1. Format Time into HH:MM:SS string
@@ -380,7 +380,7 @@ for (int x = 20; x < 220; x += 2) {
 
 ---
 
-# 🌧️ File 6: `matrix_rain.h` — 60 FPS Digital Rain
+# File 6: `matrix_rain.h` - 60 FPS Digital Rain
 
 ```cpp
 for (int i = 0; i < MATRIX_COLS; i++) {
@@ -403,7 +403,7 @@ for (int i = 0; i < MATRIX_COLS; i++) {
 
 ---
 
-# 🧠 File 7: `main.cpp` — Gesture Engine & Sleep
+# File 7: `main.cpp` - Gesture Engine & Sleep
 
 ```cpp
 void processTouch() {
@@ -426,7 +426,7 @@ void processTouch() {
 
 ---
 
-# 📱 File 8: `web/index.html` — Web Bluetooth
+# File 8: `web/index.html` - Web Bluetooth
 
 ```javascript
 // Scan & Connect over Web Bluetooth
@@ -450,12 +450,12 @@ async function setMode(modeNum) {
 ---
 
 <!-- _class: lead -->
-# 🔌 Module 5: Minimalist Wiring Blueprint
+# Module 5: Minimalist Wiring Blueprint
 ### Zero Clutter • Exact Pin Connections
 
 ---
 
-# 🗺️ Master Pin-to-Pin Table
+# Master Pin-to-Pin Table
 
 | Component & Pin | Connects to ESP32 Pin | Purpose |
 | :--- | :--- | :--- |
@@ -471,7 +471,7 @@ async function setMode(modeNum) {
 
 ---
 
-# 🔋 Power & Battery Routing (1 Resistor Total)
+# Power & Battery Routing (1 Resistor Total)
 
 ```
   [USB-C Charger]
@@ -492,12 +492,12 @@ async function setMode(modeNum) {
 ---
 
 <!-- _class: lead -->
-# ❓ Module 6: The 32 Comprehensive FAQs
+# Module 6: The 32 Comprehensive FAQs
 ### Every Doubt Answered Completely
 
 ---
 
-# 🛠️ FAQs 1 – 8 (Soldering & Hardware)
+# FAQs 1 - 8 (Soldering & Hardware)
 
 1. **Can I build this without a custom PCB?** Yes, the green perfboard with wire bridges is standard and gives a retro cyberpunk aesthetic.
 2. **What wires should I use?** 30 AWG flexible silicone wire or enameled copper magnet wire.
@@ -510,7 +510,7 @@ async function setMode(modeNum) {
 
 ---
 
-# 🔋 FAQs 9 – 16 (Battery & Charging)
+# FAQs 9 - 16 (Battery & Charging)
 
 9. **Why MUST I change the resistor on the TP4056?** Default is 1000mA (too high for 200mAh). 4.7kΩ makes it safe at ~250mA.
 10. **Can I leave it charging overnight?** Yes, the TP4056 automatically cuts off current when the battery hits 4.20V.
@@ -523,7 +523,7 @@ async function setMode(modeNum) {
 
 ---
 
-# 💻 FAQs 17 – 24 (Code & PlatformIO)
+# FAQs 17 - 24 (Code & PlatformIO)
 
 17. **How do I upload with PlatformIO?** Open the folder in VS Code, connect USB, and click the Upload arrow icon.
 18. **What if upload fails?** Hold the `BOOT` button on SuperMini, plug in USB, click Upload, then release once flashing starts.
@@ -536,7 +536,7 @@ async function setMode(modeNum) {
 
 ---
 
-# 📶 FAQs 25 – 32 (Bluetooth & Web Remote)
+# FAQs 25 - 32 (Bluetooth & Web Remote)
 
 25. **Do I need internet for Web BLE?** No, you can save `index.html` on your phone storage and open it offline.
 26. **How do I use Web BLE on iPhone?** Use the free **Bluefy** app from the App Store (Safari blocks Web Bluetooth).
@@ -549,10 +549,10 @@ async function setMode(modeNum) {
 
 ---
 
-# 🚀 Ready to Build!
+# Ready to Build!
 
-* 📄 **Markdown Document**: `presentation.md`
-* 🖥️ **Interactive HTML Slides**: `presentation.html`
-* 📕 **Printable Document**: `presentation.pdf`
+* **Markdown Document**: `presentation.md`
+* **Interactive HTML Slides**: `presentation.html`
+* **Printable Document**: `presentation.pdf`
 
-**⚡ Happy Making & Hacking! ⚡**
+**Happy Making & Hacking!**

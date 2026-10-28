@@ -152,10 +152,10 @@ def execute_flash(port, flash_type="factory", baud=460800, log_callback=None, pr
 
     file_size_kb = target_file.stat().st_size / 1024.0
     log(f"\n=======================================================")
-    log(f"⚡ FLASHING TARGET: {name}")
-    log(f"📁 Binary: {target_file.name} ({file_size_kb:.1f} KB)")
-    log(f"🔌 Serial Port: {port} @ {baud} baud")
-    log(f"📍 Flash Offset: {offset}")
+    log(f"[+] FLASHING TARGET: {name}")
+    log(f"    Binary: {target_file.name} ({file_size_kb:.1f} KB)")
+    log(f"    Serial Port: {port} @ {baud} baud")
+    log(f"    Flash Offset: {offset}")
     log(f"=======================================================\n")
 
     cmd = [
@@ -200,16 +200,16 @@ def execute_flash(port, flash_type="factory", baud=460800, log_callback=None, pr
         if proc.returncode == 0:
             if progress_callback:
                 progress_callback(100)
-            log("\n✅ SUCCESS: Flashing finished with zero errors!")
-            log("🚀 ESP32-C3 reset triggered. Device is now running Spearhead OS v5.0!\n")
+            log("\n[OK] SUCCESS: Flashing finished with zero errors!")
+            log("ESP32-C3 reset triggered. Device is now running Spearhead OS v5.0!\n")
             return True
         else:
-            log(f"\n❌ ERROR: esptool exited with error code {proc.returncode}")
-            log("💡 Tip: If connection timed out, hold the BOOT button while plugging in the USB cable.\n")
+            log(f"\n[!] ERROR: esptool exited with error code {proc.returncode}")
+            log("Tip: If connection timed out, hold the BOOT button while plugging in the USB cable.\n")
             return False
 
     except Exception as e:
-        log(f"\n❌ FATAL ERROR: {e}\n")
+        log(f"\n[!] FATAL ERROR: {e}\n")
         return False
 
 
@@ -331,7 +331,7 @@ def run_gui():
 
     title_label = tk.Label(
         header_frame,
-        text="⚡ SPEARHEAD // FIRMWARE FLASHER",
+        text="SPEARHEAD // FIRMWARE FLASHER",
         font=("Segoe UI", 16, "bold"),
         fg=COLOR_ACCENT,
         bg=COLOR_BG
@@ -368,7 +368,7 @@ def run_gui():
 
     btn_rescan = tk.Button(
         port_controls,
-        text="🔄 Rescan Ports",
+        text="Rescan Ports",
         font=("Segoe UI", 9, "bold"),
         bg="#1E293B",
         fg=COLOR_TEXT,
@@ -450,7 +450,7 @@ def run_gui():
 
     chk_auto = tk.Checkbutton(
         sub_row,
-        text="⚡ Auto-Flash immediately when ESP is plugged in",
+        text="Auto-Flash immediately when ESP is plugged in",
         variable=auto_flash_var,
         bg=COLOR_CARD,
         fg=COLOR_TEXT,
@@ -467,7 +467,7 @@ def run_gui():
 
     btn_flash = tk.Button(
         action_frame,
-        text="⚡ FLASH FIRMWARE NOW",
+        text="FLASH FIRMWARE NOW",
         font=("Segoe UI", 12, "bold"),
         bg=COLOR_ACCENT,
         fg="#050811",
@@ -608,7 +608,7 @@ def run_gui():
         port = sel.split(" ")[0].strip()
 
         is_flashing = True
-        btn_flash.config(state=tk.DISABLED, text="⏳ FLASHING IN PROGRESS...", bg="#334155")
+        btn_flash.config(state=tk.DISABLED, text="FLASHING IN PROGRESS...", bg="#334155")
         btn_rescan.config(state=tk.DISABLED)
         prog_bar["value"] = 0
         lbl_pct.config(text="Connecting to ESP32 ROM bootloader...", fg=COLOR_CYAN)
@@ -634,13 +634,13 @@ def run_gui():
         threading.Thread(target=worker, daemon=True).start()
 
     def on_flash_complete(success):
-        btn_flash.config(state=tk.NORMAL, text="⚡ FLASH FIRMWARE NOW", bg=COLOR_ACCENT)
+        btn_flash.config(state=tk.NORMAL, text="FLASH FIRMWARE NOW", bg=COLOR_ACCENT)
         btn_rescan.config(state=tk.NORMAL)
         if success:
-            lbl_pct.config(text="✅ Flash Completed Successfully! Device rebooted.", fg=COLOR_ACCENT)
+            lbl_pct.config(text="Flash Completed Successfully! Device rebooted.", fg=COLOR_ACCENT)
             messagebox.showinfo("Flash Success", "Firmware was flashed successfully!\n\nYour ESP32-C3 is now running Spearhead OS.")
         else:
-            lbl_pct.config(text="❌ Flash Failed. Check terminal output for details.", fg=COLOR_DANGER)
+            lbl_pct.config(text="Flash Failed. Check terminal output for details.", fg=COLOR_DANGER)
             messagebox.showerror("Flash Failed", "Flashing failed.\n\nPlease check the terminal log and ensure the port is not open in another serial monitor.")
 
     # Initial Scan

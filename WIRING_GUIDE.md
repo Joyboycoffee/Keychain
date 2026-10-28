@@ -50,42 +50,42 @@ style: |
   }
 ---
 
-# ⚡ ESP32-C3 Cyber Keychain
+# ESP32-C3 Cyber Keychain
 ## Master Circuit & Hardware Wiring Manual
 ### Visual Diagrams • Zero-Clutter Routing • Step-by-Step Soldering
 
 ---
 
-# 🗺️ Complete Visual Circuit Blueprint
+# Complete Visual Circuit Blueprint
 
 ![w:1050 h:560](assets/wiring_schematic.svg)
 
 ---
 
-# 📋 Pin-by-Pin Master Connection Chart
+# Pin-by-Pin Master Connection Chart
 
 | Module & Pin | Connects to ESP32 Pin | Wire Color | Electrical Function & Signal |
 | :--- | :--- | :---: | :--- |
-| **Display GND** | ESP32 `GND` | ⚫ Black | Screen Power Ground |
-| **Display VCC** | ESP32 `3.3V` | 🔴 Red | 3.3V Regulated Power Rail |
-| **Display SCL** | ESP32 `GPIO 8` | 🟡 Yellow | Hardware SPI Clock (SCK @ 40MHz) |
-| **Display SDA** | ESP32 `GPIO 10` | 🟢 Green | Hardware SPI Data (MOSI) |
-| **Display RES** | ESP32 `GPIO 5` | 🔵 Blue | Screen Hardware Reset Signal |
-| **Display DC** | ESP32 `GPIO 3` | 🟣 Purple | Data (High) / Command (Low) Select |
-| **Display BLK** | ESP32 `GPIO 2` | ⚪ White | Backlight PWM Dimming (0–255) |
-| **Touch VCC** | ESP32 `3.3V` | 🔴 Red | Touch Sensor 3.3V Power |
-| **Touch GND** | ESP32 `GND` | ⚫ Black | Touch Sensor Ground |
-| **Touch I/O** | ESP32 `GPIO 1` | 🟠 Orange | Deep Sleep RTC Wakeup Interrupt |
+| **Display GND** | ESP32 `GND` | Black | Screen Power Ground |
+| **Display VCC** | ESP32 `3.3V` | Red | 3.3V Regulated Power Rail |
+| **Display SCL** | ESP32 `GPIO 8` | Yellow | Hardware SPI Clock (SCK @ 40MHz) |
+| **Display SDA** | ESP32 `GPIO 10` | Green | Hardware SPI Data (MOSI) |
+| **Display RES** | ESP32 `GPIO 5` | Blue | Screen Hardware Reset Signal |
+| **Display DC** | ESP32 `GPIO 3` | Purple | Data (High) / Command (Low) Select |
+| **Display BLK** | ESP32 `GPIO 2` | White | Backlight PWM Dimming (0–255) |
+| **Touch VCC** | ESP32 `3.3V` | Red | Touch Sensor 3.3V Power |
+| **Touch GND** | ESP32 `GND` | Black | Touch Sensor Ground |
+| **Touch I/O** | ESP32 `GPIO 1` | Orange | Deep Sleep RTC Wakeup Interrupt |
 
 ---
 
-# 🔧 The TP4056 Resistor Mod (Illustrated)
+# The TP4056 Resistor Mod (Illustrated)
 
 ![w:950 h:500](assets/tp4056_mod.svg)
 
 ---
 
-# 🔋 Power, Charging & Switch Flow Explained
+# Power, Charging & Switch Flow Explained
 
 ### How the Single USB-C Port Powers & Charges Everything:
 
@@ -101,13 +101,13 @@ style: |
 
 ---
 
-# 🥪 Physical Perfboard Sandwich Assembly
+# Physical Perfboard Sandwich Assembly
 
 ![w:1020 h:530](assets/sandwich_layout.svg)
 
 ---
 
-# 🛠️ Step-by-Step Soldering Sequence (1 to 10)
+# Step-by-Step Soldering Sequence (1 to 10)
 
 Follow this order to prevent damaging heat-sensitive parts:
 
@@ -124,7 +124,7 @@ Follow this order to prevent damaging heat-sensitive parts:
 
 ---
 
-# 🧪 Pre-Power Safety Verification Checklist
+# Pre-Power Safety Verification Checklist
 
 Before sliding the switch to "ON", check these with a Multimeter (Continuity Mode):
 
@@ -136,7 +136,7 @@ Before sliding the switch to "ON", check these with a Multimeter (Continuity Mod
 
 ---
 
-# 🔍 Troubleshooting Matrix
+# Troubleshooting Matrix
 
 | Symptom | Probable Cause | Exact Fix |
 | :--- | :--- | :--- |
@@ -148,10 +148,10 @@ Before sliding the switch to "ON", check these with a Multimeter (Continuity Mod
 
 ---
 
-# 🚀 Your Wiring is 100% Complete!
+# Your Wiring is Complete
 
-* 📕 **Printable Circuit PDF**: `wiring_guide.pdf`
-* 🖥️ **Interactive Circuit Slides**: `wiring_guide.html`
-* 🗺️ **High-Res Vector Diagrams**: Inside `assets/` directory
+* **Printable Circuit PDF**: `wiring_guide.pdf`
+* **Interactive Circuit Slides**: `wiring_guide.html`
+* **High-Res Vector Diagrams**: Inside `assets/` directory
 
-**⚡ Happy Building & Soldering! ⚡**
+**Happy Building & Soldering!**
